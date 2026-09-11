@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import gc
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -274,6 +276,8 @@ class GPTQMarlinMoEKernel:
             self.quant_config.weight_bits,
         )
         replace_parameter(layer, "w13_qweight", marlin_w13_qweight)
+        gc.collect()
+        torch.cuda.empty_cache()
         marlin_w2_qweight = gptq_marlin_moe_repack(
             layer.w2_qweight,
             layer.w2_g_idx_sort_indices,
@@ -282,10 +286,17 @@ class GPTQMarlinMoEKernel:
             self.quant_config.weight_bits,
         )
         replace_parameter(layer, "w2_qweight", marlin_w2_qweight)
+        gc.collect()
+        torch.cuda.empty_cache()
         # Repack scales
         marlin_w13_scales = marlin_moe_permute_scales(
             s=layer.w13_scales,
-            size_k=layer.intermediate_size_per_partition,
+            size_k=layer.w13_scales.shape[1]
+            * (
+                self.quant_config.group_size
+                if self.quant_config.group_size != -1
+                else self.quant_config.pack_factor
+            ),
             size_n=layer.w13_scales.shape[2],
             group_size=self.quant_config.group_size,
         )
@@ -302,6 +313,8 @@ class GPTQMarlinMoEKernel:
             group_size=self.quant_config.group_size,
         )
         replace_parameter(layer, "w2_scales", marlin_w2_scales)
+        gc.collect()
+        torch.cuda.empty_cache()
 
     def create_moe_runner(
         self, layer: torch.nn.Module, moe_runner_config: MoeRunnerConfig

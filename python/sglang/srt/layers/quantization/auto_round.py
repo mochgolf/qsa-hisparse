@@ -521,6 +521,15 @@ class AutoRoundConfig(QuantizationConfig):
                 use_marlin = use_marlin and check_moe_marlin_supports_layer(
                     layer, group_size
                 )
+                # Qwen3.8 experts use g128, but TP2 splits their K=640 down
+                # projection at 320, which cannot preserve whole g128 groups.
+                # Reading the same symmetric groups as two identical g64
+                # groups keeps dequantization exact and unlocks Marlin.
+                if not use_marlin and group_size == 128:
+                    if check_moe_marlin_supports_layer(layer, 64):
+                        use_marlin = True
+                        group_size = 64
+                        layer._marlin_g64_expand_scales = True
         else:
             use_marlin = False
         if use_marlin:

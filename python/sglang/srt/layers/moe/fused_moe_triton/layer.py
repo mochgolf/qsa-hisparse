@@ -476,7 +476,7 @@ class FusedMoE(torch.nn.Module):
         global _deferred_finalize_info_logged
         if not _deferred_finalize_info_logged:
             _deferred_finalize_info_logged = True
-            logging.getLogger(__name__).debug(
+            logging.getLogger(__name__).info(
                 "FlashInfer TRTLLM MoE deferred finalize is "
                 f"{'enabled' if self.supports_deferred_finalize else 'disabled'} "
                 f"(moe_runner_backend={get_exec().moe.moe_runner_backend}, "
@@ -1000,6 +1000,11 @@ class FusedMoE(torch.nn.Module):
                 dim2 = loaded_weight.shape[2]
                 param.data[:, :dim1, :dim2].copy_(loaded_weight)
             return
+
+        if getattr(self, "_marlin_g64_expand_scales", False) and (
+            weight_name.endswith("_scales") or weight_name.endswith("_qzeros")
+        ):
+            loaded_weight = loaded_weight.repeat_interleave(2, dim=0)
 
         global_expert_location_metadata = get_global_expert_location_metadata()
         if global_expert_location_metadata is None:
