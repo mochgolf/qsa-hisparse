@@ -57,10 +57,10 @@ class TestQSAHiSparseP2(unittest.TestCase):
 
         backend._store_kv.assert_called_once_with(layer, loc, k, v)
 
-    def test_ragged_fa2_fast_path_is_b1_offload_graph_only(self):
+    def test_ragged_fa2_fast_path_is_p2_offload_graph_only(self):
         backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
-        backend._fa2_b1_wrapper = object()
-        backend._fa2_b1_shape = (torch.bfloat16, 1, 256)
+        backend._fa2_graph_wrappers = {1: object(), 8: object()}
+        backend._fa2_graph_shape = (torch.bfloat16, 1, 256)
         backend.token_to_kv_pool = SimpleNamespace(
             qsa_token_topk=2048, qsa_compress_ratio=4
         )
@@ -79,10 +79,15 @@ class TestQSAHiSparseP2(unittest.TestCase):
         layer = SimpleNamespace(scaling=1.0 / 16.0)
 
         self.assertTrue(
-            backend._can_run_fa2_b1(q, k, layer, forward_batch, metadata, 2051)
+            backend._can_run_fa2_graph(q, k, layer, forward_batch, metadata, 2051)
+        )
+        self.assertTrue(
+            backend._can_run_fa2_graph(
+                q.expand(8, -1, -1), k, layer, forward_batch, metadata, 2051
+            )
         )
         self.assertFalse(
-            backend._can_run_fa2_b1(
+            backend._can_run_fa2_graph(
                 q.expand(2, -1, -1), k, layer, forward_batch, metadata, 2051
             )
         )
