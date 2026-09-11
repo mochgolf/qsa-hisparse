@@ -16,17 +16,17 @@ tags:
 
 稀疏注意力减少了每步真正读取的 KV，却不会自动减少必须保留的完整 KV 历史。对长上下文服务来说，这个差别决定了系统究竟是算力受限，还是先撞上显存容量墙。
 
-这次工作的目标很具体：在一台双 RTX 4090 48GB 服务器上，把 SGLang 的 HiSparse 思路移植到 Qwen Sparse Attention（QSA），让同一个 TP2 实例能够承载 **8 条 256K 级长上下文请求**，同时保住可接受的 decode 性能和完整的请求生命周期。
+目标是在一台双 RTX 4090 48GB 服务器上，把 SGLang 的 HiSparse 思路移植到 Qwen Sparse Attention（QSA），让同一个 TP2 实例能够承载 **8 条 256K 级长上下文请求**，同时保住可接受的 decode 性能和完整的请求生命周期。
 
-最终我们完成了以下五项主要工作：
+改动和验证集中在五件事上：
 
 1. 从真实 QSA decode 轨迹测出 12 个稀疏层的时间局部性，用 CPU 回放选择了 4× 热缓存，并证明 64-token 整页搬运在同等预算下过粗。
 2. 将“完整逻辑历史”与“GPU 物理驻留”解耦：索引和 GDN 状态留在 GPU，完整 raw K/V 放入 NUMA 本地的 pinned host memory，GPU 只保留一个共享 prefill 暂存区和每个 decode 请求的固定热工作集。
-3. 打通 B1/B2 eager 与 B1–B8 Full CUDA Graph 路径，补齐 lease、generation、尾部 C4、取消、复用和释放协议。
-4. 通过 NSYS 和受控 A/B 找到并修复三类真正影响端到端结果的问题：多次 unpack launch、QSA eager/graph 的 score width 不一致，以及 TP2 下 AutoRound Marlin 被错误回退到 Triton。
+3. 覆盖 B1/B2 eager 与 B1–B8 Full CUDA Graph 路径，补齐 lease、generation、尾部 C4、取消、复用和释放协议。
+4. 通过 NSYS 和受控 A/B 找到并修复三类影响端到端结果的问题：多次 unpack launch、QSA eager/graph 的 score width 不一致，以及 TP2 下 AutoRound Marlin 被错误回退到 Triton。
 5. 在最新上游基线上完成 8×256K 压测和部署验证。8 条请求全部完成 261,120-token prefill、1,022-token decode 和资源释放；最终源码还通过了 19-token 短请求与 2,048-token 边界请求。
 
-先给出最容易被误读的结果：
+先把结果和适用范围放在一起：
 
 | 结果 | 测得数值 | 结论边界 |
 | --- | ---: | --- |
@@ -59,7 +59,7 @@ tags:
 
 我们的实现保留一个 262,144-token GPU raw staging arena，供单个 prefill owner 使用；handoff 后，完整 C4 raw K/V 进入每请求 1.5 GiB/rank 的 host slab。每个 decode lease 在 GPU 上只保留每层 2,048 个 C4 block，加上 page padding 和五行 tail ring。八请求的核心热 KV 是 384 MiB/rank；按实际实现计入每层 64 个 padding block 后为 396 MiB/rank，而不是 12 GiB/rank。
 
-进程仍常驻一个约 1.5 GiB/rank 的共享 prefill arena，所以实际 raw-KV 相关保留约为“1.5 GiB 共享 staging + 0.387 GiB B8 热缓存”，不能宣称只剩热缓存。完整 index 约 1.5 GiB/rank、GDN 池约 2.2 GiB/rank 也不会被 offload。这项工作的价值是解除 raw KV 随并发线性增长的部分，而不是把整个模型状态搬到 CPU。
+进程仍常驻一个约 1.5 GiB/rank 的共享 prefill arena，所以实际 raw-KV 相关保留约为“1.5 GiB 共享 staging + 0.387 GiB B8 热缓存”，不能宣称只剩热缓存。完整 index 约 1.5 GiB/rank、GDN 池约 2.2 GiB/rank 也不会被 offload。这次移植只解除了 raw KV 随并发线性增长的部分，并没有把整个模型状态搬到 CPU。
 
 ## 实验设备与服务配置
 
@@ -96,9 +96,7 @@ tags:
 
 ![12 个 QSA 层的相邻步 block 保留率](assets/layer-retention.svg)
 
-这个实验给了两个直接结论。
-
-第一，QSA 确实有足够的时间局部性，固定热缓存有意义。第二，跨层行为不一致，不能假设一个层的 selection 能为后续层直接预取。我们需要每层独立的 hot map 和 LRU 状态，并把剩余 H2D 成本留在真实 profile 中检验。
+QSA 有足够的时间局部性，固定热缓存有意义；但各层行为并不一致，一个层的 selection 不能直接用于后续层预取。因此每层都需要独立的 hot map 和 LRU 状态，剩余 H2D 成本则要交给真实 profile 检验。
 
 随后在同一条轨迹上做五档 CPU LRU 回放。缓存大小按每层 selection 的 1×、2×、3×、4×、8× 定义，首步 selection 预装，所有档位使用完全相同的 766 个后续 step。
 
@@ -112,9 +110,9 @@ tags:
 | 4×，2,048 C4 | 7.107% | 0.853 MiB | 1.735 MiB |
 | 8×，4,096 C4 | 2.414% | 0.290 MiB | 0.714 MiB |
 
-4× 比 2× 每请求每卡多 24 MiB 热 KV，却把平均 miss 需求再降低约 57%，因此成为首个实现点。这个回放只把 miss 换算为字节，不是 PCIe 实测。
+4× 比 2× 每请求每卡多 24 MiB 热 KV，却把平均 miss 需求再降低约 57%，所以第一版采用 4× 缓存。这个回放只把 miss 换算为字节，不是 PCIe 实测。
 
-另一个重要结果是：不能直接以现有 64-token page 为搬运单位。4× 预算每层只能容纳 128 个完整 page，而真实一步的 selected set 平均跨越约 168 个 page，部分 step 达到 278。逻辑分配仍可保持 page 64，但 host/device 数据搬运必须下沉到 C4 block 粒度。
+现有 64-token page 不能直接作为搬运单位。4× 预算每层只能容纳 128 个完整 page，而真实一步的 selected set 平均跨越约 168 个 page，部分 step 达到 278。逻辑分配仍可保持 page 64，但 host/device 数据搬运必须下沉到 C4 block 粒度。
 
 ## 原理与核心设计：把“能寻址”与“正在驻留”分开
 
@@ -140,13 +138,13 @@ decode 的 newest K/V 必须在同一步 selection 中可见；闭合 C4 后又�
 
 ### 4. 固定地址的 B1–B8 CUDA Graph
 
-Full CUDA Graph 要求 capture 与 replay 使用稳定地址。实现为 B1 到 B8 预分配 graph metadata、compact table、gather、unpack、miss plan 和 per-layer hot buffers；运行时只更新有效 row 和 sequence length。batch row 是本次 forward 的顺序，不是 lease identity，所有物理访问都要先通过 row-to-lease 映射。
+Full CUDA Graph 要求 capture 与 replay 使用稳定地址。我们为 B1 到 B8 预分配 graph metadata、compact table、gather、unpack、miss plan 和 per-layer hot buffers；运行时只更新有效 row 和 sequence length。batch row 是本次 forward 的顺序，不是 lease identity，所有物理访问都要先通过 row-to-lease 映射。
 
-这条路径最终覆盖了实际 B4/B3/B2/B1 转换、取消和 replacement prefill，以及 B8 服务中的 graph batch 1–8。
+实测覆盖了 B4/B3/B2/B1 转换、取消和 replacement prefill，以及 B8 服务中的 graph batch 1–8。
 
 ## 从组件正确到生产：P0–P5 只解决必要问题
 
-完整实验分为组件、单请求、并发、graph、调度和最终回归几个阶段。下面只保留改变设计决策的结果。
+组件、单请求、并发、graph、调度和最终回归都跑过；下表只保留改变设计决策的结果。
 
 | 阶段 | 关键结果 | 对实现的影响 |
 | --- | --- | --- |
@@ -159,7 +157,7 @@ Full CUDA Graph 要求 capture 与 replay 使用稳定地址。实现为 B1 到 
 | P4 | 发现 eager/full graph 同 selected set、不同顺序导致输出分歧 | 对齐 score width，建立新的精确 oracle |
 | P5 | B4 功能、在线 arrival、256K/768 最终回归通过；随后扩到 B8 | 进入生产配置和最新上游重放 |
 
-这条过程里有几项优化被有意撤回。P1b 的 mapping 改动只观察到 0.428 ms 中位收益，低于预先设定的 0.460 ms 噪声门槛；metadata sync 虽把每步额外 stream synchronize 从五次降为零，端到端反而只变化 0.012 ms；两者都没有进入最终性能结论。保留这种失败证据，比把每个正方向数字都写成加速更重要。
+有几项优化后来撤回了。P1b 的 mapping 改动只观察到 0.428 ms 中位收益，低于预先设定的 0.460 ms 噪声门槛；metadata sync 虽把每步额外 stream synchronize 从五次降为零，端到端反而只变化 0.012 ms；两者都没有进入最终性能结论。保留这种失败证据，比把每个正方向数字都写成加速更重要。
 
 ## 内核 profile 与优化
 
@@ -190,14 +188,14 @@ NSYS 给出的反直觉结果是：close 的 GPU busy 反而略少，增加的�
 
 图中是 TP0 相邻的 step 74/75，所有竖条的位置和持续时间都来自 NSYS activity。close step 多出 12 次、每次 2 KiB 的 copy-stream D2H；这一对样本的 GPU busy 少了 0.011 ms，envelope 内 idle 却多了 1.090 ms，与全体 close/non-close 样本的结论一致。
 
-event 复用只带来 0.0348 ms 的保守 P95 改善，小于同窗口 0.0471 ms 的 baseline 漂移。真正有效的改动是把每层 8 次 K/V copy launch 改成一次预索引的 indexed unpack：
+event 复用只带来 0.0348 ms 的保守 P95 改善，小于同窗口 0.0471 ms 的 baseline 漂移。超过噪声门槛的改动，是把每层 8 次 K/V copy launch 改成一次预索引的 indexed unpack：
 
 - B1 P95：2.5137 → 1.7836 ms；
 - 相对更快一侧 baseline，保守减少 0.7651 ms；
 - B1 以 0.6440 ms 裕量通过原组件预算；
 - 独立实际 K/V oracle 逐字节覆盖约 2.57 GB 数据。
 
-这也是本文所称 fused-unpack 的准确含义：把一次逻辑 unpack 中的八个小 copy 合并为一次 index_select。它不是另一个复杂自定义 CUDA kernel。
+本文所称 fused-unpack，就是把一次逻辑 unpack 中的八个小 copy 合并为一次 index_select，没有引入复杂的自定义 CUDA kernel。
 
 ### 一次误导性的 38.8 tok/s：deterministic path
 
@@ -240,7 +238,7 @@ native-math 对照仍测到候选版约 1.045 ms/profile cycle 的差距，其�
 - steady B4 decode：212.614 → 212.358 tok/s aggregate，基本不变；
 - 平均 prefill：6,570 → 6,251 tok/s，下降 4.86%。
 
-这项结果直接支持部署配置选择 2,048。它用少量 prefill 吞吐换取更短的 decode 停顿，没有新增 scheduler 代码。更彻底的方案是 PD 分离，让 prefill 实例把 KV 直接送入 decode host pool；这属于下一阶段，不在本次 colocated 部署的结论内。
+部署配置因此选择 2,048：用少量 prefill 吞吐换取更短的 decode 停顿，而且不需要新增 scheduler 代码。更彻底的方案是 PD 分离，让 prefill 实例把 KV 直接送入 decode host pool；这属于下一阶段，不在本次 colocated 部署的结论内。
 
 ## 生产性能测试
 
@@ -338,24 +336,22 @@ python3 -m sglang.launch_server \
   --cuda-graph-bs-decode 1 2 3 4 5 6 7 8
 ```
 
-## 这次移植真正贡献了什么
+## 这次移植改了哪些地方
 
-这项工作并不是给现有 HiSparse 增加一个模型名称。QSA 的 C4 语义、独立分层 selection、FP8 GQA raw K/V、完整 index 以及 hybrid GDN 状态，要求重新定义物理存储和 decode 接口。
+QSA 的 C4 语义、独立分层 selection、FP8 GQA raw K/V、完整 index 以及 hybrid GDN 状态，都要求重新定义物理存储和 decode 接口。
 
-主要贡献可以归纳为：
-
-1. **基于真实轨迹选择缓存结构。** 先测层级局部性和 C4/page 粒度，再决定 4× 热缓存，避免从论文硬件和模型直接抄参数。
-2. **建立可释放、可复用的请求所有权协议。** logical pages、prefill staging、host slab、hot cache、tail ring、Mamba row 和 graph row 各自有明确 owner；generation 防止取消后的迟到 callback 污染新请求。
-3. **让真实 QSA storage path 进入 B1–B8 Full CUDA Graph。** 包括动态 row mapping、newest-token 可见性、C4 close 写回、host refetch 和 ragged FA2。
-4. **用 profile 否定错误直觉。** close tail 的主因是 launch/idle gap，不是 24 KiB payload；额外 synchronize 能删除，却不一定带来服务加速；0.43 ms 的正方向变化也可能仍处于噪声。
-5. **同时处理系统边界上的性能与数值问题。** score width 影响确定性 top-k 顺序，TP2 quantization shape 影响 Marlin backend；两者都不属于“HiSparse kernel”本身，却能决定最终输出和 tok/s。
-6. **形成可重放的上游 patch series。** 13 个提交覆盖 QSA lifecycle、prefill 写入、graph fast path、Marlin g64 恢复和短 prompt，基于固定 upstream commit，可独立审查。
+1. 缓存结构来自真实轨迹：先测层级局部性和 C4/page 粒度，再决定 4× 热缓存，避免从论文硬件和模型直接抄参数。
+2. 请求所有权可释放、可复用：logical pages、prefill staging、host slab、hot cache、tail ring、Mamba row 和 graph row 各自有明确 owner；generation 防止取消后的迟到 callback 污染新请求。
+3. 真实 QSA storage path 进入 B1–B8 Full CUDA Graph，包括动态 row mapping、newest-token 可见性、C4 close 写回、host refetch 和 ragged FA2。
+4. Profile 排除了错误直觉：close tail 的主因是 launch/idle gap，不是 24 KiB payload；额外 synchronize 能删除，却不一定带来服务加速；0.43 ms 的正方向变化也可能仍处于噪声。
+5. 系统边界的性能和数值问题也纳入验证：score width 影响确定性 top-k 顺序，TP2 quantization shape 影响 Marlin backend；两者都不属于“HiSparse kernel”本身，却能决定最终输出和 tok/s。
+6. 上游 patch series 可以重放：13 个提交覆盖 QSA lifecycle、prefill 写入、graph fast path、Marlin g64 恢复和短 prompt，基于固定 upstream commit，可独立审查。
 
 ## 结论与限制
 
 在这台双 RTX 4090 48GB 服务器上，QSA HiSparse 已经把 8×256K 从显存算术变成了真实服务路径：请求可以准入、完成 prefill、进入 B1–B8 graph decode、结束并释放所有资源。短上下文 ragged FA2 还让 B1/B2/B8 的 aggregate decode 分别提升 24.05%、21.33% 和 15.99%；38K B1 在修复 Marlin 后恢复到 86.37 tok/s。
 
-当前系统仍有清晰边界：
+当前系统还有这些边界：
 
 - 只支持一个 GPU prefill owner；多请求会串行或交错 prefill；
 - 长上下文 B8 只有一次短公共窗口的 scaling 观测，没有固定 P95/P99 SLO；
@@ -363,6 +359,6 @@ python3 -m sglang.launch_server \
 - 没有验证 MTP、prefix/radix sharing 或通用 PD 部署；
 - 结果绑定这台机器的 PCIe、NUMA、模型量化和 SGLang revision，不能直接外推到其他 4090 48GB 改卡。
 
-因此最准确的结论是：**8×256K decode 容量已验证，colocated 多 prefill 和可移植 SLO 尚未验证。**
+当前能确认的是：**8×256K decode 容量已验证，colocated 多 prefill 和可移植 SLO 尚未验证。**
 
 项目代码、13 个补丁、实验驱动和精简结果已发布在 [mochgolf/qsa-hisparse](https://github.com/mochgolf/qsa-hisparse)，对应 SGLang 分支为 [mochgolf/sglang:qwen38-hisparse-upstream-latest-20260911](https://github.com/mochgolf/sglang/tree/qwen38-hisparse-upstream-latest-20260911)。可从[部署收益评估](../design/deployment-assessment.md)、[V4 profile](../results/v4-profile.md)、[B1–B8 fast path](../results/b1-b8-fastpath.md)、[最新上游 scaling](../results/latest-upstream-scaling.md)和[Marlin 修复](../results/marlin-g64-recovery.md)继续复核。
