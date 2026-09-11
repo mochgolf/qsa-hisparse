@@ -277,6 +277,12 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = Tr
             req.kv.mamba_pool_idx = None
         return
 
+    qsa_hisparse = getattr(
+        tree_cache.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse_v3", None
+    )
+    if qsa_hisparse is not None:
+        qsa_lease = qsa_hisparse.release(req.kv.req_pool_idx, req.rid)
+
     effective_kv_committed_len = req.effective_kv_committed_len()
     tree_cache.cache_finished_req(
         req,
@@ -305,6 +311,8 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = Tr
     # c4/c128 state pages; other ReqToTokenPool subclasses are a no-op here.
     tree_cache.req_to_token_pool.free(req)
     req.kv.mark_kv_released()
+    if qsa_hisparse is not None:
+        qsa_hisparse.after_release(qsa_lease)
 
 
 def _release_overallocated_kv_indices(

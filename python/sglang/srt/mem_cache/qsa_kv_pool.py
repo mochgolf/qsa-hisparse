@@ -55,6 +55,7 @@ class QSATokenToKVPool(HybridLinearKVPool):
         full_kv_pool_class: Optional[type] = None,
         quant_method=None,
         post_capture_active: bool = False,
+        full_kv_pool=None,
     ):
         if page_size <= 1 or page_size % qsa_compress_ratio != 0:
             raise ValueError(
@@ -86,6 +87,7 @@ class QSATokenToKVPool(HybridLinearKVPool):
             full_kv_pool_class=full_kv_pool_class,
             quant_method=quant_method,
             post_capture_active=post_capture_active,
+            full_kv_pool=full_kv_pool,
         )
         if (
             min(

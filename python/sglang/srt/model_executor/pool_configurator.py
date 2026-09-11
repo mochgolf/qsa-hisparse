@@ -14,6 +14,7 @@ Two entry points, same core computation:
 from __future__ import annotations
 
 import logging
+import os
 from bisect import bisect_right
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
@@ -198,11 +199,12 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
     """Configurator for standard models: MHA, MLA, DSA, FP4.
 
     coeff = cell_size (bytes per token across all layers)
-    bias = 0
+    bias = 0, except for QSA P2 offload's fixed raw staging pool
     """
 
     def __init__(self, kvc: KVCacheConfigurator):
         self.kv_cache_dtype_str = kvc.kv_cache_dtype_str
+        self._bias = 0
         # Determine effective number of layers for KV cache
         if mambaish := mambaish_config(kvc.model_config):
             effective_layer_ids = [
@@ -291,6 +293,57 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
                     * get_parallel().attn_dcp_size,
                     draft_cell_size_per_token=_dflash_draft_cell_size(kvc) or None,
                 )
+
+        if os.environ.get("SGLANG_QSA_HISPARSE_V3") == "p2-offload":
+            from sglang.srt.layers.attention.qsa.config import (
+                QSA_VARIANT_COMPRESSED,
+                parse_qsa_profile,
+            )
+            from sglang.srt.mem_cache.qsa_hisparse_slots import QSAHiSparseSlots
+            from sglang.srt.mem_cache.qsa_kv_pool import QSATokenToKVPool
+
+            schedule = get_schedule()
+            max_requests = schedule.max_running_requests
+            profile = parse_qsa_profile(kvc.model_config.hf_text_config)
+            if (
+                profile is None
+                or profile.variant != QSA_VARIANT_COMPRESSED
+                or max_requests not in (2, 4, 8)
+                or schedule.max_total_tokens != max_requests * 262144
+                or schedule.page_size != 64
+                or not kvc.spec_algorithm.is_none()
+                or kvc.is_draft_worker
+            ):
+                raise ValueError("QSA P2 offload requires its bounded logical capacity")
+            qsa_cell_size = self._compute_qsa_cell_size(
+                hf_config=kvc.model_config.hf_text_config, num_layers=num_layers
+            )
+            raw_cell_size = self._cell_size - qsa_cell_size
+            if raw_cell_size <= 0 or qsa_cell_size <= 0:
+                raise ValueError(
+                    "QSA P2 offload requires raw and compressed KV storage"
+                )
+            slots = QSAHiSparseSlots(262144, 64, max_requests)
+            ring_slots = max_requests * profile.compress_ratio
+            ring_bytes = ring_slots * (
+                profile.kv_heads
+                * profile.head_dim
+                * QSATokenToKVPool.index_state_dtype.itemsize
+                * num_layers
+                + 3 * torch.int64.itemsize
+            )
+            self._bias = (
+                raw_cell_size * (slots.raw_pool_size + 64)
+                + qsa_cell_size * 64
+                + ring_bytes
+            )
+            self._cell_size = qsa_cell_size
+            logger.info(
+                "QSA P2 offload pool budget: fixed_bytes=%d, "
+                "logical_bytes_per_token=%d",
+                self._bias,
+                self._cell_size,
+            )
 
     def _compute_cell_size(self, kvc: KVCacheConfigurator, num_layers: int) -> int:
         """Compute per-token KV cache cost in bytes. Subclasses can override."""
@@ -541,7 +594,7 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
     def calculate_pool_sizes(
         self, available_bytes: int, page_size: int
     ) -> MemoryPoolConfig:
-        available_bytes = max(available_bytes, 0)
+        available_bytes = max(available_bytes - self._bias, 0)
         max_total_num_tokens = (
             available_bytes // self._cell_size
             if self._cell_size

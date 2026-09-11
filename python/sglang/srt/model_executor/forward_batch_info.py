@@ -476,6 +476,10 @@ class ForwardBatch(ForwardBatchDeepSeekMHAMixin):
     # === Borrowed from ScheduleBatch: host metadata (CPU lists / mirrors) ===
     # Optional seq_lens on cpu (CPU mirror of seq_lens)
     seq_lens_cpu: Optional[torch.Tensor] = None
+    req_pool_indices_cpu: Optional[torch.Tensor] = None
+    # Host upper bounds already owned by the KV allocator. GPU-only attention
+    # backends use these instead of reading a dynamic sequence length to CPU.
+    kv_allocated_lens_cpu: Optional[List[int]] = None
 
     # For logprob
     top_logprobs_nums: Optional[List[int]] = None
@@ -803,6 +807,12 @@ class ForwardBatch(ForwardBatchDeepSeekMHAMixin):
         # copy by Scheduler.run_batch under overlap mode (see save/restore
         # block there). Use it directly.
         seq_lens_cpu = batch.seq_lens_cpu
+        kv_allocated_lens_cpu = (
+            [req.kv.kv_allocated_len for req in batch.reqs]
+            if seq_lens_cpu is None
+            and all(getattr(req, "kv", None) is not None for req in batch.reqs)
+            else None
+        )
 
         # TODO(seq-lens-removal): the whole ScheduleBatch seq_lens family
         # (incl. seq_lens_sum) is slated for removal in favor of kv-committed
@@ -822,6 +832,8 @@ class ForwardBatch(ForwardBatchDeepSeekMHAMixin):
             seq_lens_sum=batch.seq_lens_sum,
             # Inputs aliased by reference from ScheduleBatch
             seq_lens_cpu=seq_lens_cpu,
+            req_pool_indices_cpu=batch.req_pool_indices_cpu,
+            kv_allocated_lens_cpu=kv_allocated_lens_cpu,
             orig_seq_lens=batch.orig_seq_lens,
             out_cache_loc_dsv4=batch.out_cache_loc_dsv4,
             mamba_track_indices=batch.mamba_track_indices,

@@ -1252,12 +1252,13 @@ class Scheduler(
 
     def init_hisparse_coordinator(self) -> None:
         self.hisparse_coordinator: Optional[HiSparseCoordinator] = None
-        if not self.enable_hisparse:
+        qsa = getattr(self.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse_v3", None)
+        if not self.enable_hisparse and not getattr(qsa, "is_qsa_p2", False):
             return
-
         # Coordinator was created inside ModelRunner.initialize() before CUDA graph capture.
         self.hisparse_coordinator = self.tp_worker.model_runner.hisparse_coordinator
-        self.hisparse_coordinator.set_decode_producer_stream(self.forward_stream)
+        if self.hisparse_coordinator is not None:
+            self.hisparse_coordinator.set_decode_producer_stream(self.forward_stream)
 
     def init_running_status(self):
         # Set by the ShutdownReq handler to break the event loop for graceful shutdown.
@@ -3475,6 +3476,8 @@ class Scheduler(
             enable_overlap=self.enable_overlap,
             spec_algorithm=self.spec_algorithm,
         )
+        # Rebuilt batches bypass prepare_for_extend, which normally sets these rows.
+        batch.multimodal_inputs = [req.multimodal_inputs for req in reqs]
 
         req_pool_indices = [r.kv.req_pool_idx for r in reqs]
         batch.req_pool_indices = torch.tensor(
@@ -3544,7 +3547,7 @@ class Scheduler(
                 self.stash_chunked_request(self.chunked_req)
 
         # HiSparse has its own prefill-to-decode transition; skip last_batch merge.
-        if self.enable_hisparse:
+        if self.hisparse_coordinator is not None:
             ready_reqs = self.hisparse_coordinator.collect_ready_reqs()
             if len(ready_reqs) > 0:
                 new_batch = self._build_hisparse_decode_batch(ready_reqs)
@@ -3557,7 +3560,7 @@ class Scheduler(
             running_batch.batch_is_full = False
 
         if (
-            not self.enable_hisparse
+            self.hisparse_coordinator is None
             and last_batch
             and last_batch.forward_mode.is_extend()
         ):
@@ -3667,6 +3670,13 @@ class Scheduler(
             available - self.beam_coordinator.pending_member_rows(active_batch), 0
         )
         res = min(pp_budget, available)
+        if getattr(self.hisparse_coordinator, "is_qsa_p2", False):
+            if beam_width is not None and beam_width != 1:
+                raise ValueError("QSA P2 does not support beam/prefix ownership sharing")
+            slots = self.hisparse_coordinator.adapter.slots
+            res = min(res, 1, len(slots.free_slots))
+            if slots.prefill_owner is not None:
+                res = 0
         if beam_width is not None:
             # A beam candidate owns beam_width rows once decoding.
             res = min(res, available // beam_width)
@@ -3797,7 +3807,8 @@ class Scheduler(
             self.priority_scheduling_preemption_threshold,
             max_prefill_bs=int(self.max_prefill_bs),
             max_running_requests=self.max_running_requests,
-            prefill_max_requests=get_schedule().prefill_max_requests,
+            prefill_max_requests=(1 if getattr(self.hisparse_coordinator, "is_qsa_p2", False)
+                                  else get_schedule().prefill_max_requests),
             prefill_delayer_single_pass=prefill_delayer_single_pass,
             dllm_config=self.dllm_config,
             waiting_queue_len=len(self.waiting_queue),
@@ -4812,7 +4823,7 @@ class Scheduler(
                     idle &= len(self.decode_offload_manager.ongoing_offload) == 0
 
             # HiSparse: staging requests transitioning prefill -> decode
-            if self.enable_hisparse:
+            if self.hisparse_coordinator is not None:
                 idle &= not self.hisparse_coordinator.has_ongoing_staging()
 
             # HiCache: in-flight async ops (GPU↔Host↔L3) must drain before
@@ -5317,7 +5328,10 @@ class Scheduler(
                 self.disagg_decode_prealloc_queue.retracted_queue = remaining_retracted
 
         # Delete requests in the running batch
-        for req in self.collect_inflight_reqs():
+        inflight = self.collect_inflight_reqs()
+        if getattr(self.hisparse_coordinator, "is_qsa_p2", False):
+            inflight.update(item.req for item in self.hisparse_coordinator.ack_staging_queue)
+        for req in inflight:
             if not req.finished() and (
                 recv_req.abort_all or req.rid.startswith(recv_req.rid)
             ):

@@ -82,6 +82,9 @@ class QSAIndexerMetadata(msgspec.Struct, frozen=True):
     graph_prefix_lengths: Optional[torch.Tensor] = None
     decode_page_table: Optional[torch.Tensor] = None
     decode_lengths: Optional[torch.Tensor] = None
+    # Match graph's score stride: FlashInfer's deterministic top-k collection
+    # order depends on this width, even when the valid score prefix is equal.
+    decode_score_width: Optional[int] = None
     decode_logical_positions: Optional[torch.Tensor] = None
     pending_ring_slots: Optional[torch.Tensor] = None
     compress_group_ring_locs: Optional[torch.Tensor] = None
@@ -203,7 +206,8 @@ class QSAIndexerMetadata(msgspec.Struct, frozen=True):
                 compressed_cache,
                 self.decode_page_table,
                 self.decode_lengths,
-                self.decode_page_table.shape[1] * pool.qsa_compressed_page_size,
+                self.decode_score_width
+                or self.decode_page_table.shape[1] * pool.qsa_compressed_page_size,
             )
         compressed_page_table, compressed_lengths = compressed_decode_view(
             compressed_page_size=pool.qsa_compressed_page_size,
@@ -215,7 +219,8 @@ class QSAIndexerMetadata(msgspec.Struct, frozen=True):
             compressed_cache,
             compressed_page_table,
             compressed_lengths,
-            compressed_page_table.shape[1] * pool.qsa_compressed_page_size,
+            self.decode_score_width
+            or compressed_page_table.shape[1] * pool.qsa_compressed_page_size,
         )
 
 

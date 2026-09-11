@@ -815,6 +815,42 @@ def test_qsa_idle_metadata_builds_empty_rows():
         assert attn_backend.forward_metadata.indexer_metadata.out_cache_loc.numel() == 0
 
 
+def test_qsa_decode_score_width_matches_graph_without_padding_page_table():
+    from msgspec.structs import replace
+
+    runner, pool, _ = _make_qsa_runner_and_pool()
+    runner.model_config.context_len = 1025
+    pool.qsa_compressed_page_size = 16
+    backend = QwenSparseAttnBackend(runner)
+    for tail in range(4):
+        lengths = torch.tensor([8 + tail, 16 + tail], dtype=torch.int32)
+        batch = SimpleNamespace(
+            req_pool_indices=torch.tensor([1, 3], dtype=torch.int32),
+            seq_lens=lengths,
+            seq_lens_cpu=lengths,
+            positions=lengths.long() - 1,
+            out_cache_loc=torch.arange(2, dtype=torch.int32),
+            forward_mode=ForwardMode.DECODE,
+        )
+        metadata = backend._metadata_from_forward_batch(batch).indexer_metadata
+        cache, pages, compressed_lengths, width = metadata.get_decode_mqa_inputs(3)
+        assert pages.shape == (2, 1)
+        assert compressed_lengths.tolist() == [2, 4]
+        assert width == 272
+        graph = replace(
+            metadata,
+            is_cuda_graph=True,
+            graph_compressed_page_table=torch.zeros((2, 17), dtype=torch.int32),
+            graph_compressed_lengths=compressed_lengths,
+        )
+        assert graph.get_decode_mqa_inputs(3)[3] == width
+        q = torch.ones((2, 4, 128), dtype=torch.bfloat16)
+        padded = qsa_mqa_decode(q, cache, pages, compressed_lengths, width)
+        short = qsa_mqa_decode(q, cache, pages, compressed_lengths, 16)
+        assert torch.equal(padded[:, :16], short)
+        assert torch.isneginf(padded[:, 16:]).all()
+
+
 def test_qsa_decode_requires_one_query_row_per_request():
     runner, pool, req_pool = _make_qsa_runner_and_pool()
     backend = QwenSparseAttnBackend(runner)

@@ -1031,6 +1031,13 @@ class ModelRunner:
         self.kv_index_translator.bind_and_verify_backends(
             [self.attn_backend, self.decode_attn_backend]
         )
+        qsa = getattr(self.token_to_kv_pool, "qsa_hisparse_v3", None)
+        if getattr(qsa, "is_qsa_p2", False):
+            from sglang.srt.mem_cache.qsa_hisparse_p2 import QSAHiSparseCoordinator
+
+            self.hisparse_coordinator = QSAHiSparseCoordinator(
+                qsa, self.tp_group.cpu_group
+            )
 
         if get_parallel().dcp_enabled and get_parallel().dcp_replicate_q_proj:
             self._prepare_replicated_q_proj()
@@ -1788,6 +1795,13 @@ class ModelRunner:
                 and self.decode_cuda_graph_runner
                 and self.decode_cuda_graph_runner.can_run_graph(forward_batch)
             )
+            qsa = getattr(self.hisparse_coordinator, "adapter", None)
+            if (
+                forward_batch.forward_mode.is_decode()
+                and getattr(qsa, "graph_enabled", False)
+                and not can_run_graph
+            ):
+                raise RuntimeError("QSA full graph decode cannot fall back to eager")
 
             if (
                 forward_batch.forward_mode.is_decode()
@@ -1795,7 +1809,10 @@ class ModelRunner:
             ):
                 forward_batch.hisparse_coordinator = self.hisparse_coordinator
                 self.hisparse_coordinator.wait_for_pending_backup()
-                self.hisparse_coordinator.num_real_reqs.fill_(forward_batch.batch_size)
+                if not getattr(qsa, "graph_enabled", False):
+                    self.hisparse_coordinator.num_real_reqs.fill_(
+                        forward_batch.batch_size
+                    )
 
             # Replay cuda graph if applicable
             if can_run_graph:

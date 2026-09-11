@@ -6,6 +6,38 @@ import torch
 import triton
 import triton.language as tl
 
+_FP8_DTYPES = (
+    torch.float8_e4m3fn,
+    torch.float8_e4m3fnuz,
+    torch.float8_e5m2,
+)
+
+
+def is_fp8_kv_dtype(dtype: torch.dtype) -> bool:
+    return dtype in _FP8_DTYPES
+
+
+def _validate_sparse_gqa_dtypes(
+    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor
+) -> bool:
+    """Return whether K/V are FP8 after validating the QSA compute contract."""
+
+    if k.dtype != v.dtype:
+        raise ValueError(f"QSA K/V dtypes must match, got {k.dtype} and {v.dtype}")
+    is_fp8 = is_fp8_kv_dtype(k.dtype)
+    if q.dtype not in (torch.bfloat16, torch.float16):
+        raise ValueError(f"QSA expects BF16/FP16 queries, got {q.dtype}")
+    if not is_fp8 and k.dtype != q.dtype:
+        raise ValueError(
+            f"QSA K/V must match query dtype {q.dtype} or use FP8, got {k.dtype}"
+        )
+    return is_fp8
+
+
+def _unit_scale(scale: Optional[float]) -> float:
+    return 1.0 if scale is None else float(scale)
+
+
 _H20_CONFIGS = [
     (32, (32, 8, 2)),
     (64, (64, 8, 2)),
@@ -35,6 +67,8 @@ def _sparse_gqa_prefill(
     indices,
     cu_seqlens,
     scale,
+    k_scale,
+    v_scale,
     topk,
     sq_m: tl.constexpr,
     sq_h: tl.constexpr,
@@ -56,6 +90,7 @@ def _sparse_gqa_prefill(
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    KV_IS_FP8: tl.constexpr,
 ):
     batch_group = tl.program_id(1)
     group = batch_group % NUM_KV_HEADS
@@ -97,18 +132,32 @@ def _sparse_gqa_prefill(
             mask=valid[None, :],
             other=0.0,
         )
+        if KV_IS_FP8:
+            # Triton cannot dot BF16/FP16 queries with FP8 cache values.
+            keys = keys.to(q_values.dtype)
         values = tl.load(
             v_base + token[:, None] * sv_n + offs_d[None, :] * sv_d,
             mask=valid[:, None],
             other=0.0,
         )
-        scores = tl.where(valid[None, :], tl.dot(q_values, keys), -float("inf"))
+        if KV_IS_FP8:
+            values = values.to(q_values.dtype)
+        scores = tl.dot(q_values, keys)
+        if KV_IS_FP8:
+            scores *= k_scale
+        scores = tl.where(valid[None, :], scores, -float("inf"))
         next_max = tl.maximum(max_value, tl.max(scores, 1))
         alpha = tl.math.exp2(max_value - next_max)
         probabilities = tl.math.exp2(scores - next_max[:, None])
-        accumulator = tl.dot(
-            probabilities.to(values.dtype), values, accumulator * alpha[:, None]
-        )
+        if KV_IS_FP8:
+            accumulator = (
+                accumulator * alpha[:, None]
+                + tl.dot(probabilities.to(values.dtype), values) * v_scale
+            )
+        else:
+            accumulator = tl.dot(
+                probabilities.to(values.dtype), values, accumulator * alpha[:, None]
+            )
         normalizer = normalizer * alpha + tl.sum(probabilities, 1)
         max_value = next_max
     output = accumulator / normalizer[:, None]
@@ -122,7 +171,18 @@ def _sparse_gqa_prefill(
     )
 
 
-def sparse_gqa_fwd_interface_triton(q, k, v, max_seqlen_k, indices, cu_seqlens, scale):
+def sparse_gqa_fwd_interface_triton(
+    q,
+    k,
+    v,
+    max_seqlen_k,
+    indices,
+    cu_seqlens,
+    scale,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+):
+    kv_is_fp8 = _validate_sparse_gqa_dtypes(q, k, v)
     total_q, num_q_heads, head_dim = q.shape
     num_kv_heads = k.shape[1]
     group_size = num_q_heads // num_kv_heads
@@ -137,6 +197,8 @@ def sparse_gqa_fwd_interface_triton(q, k, v, max_seqlen_k, indices, cu_seqlens, 
         indices,
         cu_seqlens,
         scale,
+        _unit_scale(k_scale),
+        _unit_scale(v_scale),
         indices.shape[-1],
         q.stride(0),
         q.stride(1),
@@ -158,6 +220,7 @@ def sparse_gqa_fwd_interface_triton(q, k, v, max_seqlen_k, indices, cu_seqlens, 
         BLOCK_M=block_m,
         BLOCK_N=block_n,
         HEAD_DIM=head_dim,
+        KV_IS_FP8=kv_is_fp8,
         num_warps=warps,
         num_stages=stages,
     )
@@ -175,6 +238,8 @@ def _sparse_gqa_chunk_prefill(
     cu_k,
     kv_lens,
     scale,
+    k_scale,
+    v_scale,
     topk,
     sq_m: tl.constexpr,
     sq_h: tl.constexpr,
@@ -196,6 +261,7 @@ def _sparse_gqa_chunk_prefill(
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    KV_IS_FP8: tl.constexpr,
 ):
     query_relative = tl.program_id(0).to(tl.int64)
     batch_group = tl.program_id(1)
@@ -238,25 +304,31 @@ def _sparse_gqa_chunk_prefill(
             mask=valid[None, :],
             other=0.0,
         )
+        if KV_IS_FP8:
+            keys = keys.to(q_values.dtype)
         values = tl.load(
             v_base + token[:, None] * sv_n + offs_d[None, :] * sv_d,
             mask=valid[:, None],
             other=0.0,
         )
-        # The chunk-prefill K/V tensors are gathered from the KV pool and can
-        # therefore carry the FP8 storage dtype, which Triton's dot rejects
-        # (`Unsupported rhs dtype fp8e4nv`). Convert to Q's dtype; the QSA
-        # backend writes the pool without per-tensor k/v scales, so this is a
-        # plain cast (no-op for BF16 pools).
-        keys = keys.to(q_values.dtype)
-        values = values.to(q_values.dtype)
-        scores = tl.where(valid[None, :], tl.dot(q_values, keys), -float("inf"))
+        if KV_IS_FP8:
+            values = values.to(q_values.dtype)
+        scores = tl.dot(q_values, keys)
+        if KV_IS_FP8:
+            scores *= k_scale
+        scores = tl.where(valid[None, :], scores, -float("inf"))
         next_max = tl.maximum(max_value, tl.max(scores, 1))
         alpha = tl.math.exp2(max_value - next_max)
         probabilities = tl.math.exp2(scores - next_max[:, None])
-        accumulator = tl.dot(
-            probabilities.to(values.dtype), values, accumulator * alpha[:, None]
-        )
+        if KV_IS_FP8:
+            accumulator = (
+                accumulator * alpha[:, None]
+                + tl.dot(probabilities.to(values.dtype), values) * v_scale
+            )
+        else:
+            accumulator = tl.dot(
+                probabilities.to(values.dtype), values, accumulator * alpha[:, None]
+            )
         normalizer = normalizer * alpha + tl.sum(probabilities, 1)
         max_value = next_max
     output = accumulator / normalizer[:, None]
@@ -270,8 +342,20 @@ def _sparse_gqa_chunk_prefill(
     )
 
 
-def sparse_gqa_fwd_interface_triton_ck(q, k, v, indices, cu_q, cu_k, kv_lens, scale):
+def sparse_gqa_fwd_interface_triton_ck(
+    q,
+    k,
+    v,
+    indices,
+    cu_q,
+    cu_k,
+    kv_lens,
+    scale,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+):
     k, v = k.contiguous(), v.contiguous()
+    kv_is_fp8 = _validate_sparse_gqa_dtypes(q, k, v)
     total_q, num_q_heads, head_dim = q.shape
     num_kv_heads = k.shape[1]
     group_size = num_q_heads // num_kv_heads
@@ -289,6 +373,8 @@ def sparse_gqa_fwd_interface_triton_ck(q, k, v, indices, cu_q, cu_k, kv_lens, sc
         cu_k,
         kv_lens,
         scale,
+        _unit_scale(k_scale),
+        _unit_scale(v_scale),
         indices.shape[-1],
         q.stride(0),
         q.stride(1),
@@ -310,6 +396,7 @@ def sparse_gqa_fwd_interface_triton_ck(q, k, v, indices, cu_q, cu_k, kv_lens, sc
         BLOCK_M=block_m,
         BLOCK_N=block_n,
         HEAD_DIM=head_dim,
+        KV_IS_FP8=kv_is_fp8,
         num_warps=warps,
         num_stages=stages,
     )
@@ -350,8 +437,9 @@ def qwen_sparse_fa2_cu_seqlens_triton(
     seq_lens, indices, counts, cu_k, batch, topk, block_b: Optional[int] = None
 ):
     block_b = block_b or triton.next_power_of_2(batch)
-    # One request per program: Triton caps a tile at 1M elements,
-    # which [next_pow2(topk), next_pow2(batch)] exceeds at topk=2051, batch=512.
+    # Count one request per program. The previous implementation formed a
+    # [next_power_of_2(topk), next_power_of_2(batch)] tensor in one program;
+    # topk=2051 and batch=512 therefore exceeded Triton's 1M-element limit.
     _fa2_valid_counts[(batch,)](
         seq_lens,
         indices,
@@ -383,6 +471,8 @@ def _compact_kv(
     cu_k,
     out_k,
     out_v,
+    k_scale,
+    v_scale,
     topk: tl.constexpr,
     heads: tl.constexpr,
     dim: tl.constexpr,
@@ -390,6 +480,7 @@ def _compact_kv(
     idx_stride: tl.constexpr,
     BLOCK_TOPK: tl.constexpr,
     BLOCK_D: tl.constexpr,
+    DEQUANTIZE_FP8: tl.constexpr,
 ):
     batch, head, block = tl.program_id(0), tl.program_id(1), tl.program_id(2)
     cols = block * BLOCK_TOPK + tl.arange(0, BLOCK_TOPK)
@@ -408,12 +499,19 @@ def _compact_kv(
     src = slots[:, None] * heads * dim + head * dim + dims[None, :]
     dst = (pack_start + cols)[:, None] * heads * dim + head * dim + dims[None, :]
     mask = valid[:, None] & (dims[None, :] < dim)
-    tl.store(out_k + dst, tl.load(k + src, mask=mask, other=0.0), mask=mask)
-    tl.store(out_v + dst, tl.load(v + src, mask=mask, other=0.0), mask=mask)
+    k_values = tl.load(k + src, mask=mask, other=0.0)
+    v_values = tl.load(v + src, mask=mask, other=0.0)
+    if DEQUANTIZE_FP8:
+        k_values = k_values.to(tl.float32) * k_scale
+        v_values = v_values.to(tl.float32) * v_scale
+    tl.store(out_k + dst, k_values, mask=mask)
+    tl.store(out_v + dst, v_values, mask=mask)
 
 
 def qwen_sparse_valid_counts_triton(seq_lens, indices, counts, batch, topk):
-    """Valid-count pass alone, without the packed cu_seqlens prefix sum."""
+    """Valid-count pass alone, for consumers that need per-row lengths but
+    not the packed cu_seqlens prefix sum (trtllm paged decode packs rows at
+    a fixed page-aligned stride instead)."""
     _fa2_valid_counts[(batch,)](
         seq_lens,
         indices,
@@ -426,8 +524,23 @@ def qwen_sparse_valid_counts_triton(seq_lens, indices, counts, batch, topk):
 
 
 def qwen_sparse_kv_extraction_compact_triton(
-    k, v, req_to_token, req_indices, indices, seq_lens, cu_k, out_k, out_v, batch, topk
+    k,
+    v,
+    req_to_token,
+    req_indices,
+    indices,
+    seq_lens,
+    cu_k,
+    out_k,
+    out_v,
+    batch,
+    topk,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
 ):
+    if k.dtype != v.dtype or out_k.dtype != out_v.dtype:
+        raise ValueError("QSA compact K/V input and output dtype pairs must match")
+    dequantize_fp8 = is_fp8_kv_dtype(k.dtype) and not is_fp8_kv_dtype(out_k.dtype)
     _, heads, dim = k.shape
     block_topk = 16
     _compact_kv[(batch, heads, triton.cdiv(topk, block_topk))](
@@ -440,6 +553,8 @@ def qwen_sparse_kv_extraction_compact_triton(
         cu_k,
         out_k,
         out_v,
+        _unit_scale(k_scale),
+        _unit_scale(v_scale),
         topk,
         heads,
         dim,
@@ -447,11 +562,13 @@ def qwen_sparse_kv_extraction_compact_triton(
         indices.stride(0),
         BLOCK_TOPK=block_topk,
         BLOCK_D=triton.next_power_of_2(dim),
+        DEQUANTIZE_FP8=dequantize_fp8,
         num_warps=8,
     )
 
 
 __all__ = [
+    "is_fp8_kv_dtype",
     "qwen_sparse_fa2_cu_seqlens_triton",
     "qwen_sparse_valid_counts_triton",
     "qwen_sparse_kv_extraction_compact_triton",

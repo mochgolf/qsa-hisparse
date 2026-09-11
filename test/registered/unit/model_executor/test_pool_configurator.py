@@ -6,9 +6,12 @@ invariants hold (tokens * per_token_cost <= available_bytes).
 """
 
 import contextlib
+import os
 import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+import torch
 
 from sglang.srt.configs.model_config import AttentionArch
 from sglang.srt.distributed.parallel_state_wrapper import ParallelState
@@ -259,6 +262,72 @@ class TestDefaultConfigurator(CustomTestCase):
         _, _, config = self._run(10_000_000)
         self.assertIsNone(config.full_max_total_num_tokens)
         self.assertIsNone(config.swa_max_total_num_tokens)
+
+    def test_qsa_p2_offload_prices_fixed_raw_staging(self):
+        from sglang.srt.model_executor.pool_configurator import (
+            DefaultPoolConfigurator,
+        )
+        from sglang.srt.runtime_context import get_context
+
+        runner = _make_model_runner(
+            self,
+            num_kv_heads=1,
+            head_dim=256,
+            v_head_dim=256,
+            num_layers=12,
+            page_size=64,
+            max_running_requests=4,
+        )
+        runner.kv_cache_dtype = torch.uint8
+        hf_config = runner.model_config.hf_config
+        runner.model_config.hf_text_config = hf_config
+        hf_config.indexer_n_heads = 4
+        hf_config.indexer_kv_heads = 1
+        hf_config.indexer_head_dim = 128
+        hf_config.indexer_budget = 2048
+        hf_config.indexer_compress_ratio = 4
+
+        logical = 4 * 262144
+        raw_cell_size = 12 * 2 * 256
+        qsa_cell_size = 12 * 128 * 2 // 4
+        raw_pool_size = 262144 + 5 * 4
+        ring_slots = 4 * 4
+        ring_bytes = ring_slots * (128 * 2 * 12 + 3 * 8)
+        fixed_bytes = (
+            raw_cell_size * (raw_pool_size + 64)
+            + qsa_cell_size * 64
+            + ring_bytes
+        )
+        required_bytes = fixed_bytes + qsa_cell_size * logical
+
+        with (
+            patch.dict(os.environ, {"SGLANG_QSA_HISPARSE_V3": "p2-offload"}),
+            get_context().override_server_args(
+                max_running_requests=4,
+                max_total_tokens=logical,
+                page_size=64,
+            ),
+            get_parallel().override(attn_tp_size=2),
+        ):
+            cfg = DefaultPoolConfigurator(runner)
+            self.assertEqual(
+                cfg.calculate_pool_sizes(required_bytes, 64).max_total_num_tokens,
+                logical,
+            )
+            self.assertEqual(
+                cfg.calculate_pool_sizes(
+                    required_bytes - qsa_cell_size * 64, 64
+                ).max_total_num_tokens,
+                logical - 64,
+            )
+
+        with (
+            patch.dict(os.environ, {"SGLANG_QSA_HISPARSE_V3": "p2-resident"}),
+            get_parallel().override(attn_tp_size=2),
+        ):
+            resident = DefaultPoolConfigurator(runner)
+        self.assertEqual(resident._bias, 0)
+        self.assertEqual(resident._cell_size, raw_cell_size + qsa_cell_size)
 
     @patch(
         "sglang.srt.mem_cache.kv_cache_configurator.calculate_mla_kv_cache_dim",

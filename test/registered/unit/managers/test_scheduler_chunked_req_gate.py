@@ -80,6 +80,7 @@ def _scheduler_for_get_next_batch(*, tree_cache, chunked_req) -> Scheduler:
     s.dllm_config = None
     s.dllm_manager = None
     s.enable_hisparse = False
+    s.hisparse_coordinator = None
     s.enable_fpm = False
     s.last_batch = None
     s.require_mlp_sync = False
