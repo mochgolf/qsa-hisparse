@@ -49,6 +49,17 @@ _TRTLLM_SPARSE_PAGE_SIZE = 64
 
 
 @lru_cache(maxsize=1)
+def _resolve_flashinfer_qsa_ragged():
+    if torch.cuda.get_device_capability() != (8, 9):
+        return None
+    try:
+        from flashinfer.prefill import BatchPrefillWithRaggedKVCacheWrapper
+    except ImportError:
+        return None
+    return BatchPrefillWithRaggedKVCacheWrapper
+
+
+@lru_cache(maxsize=1)
 def _resolve_trtllm_sparse_decode():
     """FlashInfer paged decode for the post-gather sparse attention;
     the FA4 varlen fallback runs a prefill-shaped kernel at decode row counts."""
@@ -227,6 +238,10 @@ class QwenSparseAttnBackend(AttentionBackend):
         self._graph_dummy_token_slot_table = None
         self._graph_dummy_out_cache_loc = None
         self._graph_row_req_pool_indices = None
+        self._fa2_b1_wrapper = None
+        self._fa2_b1_workspace = None
+        self._fa2_b1_shape = None
+        self._fa2_b1_unavailable = False
         self._trtllm_sparse_tables = {}
         self._mtp_shared_sparse_indices = None
         self.hisparse_v3 = None
@@ -993,6 +1008,19 @@ class QwenSparseAttnBackend(AttentionBackend):
         )
         self._cuda_graph_metadata[(forward_mode, bs)] = metadata
         self.forward_metadata = metadata
+        if (
+            metadata_rows == 1
+            and forward_mode.is_decode()
+            and spec_info is None
+            and self.qsa_profile is not None
+            and self.qsa_profile.variant == QSA_VARIANT_COMPRESSED
+            and self.hisparse_v3 is not None
+            and getattr(self.hisparse_v3, "is_qsa_p2", False)
+            and getattr(self.hisparse_v3, "graph_enabled", False)
+        ):
+            shape = self._qsa_local_head_shape()
+            if shape is not None:
+                self._ensure_fa2_b1_wrapper(*shape[1:])
 
     def _replay_cuda_graph_metadata(
         self,
@@ -1478,6 +1506,106 @@ class QwenSparseAttnBackend(AttentionBackend):
             self._fa2_scratch[key] = buffers
         return buffers[0][:capacity], buffers[1][:capacity]
 
+    def _qsa_local_head_shape(self):
+        if self.runner is None:
+            return None
+        from sglang.srt.runtime_context import get_parallel
+
+        config = self.runner.model_config
+        parallel = get_parallel()
+        head_dim = getattr(config, "head_dim", None)
+        if head_dim is None:
+            head_dim = config.hidden_size // config.num_attention_heads
+        return (
+            config.get_num_attention_heads(parallel.attn_tp_size),
+            config.get_num_kv_heads(parallel.attn_tp_size, parallel.attn_dcp_size),
+            head_dim,
+            getattr(self.runner, "dtype", torch.bfloat16),
+        )
+
+    def _ensure_fa2_b1_wrapper(
+        self, num_kv_heads: int, head_dim: int, dtype: torch.dtype
+    ) -> None:
+        wrapper_cls = _resolve_flashinfer_qsa_ragged()
+        if wrapper_cls is None or self._fa2_b1_unavailable:
+            return
+        shape = self._qsa_local_head_shape()
+        if shape is None or (num_kv_heads, head_dim, dtype) != shape[1:]:
+            return
+        if self._fa2_b1_wrapper is not None:
+            return
+        if self._fa2_b1_workspace is None:
+            self._fa2_b1_workspace = torch.zeros(
+                128 * 1024 * 1024, dtype=torch.uint8, device=self.device
+            )
+        topk = int(self.token_to_kv_pool.qsa_token_topk)
+        if self.token_to_kv_pool.qsa_compress_ratio > 1:
+            topk += self.token_to_kv_pool.qsa_compress_ratio - 1
+        try:
+            wrapper = wrapper_cls(
+                self._fa2_b1_workspace,
+                "NHD",
+                use_cuda_graph=True,
+                qo_indptr_buf=self._graph_cu_seqlens_q[:2],
+                kv_indptr_buf=self._graph_fa2_cu_seqlens_k[:2],
+                backend="fa2",
+            )
+            wrapper.plan(
+                torch.tensor([0, 1], dtype=torch.int32, device=self.device),
+                torch.tensor([0, topk], dtype=torch.int32, device=self.device),
+                shape[0],
+                num_kv_heads,
+                head_dim,
+                head_dim_vo=head_dim,
+                causal=False,
+                q_data_type=dtype,
+                kv_data_type=dtype,
+                o_data_type=dtype,
+                sm_scale=1.0 / math.sqrt(head_dim),
+            )
+        except (RuntimeError, ValueError) as exc:
+            self._fa2_b1_unavailable = True
+            logger.warning_once("QSA FlashInfer ragged B1 unavailable: %s", exc)
+            return
+        self._fa2_b1_wrapper = wrapper
+        self._fa2_b1_shape = (dtype, num_kv_heads, head_dim)
+        logger.info("QSA HiSparse SM89 ragged FA2 B1 enabled")
+
+    def _can_run_fa2_b1(
+        self,
+        q: torch.Tensor,
+        k_buffer: torch.Tensor,
+        layer,
+        forward_batch,
+        metadata,
+        topk: int,
+    ) -> bool:
+        hisparse = self.hisparse_v3
+        expected_topk = int(self.token_to_kv_pool.qsa_token_topk)
+        if self.token_to_kv_pool.qsa_compress_ratio > 1:
+            expected_topk += self.token_to_kv_pool.qsa_compress_ratio - 1
+        return (
+            self._fa2_b1_wrapper is not None
+            and hisparse is not None
+            and getattr(hisparse, "is_qsa_p2", False)
+            and getattr(hisparse, "mode", None) == "p2-offload"
+            and getattr(hisparse, "graph_enabled", False)
+            and hisparse.offloaded
+            and metadata.is_cuda_graph
+            and forward_batch.forward_mode.is_decode()
+            and getattr(forward_batch, "spec_info", None) is None
+            and q.shape[0] == 1
+            and topk == expected_topk
+            and self._fa2_b1_shape
+            == (q.dtype, k_buffer.shape[1], k_buffer.shape[2])
+            and math.isclose(
+                float(layer.scaling),
+                1.0 / math.sqrt(k_buffer.shape[2]),
+                rel_tol=0.0,
+                abs_tol=1e-7,
+            )
+        )
+
     def _get_trtllm_sparse_tables(self, batch, pages_per_row, page, device):
         key = (batch, pages_per_row, device)
         cached = self._trtllm_sparse_tables.get(key)
@@ -1697,17 +1825,24 @@ class QwenSparseAttnBackend(AttentionBackend):
                 v_scale=v_scale,
             )
         with operations_nvtx_range("qsa.fa2_attention"):
-            output = flash_attn_varlen_func(
-                q=q,
-                k=packed_k,
-                v=packed_v,
-                cu_seqlens_q=cu_seqlens_q,
-                cu_seqlens_k=cu_seqlens_k,
-                max_seqlen_q=1,
-                max_seqlen_k=topk,
-                softmax_scale=layer.scaling,
-                causal=True,
-            )
+            if self._can_run_fa2_b1(
+                q, k_buffer, layer, forward_batch, metadata, topk
+            ):
+                output = self._fa2_b1_wrapper.run(
+                    q.contiguous(), packed_k[:topk], packed_v[:topk]
+                )
+            else:
+                output = flash_attn_varlen_func(
+                    q=q,
+                    k=packed_k,
+                    v=packed_v,
+                    cu_seqlens_q=cu_seqlens_q,
+                    cu_seqlens_k=cu_seqlens_k,
+                    max_seqlen_q=1,
+                    max_seqlen_k=topk,
+                    softmax_scale=layer.scaling,
+                    causal=True,
+                )
         if self.hisparse_v3 is not None:
             self.hisparse_v3.capture_decode(
                 layer, q, packed_k, packed_v, topk_indices, output, k_scale, v_scale,

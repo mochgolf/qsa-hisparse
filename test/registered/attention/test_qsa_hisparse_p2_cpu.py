@@ -57,6 +57,36 @@ class TestQSAHiSparseP2(unittest.TestCase):
 
         backend._store_kv.assert_called_once_with(layer, loc, k, v)
 
+    def test_ragged_fa2_fast_path_is_b1_offload_graph_only(self):
+        backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
+        backend._fa2_b1_wrapper = object()
+        backend._fa2_b1_shape = (torch.bfloat16, 1, 256)
+        backend.token_to_kv_pool = SimpleNamespace(
+            qsa_token_topk=2048, qsa_compress_ratio=4
+        )
+        backend.hisparse_v3 = SimpleNamespace(
+            is_qsa_p2=True,
+            mode="p2-offload",
+            graph_enabled=True,
+            offloaded=True,
+        )
+        forward_batch = SimpleNamespace(
+            forward_mode=SimpleNamespace(is_decode=lambda: True), spec_info=None
+        )
+        metadata = SimpleNamespace(is_cuda_graph=True)
+        q = torch.empty((1, 12, 256), dtype=torch.bfloat16)
+        k = torch.empty((2051, 1, 256), dtype=torch.bfloat16)
+        layer = SimpleNamespace(scaling=1.0 / 16.0)
+
+        self.assertTrue(
+            backend._can_run_fa2_b1(q, k, layer, forward_batch, metadata, 2051)
+        )
+        self.assertFalse(
+            backend._can_run_fa2_b1(
+                q.expand(2, -1, -1), k, layer, forward_batch, metadata, 2051
+            )
+        )
+
     def test_capture_environment_is_rejected(self):
         with patch.dict(os.environ, {"SGLANG_QSA_HISPARSE_V3_CAPTURE": "/tmp/old-trace"}), \
                 self.assertRaisesRegex(ValueError, "does not support V3 capture"):
