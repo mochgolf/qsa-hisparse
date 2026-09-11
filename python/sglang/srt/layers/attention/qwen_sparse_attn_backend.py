@@ -242,6 +242,7 @@ class QwenSparseAttnBackend(AttentionBackend):
         self._fa2_b1_workspace = None
         self._fa2_b1_shape = None
         self._fa2_b1_unavailable = False
+        self._fa2_b1_active_logged = False
         self._trtllm_sparse_tables = {}
         self._mtp_shared_sparse_indices = None
         self.hisparse_v3 = None
@@ -1828,6 +1829,9 @@ class QwenSparseAttnBackend(AttentionBackend):
             if self._can_run_fa2_b1(
                 q, k_buffer, layer, forward_batch, metadata, topk
             ):
+                if not self._fa2_b1_active_logged:
+                    logger.info("QSA HiSparse SM89 ragged FA2 B1 active")
+                    self._fa2_b1_active_logged = True
                 output = self._fa2_b1_wrapper.run(
                     q.contiguous(), packed_k[:topk], packed_v[:topk]
                 )
