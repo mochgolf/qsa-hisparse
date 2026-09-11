@@ -39,7 +39,6 @@ from sglang.srt.model_executor.forward_batch_info import (
 from sglang.srt.runtime_context import (
     get_disagg,
     get_exec,
-    get_memory,
     get_observability,
     mamba_track_grid,
     max_speculative_num_draft_tokens,
@@ -1243,7 +1242,7 @@ class SchedulerBatchResultProcessor:
         if get_disagg().disaggregation_decode_enable_offload_kvcache:
             self.decode_offload_manager.finalize_release_on_finish(req)
         else:
-            if get_memory().enable_hisparse:
+            if self.hisparse_coordinator is not None:
                 self.hisparse_coordinator.request_finished(req)
             prepare_release = getattr(
                 self.model_worker, "prepare_for_kv_cache_release", None

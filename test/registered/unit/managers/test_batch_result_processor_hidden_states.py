@@ -176,16 +176,9 @@ class TestPrefillHiddenStateOffsets(CustomTestCase):
                 )
                 processor = _make_processor(self, server_mode)
 
-                with (
-                    patch(
-                        "sglang.srt.managers.scheduler_components."
-                        "batch_result_processor.maybe_cache_unfinished_req"
-                    ),
-                    patch(
-                        "sglang.srt.managers.scheduler_components."
-                        "batch_result_processor.get_memory",
-                        return_value=SimpleNamespace(enable_hisparse=False),
-                    ),
+                with patch(
+                    "sglang.srt.managers.scheduler_components."
+                    "batch_result_processor.maybe_cache_unfinished_req"
                 ):
                     processor.process_batch_result_prefill(batch, result)
 

@@ -4734,7 +4734,7 @@ class Scheduler(
             and self.disagg_decode_transfer_queue.has_pending_deferred_releases()
         )
         with self.scheduler_stage_metrics.record(SCHEDULER_STAGE_SANITY_CHECK_CACHE):
-            if not self.enable_hisparse and not deferred_pending:
+            if self.hisparse_coordinator is None and not deferred_pending:
                 has_leak, messages = self.invariant_checker._check_all_pools(
                     self.pool_stats_observer.get_pool_stats(),
                 )
