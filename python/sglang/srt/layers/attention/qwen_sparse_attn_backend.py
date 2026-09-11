@@ -82,6 +82,15 @@ def _resolve_flash_attn_varlen_func():
         return flash_attn_varlen_func
     except ImportError:
         pass
+    if torch.cuda.get_device_capability() in ((8, 6), (8, 9)):
+        # FA4's SM80 head-dim-256 tile needs 128 KiB shared memory, more than
+        # consumer Ampere/Ada allow. SGLang's vendored kernel uses a fitting
+        # tile and is already the native flash-attention backend on these GPUs.
+        from sglang.kernels.ops.attention.flash_attention import (
+            flash_attn_varlen_func,
+        )
+
+        return flash_attn_varlen_func
     try:
         from flash_attn.cute.interface import flash_attn_varlen_func as cute_varlen_func
 
