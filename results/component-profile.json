@@ -1,0 +1,2025 @@
+{
+  "schema_version": "qsa-hisparse-p0-component-analysis-v1",
+  "source_attempt": "<PRIVATE_ARTIFACT>",
+  "scope": "diagnostic attribution; profiler timings are not service TPOT",
+  "units": "milliseconds unless a field says count",
+  "traces": {
+    "resident": {
+      "0": {
+        "arm": "resident",
+        "rank": 0,
+        "trace": "<PRIVATE_ARTIFACT>",
+        "trace_events": 1501403,
+        "schema": {
+          "cpu_decode_steps": 64,
+          "cpu_qsa_span_counts": {
+            "qsa.batch_metadata": 64,
+            "qsa.fa2_attention": 768,
+            "qsa.fa2_extract": 768,
+            "qsa.fa2_metadata_scratch": 768,
+            "qsa.indexer": 768,
+            "qsa.writeback": 768
+          },
+          "gpu_projection_counts": {
+            "qsa.batch_metadata": 64,
+            "qsa.fa2_attention": 768,
+            "qsa.fa2_extract": 768,
+            "qsa.fa2_metadata_scratch": 768,
+            "qsa.indexer": 768
+          },
+          "inventory_double_count_example": {
+            "qsa.batch_metadata_cpu": 64,
+            "qsa.batch_metadata_gpu_projection": 64,
+            "combined_incorrect": 128
+          },
+          "gpu_projection_is_busy_time": false
+        },
+        "device_coverage": {
+          "trace_device_events": 133312,
+          "trace_device_union_ms": 3083.68279296875,
+          "profile_step_device_events": 132160,
+          "profile_step_device_union_ms": 3081.652841796875,
+          "outside_step_device_events": 1152,
+          "outside_step_time_residual_ms": 2.029951171875,
+          "attribution_methods": {
+            "external_id_cpu": 94784,
+            "gpu_projection_fallback": 37376,
+            "outside_profile_steps": 1152
+          }
+        },
+        "cuda_runtime_coverage": {
+          "trace_runtime_events": 214443,
+          "trace_runtime_union_ms": 518.524380859375,
+          "profile_step_runtime_events": 181515,
+          "profile_step_runtime_union_ms": 440.2668173828125,
+          "profile_step_qsa_scoped_runtime_events": 11781,
+          "profile_step_qsa_scoped_runtime_union_ms": 45.1101474609375,
+          "outside_step_runtime_events": 32928,
+          "attribution_methods": {
+            "cpu_thread_containment": 181515,
+            "outside_profile_steps": 32928
+          }
+        },
+        "first_handoff": null,
+        "steady_decode_steps_2_64": {
+          "regions": 63,
+          "cpu_wall_total_ms": 8137.299261,
+          "cpu_wall_mean_ms": 129.16348033333333,
+          "cpu_wall_median_ms": 128.433722,
+          "cpu_wall_p95_ms": 132.02603630000002,
+          "named_qsa_cpu_union_total_ms": 587.2136962890625,
+          "named_qsa_cpu_union_mean_per_region_ms": 9.32085232204861,
+          "cpu_wall_unattributed_residual_total_ms": 7550.085564710937,
+          "cpu_wall_unattributed_residual_mean_per_region_ms": 119.84262801128472,
+          "gpu_actual_device_union_total_ms": 2966.695640625,
+          "gpu_actual_device_union_mean_per_region_ms": 47.09040699404762,
+          "gpu_kernel_union_total_ms": 2966.2024736328126,
+          "gpu_memcpy_union_total_ms": 0.4931669921875,
+          "gpu_memset_union_total_ms": 0.0,
+          "gpu_qsa_associated_union_total_ms": 270.58277734375,
+          "gpu_qsa_unassociated_time_residual_total_ms": 2696.11286328125,
+          "gpu_accounting_identity_error_ms": 0.0,
+          "gpu_unassociated_event_union_total_ms": 2696.11286328125,
+          "device_events": 130095,
+          "device_events_with_runtime_correlation": 64953,
+          "device_attribution_methods": {
+            "external_id_cpu": 93303,
+            "gpu_projection_fallback": 36792
+          },
+          "cpu_cuda_runtime_union_total_ms": 431.2389892578125,
+          "cpu_cuda_runtime_qsa_scoped_union_total_ms": 42.325716796875,
+          "cpu_cuda_runtime_unscoped_time_residual_total_ms": 388.9132724609375,
+          "labels": {
+            "qsa.batch_metadata": {
+              "cpu_occurrences": 63,
+              "cpu_inclusive_total_ms": 4.428995999999999,
+              "cpu_inclusive_mean_per_region_ms": 0.07030152380952379,
+              "cpu_exclusive_total_ms": 4.428995999999999,
+              "cpu_exclusive_mean_per_region_ms": 0.07030152380952379,
+              "gpu_actual_inclusive_union_total_ms": 0.1258466796875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0019975663442460315,
+              "gpu_actual_exclusive_union_total_ms": 0.1258466796875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.1258466796875,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 1.2024873046875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.019087100074404763
+            },
+            "qsa.fa2_attention": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 67.02911599999996,
+              "cpu_inclusive_mean_per_region_ms": 1.0639542222222216,
+              "cpu_exclusive_total_ms": 67.02911599999996,
+              "cpu_exclusive_mean_per_region_ms": 1.0639542222222216,
+              "gpu_actual_inclusive_union_total_ms": 172.71260546875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 2.741469928075397,
+              "gpu_actual_exclusive_union_total_ms": 172.71260546875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 172.71260546875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void cutlass::device_kernel<flash::enable_sm80_to_sm89<flash::FlashAttnFwdSm80<flash::CollectiveMainloopFwdSm80<8, 1, true, cute::tuple<cute::C<128>, cute::C<64>, cute::C<256> >, 256, cutlass::bfloat16_t, float, cutlass::arch::Sm80, false, false, false, true, false, false, true, false, cutlass::bfloat16_t>, flash::CollectiveEpilogueFwd<cute::tuple<cute::C<128>, cute::C<256>, cute::C<64> >, cute::tuple<cute::C<1>, cute::C<1>, cute::C<1> >, cutlass::bfloat16_t, cutlass::arch::Sm80, 256, true, true, false, false>, flash::SingleTileScheduler<true, false, true, 128> > > >(flash::enable_sm80_to_sm89<flash::FlashAttnFwdSm80<flash::CollectiveMainloopFwdSm80<8, 1, true, cute::tuple<cute::C<128>, cute::C<64>, cute::C<256> >, 256, cutlass::bfloat16_t, float, cutlass::arch::Sm80, false, false, false, true, false, false, true, false, cutlass::bfloat16_t>, flash::CollectiveEpilogueFwd<cute::tuple<cute::C<128>, cute::C<256>, cute::C<64> >, cute::tuple<cute::C<1>, cute::C<1>, cute::C<1> >, cutlass::bfloat16_t, cutlass::arch::Sm80, 256, true, true, false, false>, flash::SingleTileScheduler<true, false, true, 128> > >::Params)",
+                  "union_total_ms": 171.1045078125,
+                  "union_mean_per_region_ms": 2.715944568452381
+                },
+                {
+                  "name": "void flash::prepare_varlen_num_blocks_kernel<1, true>(int, int, int, int const*, int const*, int const*, int const*, int const*, int const*, int, int, int, int, int, cutlass::FastDivmod, cutlass::FastDivmod, int*, int*, int*, int*, int*, bool, bool, bool, int)",
+                  "union_total_ms": 1.60809765625,
+                  "union_mean_per_region_ms": 0.025525359623015872
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 10.3606728515625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.16445512462797618
+            },
+            "qsa.fa2_extract": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 40.462042,
+              "cpu_inclusive_mean_per_region_ms": 0.6422546349206348,
+              "cpu_exclusive_total_ms": 40.462042,
+              "cpu_exclusive_mean_per_region_ms": 0.6422546349206348,
+              "gpu_actual_inclusive_union_total_ms": 2.48922265625,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.03951147073412698,
+              "gpu_actual_exclusive_union_total_ms": 2.48922265625,
+              "gpu_actual_exclusive_kernel_union_total_ms": 2.48922265625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "_compact_kv",
+                  "union_total_ms": 2.48922265625,
+                  "union_mean_per_region_ms": 0.03951147073412698
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 0.0,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.0
+            },
+            "qsa.fa2_metadata_scratch": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 92.32583500000004,
+              "cpu_inclusive_mean_per_region_ms": 1.465489444444445,
+              "cpu_exclusive_total_ms": 92.32583500000004,
+              "cpu_exclusive_mean_per_region_ms": 1.465489444444445,
+              "gpu_actual_inclusive_union_total_ms": 2.3253935546875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.036911008804563494,
+              "gpu_actual_exclusive_union_total_ms": 2.3253935546875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 2.3253935546875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "_fa2_valid_counts",
+                  "union_total_ms": 0.946970703125,
+                  "union_mean_per_region_ms": 0.015031281001984127
+                },
+                {
+                  "name": "_fa2_prefix_sum",
+                  "union_total_ms": 0.70751171875,
+                  "union_mean_per_region_ms": 0.011230344742063492
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.6709111328125,
+                  "union_mean_per_region_ms": 0.010649383060515874
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 5.97553515625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.09484976438492064
+            },
+            "qsa.indexer": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 371.22333000000003,
+              "cpu_inclusive_mean_per_region_ms": 5.89243380952381,
+              "cpu_exclusive_total_ms": 371.22333000000003,
+              "cpu_exclusive_mean_per_region_ms": 5.89243380952381,
+              "gpu_actual_inclusive_union_total_ms": 92.929708984375,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 1.47507474578373,
+              "gpu_actual_exclusive_union_total_ms": 92.929708984375,
+              "gpu_actual_exclusive_kernel_union_total_ms": 92.929708984375,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "matmul_kernel_persistent",
+                  "union_total_ms": 51.1762919921875,
+                  "union_mean_per_region_ms": 0.8123220951140874
+                },
+                {
+                  "name": "kernel_kernel",
+                  "union_total_ms": 17.44568359375,
+                  "union_mean_per_region_ms": 0.2769156125992064
+                },
+                {
+                  "name": "void flashinfer::sampling::RadixTopKKernel_Unified<1024u, 4u, false, true, (flashinfer::sampling::RadixTopKMode)2, float, int, flashinfer::sampling::DirectPageTableKernelPolicy<int>>(float*, int*, float*, int const*, int*, int const*, int const*, int const*, long, unsigned int, unsigned int, unsigned int, flashinfer::sampling::RadixRowState*, flashinfer::sampling::RadixDeterministicCollectScratch*, unsigned int, unsigned int)",
+                  "union_total_ms": 16.4682724609375,
+                  "union_mean_per_region_ms": 0.2614011501736111
+                },
+                {
+                  "name": "void sglang::qsa_index_q_prep_kernel<__nv_bfloat16, 128, true, false>(sglang::QsaIndexQPrepParams)",
+                  "union_total_ms": 2.1343125,
+                  "union_mean_per_region_ms": 0.033877976190476194
+                },
+                {
+                  "name": "void sglang::qsa_index_k_compress_kernel<__nv_bfloat16, 128, true, false>(sglang::QsaIndexKCompressParams)",
+                  "union_total_ms": 2.0071357421875,
+                  "union_mean_per_region_ms": 0.03185929749503968
+                },
+                {
+                  "name": "_expand_qsa_block_indices_kernel",
+                  "union_total_ms": 1.330169921875,
+                  "union_mean_per_region_ms": 0.02111380828373016
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.0017333984375,
+                  "union_mean_per_region_ms": 0.015900530133928573
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.686197265625,
+                  "union_mean_per_region_ms": 0.010892020089285715
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 24.787021484375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.3934447854662698
+            },
+            "qsa.writeback": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 11.744364000000003,
+              "cpu_inclusive_mean_per_region_ms": 0.18641847619047625,
+              "cpu_exclusive_total_ms": 11.744364000000003,
+              "cpu_exclusive_mean_per_region_ms": 0.18641847619047625,
+              "gpu_actual_inclusive_union_total_ms": 0.0,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0,
+              "gpu_actual_exclusive_union_total_ms": 0.0,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 0.0,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.0
+            }
+          },
+          "accounting_note": "CPU wall and GPU unions overlap in time and must not be added. GPU total union equals QSA-associated union plus its time residual; unassociated-event union may overlap associated work on another stream. Per-label inclusive GPU unions overlap across nested labels."
+        }
+      },
+      "1": {
+        "arm": "resident",
+        "rank": 1,
+        "trace": "<PRIVATE_ARTIFACT>",
+        "trace_events": 1501445,
+        "schema": {
+          "cpu_decode_steps": 64,
+          "cpu_qsa_span_counts": {
+            "qsa.batch_metadata": 64,
+            "qsa.fa2_attention": 768,
+            "qsa.fa2_extract": 768,
+            "qsa.fa2_metadata_scratch": 768,
+            "qsa.indexer": 768,
+            "qsa.writeback": 768
+          },
+          "gpu_projection_counts": {
+            "qsa.batch_metadata": 64,
+            "qsa.fa2_attention": 768,
+            "qsa.fa2_extract": 768,
+            "qsa.fa2_metadata_scratch": 768,
+            "qsa.indexer": 768
+          },
+          "inventory_double_count_example": {
+            "qsa.batch_metadata_cpu": 64,
+            "qsa.batch_metadata_gpu_projection": 64,
+            "combined_incorrect": 128
+          },
+          "gpu_projection_is_busy_time": false
+        },
+        "device_coverage": {
+          "trace_device_events": 133312,
+          "trace_device_union_ms": 2411.882720703125,
+          "profile_step_device_events": 132160,
+          "profile_step_device_union_ms": 2409.829935546875,
+          "outside_step_device_events": 1152,
+          "outside_step_time_residual_ms": 2.05278515625,
+          "attribution_methods": {
+            "external_id_cpu": 94784,
+            "gpu_projection_fallback": 37376,
+            "outside_profile_steps": 1152
+          }
+        },
+        "cuda_runtime_coverage": {
+          "trace_runtime_events": 214403,
+          "trace_runtime_union_ms": 512.8893564453125,
+          "profile_step_runtime_events": 181515,
+          "profile_step_runtime_union_ms": 436.98325,
+          "profile_step_qsa_scoped_runtime_events": 11781,
+          "profile_step_qsa_scoped_runtime_union_ms": 44.6044609375,
+          "outside_step_runtime_events": 32888,
+          "attribution_methods": {
+            "cpu_thread_containment": 181515,
+            "outside_profile_steps": 32888
+          }
+        },
+        "first_handoff": null,
+        "steady_decode_steps_2_64": {
+          "regions": 63,
+          "cpu_wall_total_ms": 8132.028614,
+          "cpu_wall_mean_ms": 129.07981926984127,
+          "cpu_wall_median_ms": 128.35219,
+          "cpu_wall_p95_ms": 132.03983540000002,
+          "named_qsa_cpu_union_total_ms": 587.043099609375,
+          "named_qsa_cpu_union_mean_per_region_ms": 9.318144438244047,
+          "cpu_wall_unattributed_residual_total_ms": 7544.985514390625,
+          "cpu_wall_unattributed_residual_mean_per_region_ms": 119.76167483159722,
+          "gpu_actual_device_union_total_ms": 2381.707802734375,
+          "gpu_actual_device_union_mean_per_region_ms": 37.804885757688496,
+          "gpu_kernel_union_total_ms": 2381.20840625,
+          "gpu_memcpy_union_total_ms": 0.499396484375,
+          "gpu_memset_union_total_ms": 0.0,
+          "gpu_qsa_associated_union_total_ms": 273.6667431640625,
+          "gpu_qsa_unassociated_time_residual_total_ms": 2108.0410595703124,
+          "gpu_accounting_identity_error_ms": 0.0,
+          "gpu_unassociated_event_union_total_ms": 2108.0410595703124,
+          "device_events": 130095,
+          "device_events_with_runtime_correlation": 64953,
+          "device_attribution_methods": {
+            "external_id_cpu": 93303,
+            "gpu_projection_fallback": 36792
+          },
+          "cpu_cuda_runtime_union_total_ms": 428.0108115234375,
+          "cpu_cuda_runtime_qsa_scoped_union_total_ms": 41.841388671875,
+          "cpu_cuda_runtime_unscoped_time_residual_total_ms": 386.1694228515625,
+          "labels": {
+            "qsa.batch_metadata": {
+              "cpu_occurrences": 63,
+              "cpu_inclusive_total_ms": 4.473645000000003,
+              "cpu_inclusive_mean_per_region_ms": 0.07101023809523814,
+              "cpu_exclusive_total_ms": 4.473645000000003,
+              "cpu_exclusive_mean_per_region_ms": 0.07101023809523814,
+              "gpu_actual_inclusive_union_total_ms": 0.12748046875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0020234995039682536,
+              "gpu_actual_exclusive_union_total_ms": 0.12748046875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.12748046875,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 1.23091796875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.019538380456349206
+            },
+            "qsa.fa2_attention": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 67.082206,
+              "cpu_inclusive_mean_per_region_ms": 1.0647969206349206,
+              "cpu_exclusive_total_ms": 67.082206,
+              "cpu_exclusive_mean_per_region_ms": 1.0647969206349206,
+              "gpu_actual_inclusive_union_total_ms": 174.7979404296875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 2.7745704830109124,
+              "gpu_actual_exclusive_union_total_ms": 174.7979404296875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 174.7979404296875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void cutlass::device_kernel<flash::enable_sm80_to_sm89<flash::FlashAttnFwdSm80<flash::CollectiveMainloopFwdSm80<8, 1, true, cute::tuple<cute::C<128>, cute::C<64>, cute::C<256> >, 256, cutlass::bfloat16_t, float, cutlass::arch::Sm80, false, false, false, true, false, false, true, false, cutlass::bfloat16_t>, flash::CollectiveEpilogueFwd<cute::tuple<cute::C<128>, cute::C<256>, cute::C<64> >, cute::tuple<cute::C<1>, cute::C<1>, cute::C<1> >, cutlass::bfloat16_t, cutlass::arch::Sm80, 256, true, true, false, false>, flash::SingleTileScheduler<true, false, true, 128> > > >(flash::enable_sm80_to_sm89<flash::FlashAttnFwdSm80<flash::CollectiveMainloopFwdSm80<8, 1, true, cute::tuple<cute::C<128>, cute::C<64>, cute::C<256> >, 256, cutlass::bfloat16_t, float, cutlass::arch::Sm80, false, false, false, true, false, false, true, false, cutlass::bfloat16_t>, flash::CollectiveEpilogueFwd<cute::tuple<cute::C<128>, cute::C<256>, cute::C<64> >, cute::tuple<cute::C<1>, cute::C<1>, cute::C<1> >, cutlass::bfloat16_t, cutlass::arch::Sm80, 256, true, true, false, false>, flash::SingleTileScheduler<true, false, true, 128> > >::Params)",
+                  "union_total_ms": 173.1939521484375,
+                  "union_mean_per_region_ms": 2.7491103515625
+                },
+                {
+                  "name": "void flash::prepare_varlen_num_blocks_kernel<1, true>(int, int, int, int const*, int const*, int const*, int const*, int const*, int const*, int, int, int, int, int, cutlass::FastDivmod, cutlass::FastDivmod, int*, int*, int*, int*, int*, bool, bool, bool, int)",
+                  "union_total_ms": 1.60398828125,
+                  "union_mean_per_region_ms": 0.025460131448412696
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 10.302974609375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.16353927951388889
+            },
+            "qsa.fa2_extract": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 39.71139100000003,
+              "cpu_inclusive_mean_per_region_ms": 0.6303395396825401,
+              "cpu_exclusive_total_ms": 39.71139100000003,
+              "cpu_exclusive_mean_per_region_ms": 0.6303395396825401,
+              "gpu_actual_inclusive_union_total_ms": 2.512537109375,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.039881541418650794,
+              "gpu_actual_exclusive_union_total_ms": 2.512537109375,
+              "gpu_actual_exclusive_kernel_union_total_ms": 2.512537109375,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "_compact_kv",
+                  "union_total_ms": 2.512537109375,
+                  "union_mean_per_region_ms": 0.039881541418650794
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 0.0,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.0
+            },
+            "qsa.fa2_metadata_scratch": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 92.65909100000003,
+              "cpu_inclusive_mean_per_region_ms": 1.4707792222222227,
+              "cpu_exclusive_total_ms": 92.65909100000003,
+              "cpu_exclusive_mean_per_region_ms": 1.4707792222222227,
+              "gpu_actual_inclusive_union_total_ms": 2.3497119140625,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.03729701450892857,
+              "gpu_actual_exclusive_union_total_ms": 2.3497119140625,
+              "gpu_actual_exclusive_kernel_union_total_ms": 2.3497119140625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "_fa2_valid_counts",
+                  "union_total_ms": 0.9566083984375,
+                  "union_mean_per_region_ms": 0.01518426029265873
+                },
+                {
+                  "name": "_fa2_prefix_sum",
+                  "union_total_ms": 0.7158193359375,
+                  "union_mean_per_region_ms": 0.01136221168154762
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.6772841796875,
+                  "union_mean_per_region_ms": 0.010750542534722221
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 5.867791015625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.09313953993055556
+            },
+            "qsa.indexer": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 371.5055200000002,
+              "cpu_inclusive_mean_per_region_ms": 5.896913015873019,
+              "cpu_exclusive_total_ms": 371.5055200000002,
+              "cpu_exclusive_mean_per_region_ms": 5.896913015873019,
+              "gpu_actual_inclusive_union_total_ms": 93.8790732421875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 1.490144019717262,
+              "gpu_actual_exclusive_union_total_ms": 93.8790732421875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 93.8790732421875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "matmul_kernel_persistent",
+                  "union_total_ms": 51.814873046875,
+                  "union_mean_per_region_ms": 0.8224583023313492
+                },
+                {
+                  "name": "kernel_kernel",
+                  "union_total_ms": 17.545853515625,
+                  "union_mean_per_region_ms": 0.278505611359127
+                },
+                {
+                  "name": "void flashinfer::sampling::RadixTopKKernel_Unified<1024u, 4u, false, true, (flashinfer::sampling::RadixTopKMode)2, float, int, flashinfer::sampling::DirectPageTableKernelPolicy<int>>(float*, int*, float*, int const*, int*, int const*, int const*, int const*, long, unsigned int, unsigned int, unsigned int, flashinfer::sampling::RadixRowState*, flashinfer::sampling::RadixDeterministicCollectScratch*, unsigned int, unsigned int)",
+                  "union_total_ms": 16.6130166015625,
+                  "union_mean_per_region_ms": 0.26369867621527776
+                },
+                {
+                  "name": "void sglang::qsa_index_q_prep_kernel<__nv_bfloat16, 128, true, false>(sglang::QsaIndexQPrepParams)",
+                  "union_total_ms": 2.1547099609375,
+                  "union_mean_per_region_ms": 0.03420174541170635
+                },
+                {
+                  "name": "void sglang::qsa_index_k_compress_kernel<__nv_bfloat16, 128, true, false>(sglang::QsaIndexKCompressParams)",
+                  "union_total_ms": 2.019087890625,
+                  "union_mean_per_region_ms": 0.03204901413690476
+                },
+                {
+                  "name": "_expand_qsa_block_indices_kernel",
+                  "union_total_ms": 1.3413818359375,
+                  "union_mean_per_region_ms": 0.02129177517361111
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.008525390625,
+                  "union_mean_per_region_ms": 0.01600833953373016
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.6944228515625,
+                  "union_mean_per_region_ms": 0.011022584945436509
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 24.439705078125,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.3879318266369048
+            },
+            "qsa.writeback": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 11.611231999999996,
+              "cpu_inclusive_mean_per_region_ms": 0.18430526984126977,
+              "cpu_exclusive_total_ms": 11.611231999999996,
+              "cpu_exclusive_mean_per_region_ms": 0.18430526984126977,
+              "gpu_actual_inclusive_union_total_ms": 0.0,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0,
+              "gpu_actual_exclusive_union_total_ms": 0.0,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 0.0,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.0
+            }
+          },
+          "accounting_note": "CPU wall and GPU unions overlap in time and must not be added. GPU total union equals QSA-associated union plus its time residual; unassociated-event union may overlap associated work on another stream. Per-label inclusive GPU unions overlap across nested labels."
+        }
+      }
+    },
+    "offload": {
+      "0": {
+        "arm": "offload",
+        "rank": 0,
+        "trace": "<PRIVATE_ARTIFACT>",
+        "trace_events": 1686342,
+        "schema": {
+          "cpu_decode_steps": 64,
+          "cpu_qsa_span_counts": {
+            "qsa.batch_metadata": 64,
+            "qsa.compact_mapping": 768,
+            "qsa.fa2_attention": 768,
+            "qsa.fa2_extract": 768,
+            "qsa.fa2_metadata_scratch": 768,
+            "qsa.handoff": 1,
+            "qsa.handoff.allocate_validate": 1,
+            "qsa.handoff.d2h_submit": 768,
+            "qsa.handoff.gather_pack": 768,
+            "qsa.handoff.wait_copy": 768,
+            "qsa.hot_gather": 768,
+            "qsa.indexed_unpack": 768,
+            "qsa.indexer": 768,
+            "qsa.resolve_refetch": 768,
+            "qsa.selected": 768,
+            "qsa.state_allocate": 12,
+            "qsa.writeback": 768
+          },
+          "gpu_projection_counts": {
+            "qsa.batch_metadata": 64,
+            "qsa.compact_mapping": 768,
+            "qsa.fa2_attention": 768,
+            "qsa.fa2_extract": 768,
+            "qsa.fa2_metadata_scratch": 768,
+            "qsa.handoff": 1,
+            "qsa.handoff.allocate_validate": 1,
+            "qsa.handoff.d2h_submit": 768,
+            "qsa.handoff.gather_pack": 768,
+            "qsa.hot_gather": 768,
+            "qsa.indexed_unpack": 768,
+            "qsa.indexer": 768,
+            "qsa.resolve_refetch": 768,
+            "qsa.state_allocate": 12,
+            "qsa.writeback": 384
+          },
+          "inventory_double_count_example": {
+            "qsa.batch_metadata_cpu": 64,
+            "qsa.batch_metadata_gpu_projection": 64,
+            "combined_incorrect": 128
+          },
+          "gpu_projection_is_busy_time": false
+        },
+        "device_coverage": {
+          "trace_device_events": 146251,
+          "trace_device_union_ms": 2813.679705078125,
+          "profile_step_device_events": 145099,
+          "profile_step_device_union_ms": 2811.6175751953124,
+          "outside_step_device_events": 1152,
+          "outside_step_time_residual_ms": 2.0621298828125,
+          "attribution_methods": {
+            "external_id_cpu": 106955,
+            "gpu_projection_fallback": 38144,
+            "outside_profile_steps": 1152
+          }
+        },
+        "cuda_runtime_coverage": {
+          "trace_runtime_events": 240878,
+          "trace_runtime_union_ms": 1746.4162958984375,
+          "profile_step_runtime_events": 208045,
+          "profile_step_runtime_union_ms": 1671.9584658203125,
+          "profile_step_qsa_scoped_runtime_events": 38309,
+          "profile_step_qsa_scoped_runtime_union_ms": 1275.0533818359374,
+          "outside_step_runtime_events": 32833,
+          "attribution_methods": {
+            "cpu_thread_containment": 208045,
+            "outside_profile_steps": 32833
+          }
+        },
+        "first_handoff": {
+          "regions": 1,
+          "cpu_wall_total_ms": 1357.30918,
+          "cpu_wall_mean_ms": 1357.30918,
+          "cpu_wall_median_ms": 1357.30918,
+          "cpu_wall_p95_ms": 1357.30918,
+          "named_qsa_cpu_union_total_ms": 1280.9076630859374,
+          "named_qsa_cpu_union_mean_per_region_ms": 1280.9076630859374,
+          "cpu_wall_unattributed_residual_total_ms": 76.40151691406244,
+          "cpu_wall_unattributed_residual_mean_per_region_ms": 76.40151691406244,
+          "gpu_actual_device_union_total_ms": 68.3702314453125,
+          "gpu_actual_device_union_mean_per_region_ms": 68.3702314453125,
+          "gpu_kernel_union_total_ms": 6.7793427734375,
+          "gpu_memcpy_union_total_ms": 61.590888671875,
+          "gpu_memset_union_total_ms": 0.0,
+          "gpu_qsa_associated_union_total_ms": 68.3702314453125,
+          "gpu_qsa_unassociated_time_residual_total_ms": 0.0,
+          "gpu_accounting_identity_error_ms": 0.0,
+          "gpu_unassociated_event_union_total_ms": 0.0,
+          "device_events": 3211,
+          "device_events_with_runtime_correlation": 3211,
+          "device_attribution_methods": {
+            "external_id_cpu": 3211
+          },
+          "cpu_cuda_runtime_union_total_ms": 1166.280544921875,
+          "cpu_cuda_runtime_qsa_scoped_union_total_ms": 1166.280544921875,
+          "cpu_cuda_runtime_unscoped_time_residual_total_ms": 0.0,
+          "labels": {
+            "qsa.handoff": {
+              "cpu_occurrences": 1,
+              "cpu_inclusive_total_ms": 1357.30918,
+              "cpu_inclusive_mean_per_region_ms": 1357.30918,
+              "cpu_exclusive_total_ms": 76.40151691406244,
+              "cpu_exclusive_mean_per_region_ms": 76.40151691406244,
+              "gpu_actual_inclusive_union_total_ms": 68.3702314453125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 68.3702314453125,
+              "gpu_actual_exclusive_union_total_ms": 0.0505546875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0397470703125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0108076171875,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.0250263671875,
+                  "union_mean_per_region_ms": 0.0250263671875
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.00412890625,
+                  "union_mean_per_region_ms": 0.00412890625
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::BUnaryFunctor<long, long, long, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<long, long, long, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul>)",
+                  "union_total_ms": 0.002015625,
+                  "union_mean_per_region_ms": 0.002015625
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::BUnaryFunctor<long, long, long, at::native::remainder_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<long, long, long, at::native::remainder_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul>)",
+                  "union_total_ms": 0.0016962890625,
+                  "union_mean_per_region_ms": 0.0016962890625
+                },
+                {
+                  "name": "void at::native::(anonymous namespace)::CatArrayBatchedCopy_vectorized<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 1, 128, 1, 16, 2>(char*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+                  "union_total_ms": 0.001408203125,
+                  "union_mean_per_region_ms": 0.001408203125
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul>)",
+                  "union_total_ms": 0.001248046875,
+                  "union_mean_per_region_ms": 0.001248046875
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul>)",
+                  "union_total_ms": 0.00118359375,
+                  "union_mean_per_region_ms": 0.00118359375
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul>)",
+                  "union_total_ms": 0.00115234375,
+                  "union_mean_per_region_ms": 0.00115234375
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 3.1056962890625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 3.1056962890625
+            },
+            "qsa.handoff.allocate_validate": {
+              "cpu_occurrences": 1,
+              "cpu_inclusive_total_ms": 1111.116021,
+              "cpu_inclusive_mean_per_region_ms": 1111.116021,
+              "cpu_exclusive_total_ms": 1111.116021,
+              "cpu_exclusive_mean_per_region_ms": 1111.116021,
+              "gpu_actual_inclusive_union_total_ms": 0.0849921875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0849921875,
+              "gpu_actual_exclusive_union_total_ms": 0.0849921875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0037119140625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0812802734375,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 0.0037119140625,
+                  "union_mean_per_region_ms": 0.0037119140625
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 1093.864935546875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 1093.864935546875
+            },
+            "qsa.handoff.d2h_submit": {
+              "cpu_occurrences": 768,
+              "cpu_inclusive_total_ms": 40.32166300000001,
+              "cpu_inclusive_mean_per_region_ms": 40.32166300000001,
+              "cpu_exclusive_total_ms": 40.32166300000001,
+              "cpu_exclusive_mean_per_region_ms": 40.32166300000001,
+              "gpu_actual_inclusive_union_total_ms": 61.49880078125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 61.49880078125,
+              "gpu_actual_exclusive_union_total_ms": 61.49880078125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 61.49880078125,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 9.75159765625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 9.75159765625
+            },
+            "qsa.handoff.gather_pack": {
+              "cpu_occurrences": 768,
+              "cpu_inclusive_total_ms": 76.48698800000003,
+              "cpu_inclusive_mean_per_region_ms": 76.48698800000003,
+              "cpu_exclusive_total_ms": 76.48698800000003,
+              "cpu_exclusive_mean_per_region_ms": 76.48698800000003,
+              "gpu_actual_inclusive_union_total_ms": 6.6487177734375,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 6.6487177734375,
+              "gpu_actual_exclusive_union_total_ms": 6.6487177734375,
+              "gpu_actual_exclusive_kernel_union_total_ms": 6.6487177734375,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+                  "union_total_ms": 4.960220703125,
+                  "union_mean_per_region_ms": 4.960220703125
+                },
+                {
+                  "name": "void at::native::(anonymous namespace)::CatArrayBatchedCopy_vectorized<at::native::(anonymous namespace)::OpaqueType<1u>, unsigned int, 2, 128, 1, 16, 16>(char*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<1u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+                  "union_total_ms": 1.6884970703125,
+                  "union_mean_per_region_ms": 1.6884970703125
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 13.7850556640625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 13.7850556640625
+            },
+            "qsa.handoff.wait_copy": {
+              "cpu_occurrences": 768,
+              "cpu_inclusive_total_ms": 51.24694800000002,
+              "cpu_inclusive_mean_per_region_ms": 51.24694800000002,
+              "cpu_exclusive_total_ms": 51.24694800000002,
+              "cpu_exclusive_mean_per_region_ms": 51.24694800000002,
+              "gpu_actual_inclusive_union_total_ms": 0.0,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0,
+              "gpu_actual_exclusive_union_total_ms": 0.0,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 45.468005859375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 45.468005859375
+            },
+            "qsa.state_allocate": {
+              "cpu_occurrences": 12,
+              "cpu_inclusive_total_ms": 1.7360149999999999,
+              "cpu_inclusive_mean_per_region_ms": 1.7360149999999999,
+              "cpu_exclusive_total_ms": 1.7360149999999999,
+              "cpu_exclusive_mean_per_region_ms": 1.7360149999999999,
+              "gpu_actual_inclusive_union_total_ms": 0.087166015625,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.087166015625,
+              "gpu_actual_exclusive_union_total_ms": 0.087166015625,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.087166015625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.0305908203125,
+                  "union_mean_per_region_ms": 0.0305908203125
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.020578125,
+                  "union_mean_per_region_ms": 0.020578125
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.0157080078125,
+                  "union_mean_per_region_ms": 0.0157080078125
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.0102099609375,
+                  "union_mean_per_region_ms": 0.0102099609375
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#5}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#5}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#5}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.0100791015625,
+                  "union_mean_per_region_ms": 0.0100791015625
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 0.30525390625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.30525390625
+            }
+          },
+          "accounting_note": "CPU wall and GPU unions overlap in time and must not be added. GPU total union equals QSA-associated union plus its time residual; unassociated-event union may overlap associated work on another stream. Per-label inclusive GPU unions overlap across nested labels.",
+          "allocate_validate_nested_cpu_hotspots": {
+            "cpu_op": [
+              {
+                "name": "aten::empty",
+                "inclusive_sum_ms": 1092.585448
+              },
+              {
+                "name": "aten::sort",
+                "inclusive_sum_ms": 14.38328
+              },
+              {
+                "name": "aten::_unique2",
+                "inclusive_sum_ms": 7.601686
+              },
+              {
+                "name": "aten::copy_",
+                "inclusive_sum_ms": 2.392
+              },
+              {
+                "name": "aten::arange",
+                "inclusive_sum_ms": 2.020101
+              },
+              {
+                "name": "aten::to",
+                "inclusive_sum_ms": 1.428223
+              },
+              {
+                "name": "aten::_to_copy",
+                "inclusive_sum_ms": 1.424508
+              },
+              {
+                "name": "aten::add",
+                "inclusive_sum_ms": 1.246249
+              },
+              {
+                "name": "aten::equal",
+                "inclusive_sum_ms": 0.188463
+              },
+              {
+                "name": "aten::empty_strided",
+                "inclusive_sum_ms": 0.051006
+              },
+              {
+                "name": "aten::select",
+                "inclusive_sum_ms": 0.020370000000000003
+              },
+              {
+                "name": "aten::slice",
+                "inclusive_sum_ms": 0.017207
+              }
+            ],
+            "cuda_runtime": [
+              {
+                "name": "cudaHostAlloc",
+                "inclusive_sum_ms": 1092.54046
+              },
+              {
+                "name": "cudaMemcpyAsync",
+                "inclusive_sum_ms": 1.27937
+              },
+              {
+                "name": "cudaLaunchKernel",
+                "inclusive_sum_ms": 0.038467
+              },
+              {
+                "name": "cudaStreamSynchronize",
+                "inclusive_sum_ms": 0.005418
+              },
+              {
+                "name": "cudaStreamIsCapturing",
+                "inclusive_sum_ms": 0.001221
+              }
+            ]
+          },
+          "nested_hotspot_note": "Nested CPU-op and CUDA-runtime inclusive sums overlap and must not be added to the enclosing CPU wall."
+        },
+        "steady_decode_steps_2_64": {
+          "regions": 63,
+          "cpu_wall_total_ms": 8550.786978,
+          "cpu_wall_mean_ms": 135.72677742857144,
+          "cpu_wall_median_ms": 135.74949900000001,
+          "cpu_wall_p95_ms": 138.76482140000002,
+          "named_qsa_cpu_union_total_ms": 992.4033671875,
+          "named_qsa_cpu_union_mean_per_region_ms": 15.752434399801587,
+          "cpu_wall_unattributed_residual_total_ms": 7558.3836108125,
+          "cpu_wall_unattributed_residual_mean_per_region_ms": 119.97434302876984,
+          "gpu_actual_device_union_total_ms": 2714.12539453125,
+          "gpu_actual_device_union_mean_per_region_ms": 43.081355468750004,
+          "gpu_kernel_union_total_ms": 2711.6655517578124,
+          "gpu_memcpy_union_total_ms": 2.4598427734375,
+          "gpu_memset_union_total_ms": 0.0,
+          "gpu_qsa_associated_union_total_ms": 303.029166015625,
+          "gpu_qsa_unassociated_time_residual_total_ms": 2411.096228515625,
+          "gpu_accounting_identity_error_ms": 0.0,
+          "gpu_unassociated_event_union_total_ms": 2411.096228515625,
+          "device_events": 139677,
+          "device_events_with_runtime_correlation": 74535,
+          "device_attribution_methods": {
+            "external_id_cpu": 102129,
+            "gpu_projection_fallback": 37548
+          },
+          "cpu_cuda_runtime_union_total_ms": 495.6783017578125,
+          "cpu_cuda_runtime_qsa_scoped_union_total_ms": 104.9688876953125,
+          "cpu_cuda_runtime_unscoped_time_residual_total_ms": 390.7094140625,
+          "labels": {
+            "qsa.batch_metadata": {
+              "cpu_occurrences": 63,
+              "cpu_inclusive_total_ms": 7.228885999999999,
+              "cpu_inclusive_mean_per_region_ms": 0.1147442222222222,
+              "cpu_exclusive_total_ms": 7.228885999999999,
+              "cpu_exclusive_mean_per_region_ms": 0.1147442222222222,
+              "gpu_actual_inclusive_union_total_ms": 0.2453828125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0038949652777777776,
+              "gpu_actual_exclusive_union_total_ms": 0.2453828125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.1142978515625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.1310849609375,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.057646484375,
+                  "union_mean_per_region_ms": 0.0009150235615079366
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.0566513671875,
+                  "union_mean_per_region_ms": 0.0008992280505952381
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 2.2430947265625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.035604678199404764
+            },
+            "qsa.compact_mapping": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 116.305089,
+              "cpu_inclusive_mean_per_region_ms": 1.8461125238095237,
+              "cpu_exclusive_total_ms": 116.305089,
+              "cpu_exclusive_mean_per_region_ms": 1.8461125238095237,
+              "gpu_actual_inclusive_union_total_ms": 8.34071484375,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.13239229910714284,
+              "gpu_actual_exclusive_union_total_ms": 8.34071484375,
+              "gpu_actual_exclusive_kernel_union_total_ms": 7.157470703125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 1.183244140625,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_put_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_put_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_put_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_put_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+                  "union_total_ms": 2.5875107421875,
+                  "union_mean_per_region_ms": 0.041071599082341266
+                },
+                {
+                  "name": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#1}::operator()() const::{lambda(unsigned char)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#1}::operator()() const::{lambda(unsigned char)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#1}::operator()() const::{lambda(unsigned char)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#1}::operator()() const::{lambda(unsigned char)#1} const&)::{lambda(int)#1})",
+                  "union_total_ms": 2.48631640625,
+                  "union_mean_per_region_ms": 0.03946533978174603
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.4300751953125,
+                  "union_mean_per_region_ms": 0.022699606274801585
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.653568359375,
+                  "union_mean_per_region_ms": 0.010374100942460317
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 23.6544951171875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.37546817646329367
+            },
+            "qsa.fa2_attention": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 66.02337899999995,
+              "cpu_inclusive_mean_per_region_ms": 1.047990142857142,
+              "cpu_exclusive_total_ms": 66.02337899999995,
+              "cpu_exclusive_mean_per_region_ms": 1.047990142857142,
+              "gpu_actual_inclusive_union_total_ms": 173.862470703125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 2.7597217571924606,
+              "gpu_actual_exclusive_union_total_ms": 173.862470703125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 173.862470703125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void cutlass::device_kernel<flash::enable_sm80_to_sm89<flash::FlashAttnFwdSm80<flash::CollectiveMainloopFwdSm80<8, 1, true, cute::tuple<cute::C<128>, cute::C<64>, cute::C<256> >, 256, cutlass::bfloat16_t, float, cutlass::arch::Sm80, false, false, false, true, false, false, true, false, cutlass::bfloat16_t>, flash::CollectiveEpilogueFwd<cute::tuple<cute::C<128>, cute::C<256>, cute::C<64> >, cute::tuple<cute::C<1>, cute::C<1>, cute::C<1> >, cutlass::bfloat16_t, cutlass::arch::Sm80, 256, true, true, false, false>, flash::SingleTileScheduler<true, false, true, 128> > > >(flash::enable_sm80_to_sm89<flash::FlashAttnFwdSm80<flash::CollectiveMainloopFwdSm80<8, 1, true, cute::tuple<cute::C<128>, cute::C<64>, cute::C<256> >, 256, cutlass::bfloat16_t, float, cutlass::arch::Sm80, false, false, false, true, false, false, true, false, cutlass::bfloat16_t>, flash::CollectiveEpilogueFwd<cute::tuple<cute::C<128>, cute::C<256>, cute::C<64> >, cute::tuple<cute::C<1>, cute::C<1>, cute::C<1> >, cutlass::bfloat16_t, cutlass::arch::Sm80, 256, true, true, false, false>, flash::SingleTileScheduler<true, false, true, 128> > >::Params)",
+                  "union_total_ms": 172.2585712890625,
+                  "union_mean_per_region_ms": 2.734263036334325
+                },
+                {
+                  "name": "void flash::prepare_varlen_num_blocks_kernel<1, true>(int, int, int, int const*, int const*, int const*, int const*, int const*, int const*, int, int, int, int, int, cutlass::FastDivmod, cutlass::FastDivmod, int*, int*, int*, int*, int*, bool, bool, bool, int)",
+                  "union_total_ms": 1.6038994140625,
+                  "union_mean_per_region_ms": 0.02545872085813492
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 10.2480517578125,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.162667488219246
+            },
+            "qsa.fa2_extract": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 39.66174199999997,
+              "cpu_inclusive_mean_per_region_ms": 0.6295514603174598,
+              "cpu_exclusive_total_ms": 39.66174199999997,
+              "cpu_exclusive_mean_per_region_ms": 0.6295514603174598,
+              "gpu_actual_inclusive_union_total_ms": 1.6868828125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.026775917658730157,
+              "gpu_actual_exclusive_union_total_ms": 1.6868828125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 1.6868828125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "_compact_kv",
+                  "union_total_ms": 1.6868828125,
+                  "union_mean_per_region_ms": 0.026775917658730157
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 0.0,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.0
+            },
+            "qsa.fa2_metadata_scratch": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 89.63082000000009,
+              "cpu_inclusive_mean_per_region_ms": 1.42271142857143,
+              "cpu_exclusive_total_ms": 89.63082000000009,
+              "cpu_exclusive_mean_per_region_ms": 1.42271142857143,
+              "gpu_actual_inclusive_union_total_ms": 2.29866796875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0364867931547619,
+              "gpu_actual_exclusive_union_total_ms": 2.29866796875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 2.29866796875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "_fa2_valid_counts",
+                  "union_total_ms": 0.924802734375,
+                  "union_mean_per_region_ms": 0.014679408482142858
+                },
+                {
+                  "name": "_fa2_prefix_sum",
+                  "union_total_ms": 0.715533203125,
+                  "union_mean_per_region_ms": 0.011357669890873017
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.65833203125,
+                  "union_mean_per_region_ms": 0.010449714781746031
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 5.012484375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.07956324404761904
+            },
+            "qsa.hot_gather": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 53.064024999999994,
+              "cpu_inclusive_mean_per_region_ms": 0.842286111111111,
+              "cpu_exclusive_total_ms": 53.064024999999994,
+              "cpu_exclusive_mean_per_region_ms": 0.842286111111111,
+              "gpu_actual_inclusive_union_total_ms": 3.323123046875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.05274798487103175,
+              "gpu_actual_exclusive_union_total_ms": 3.323123046875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 3.323123046875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+                  "union_total_ms": 1.9467587890625,
+                  "union_mean_per_region_ms": 0.030900933159722224
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.3763642578125,
+                  "union_mean_per_region_ms": 0.021847051711309524
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 7.97075390625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.12651990327380952
+            },
+            "qsa.indexed_unpack": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 29.552479999999985,
+              "cpu_inclusive_mean_per_region_ms": 0.4690869841269839,
+              "cpu_exclusive_total_ms": 29.552479999999985,
+              "cpu_exclusive_mean_per_region_ms": 0.4690869841269839,
+              "gpu_actual_inclusive_union_total_ms": 2.3941220703125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.038001937624007935,
+              "gpu_actual_exclusive_union_total_ms": 2.3941220703125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 2.3941220703125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+                  "union_total_ms": 2.3941220703125,
+                  "union_mean_per_region_ms": 0.038001937624007935
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 4.0878056640625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.06488580419146825
+            },
+            "qsa.indexer": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 373.6339110000002,
+              "cpu_inclusive_mean_per_region_ms": 5.930697000000003,
+              "cpu_exclusive_total_ms": 373.6339110000002,
+              "cpu_exclusive_mean_per_region_ms": 5.930697000000003,
+              "gpu_actual_inclusive_union_total_ms": 93.521529296875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 1.484468718998016,
+              "gpu_actual_exclusive_union_total_ms": 93.521529296875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 93.521529296875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "matmul_kernel_persistent",
+                  "union_total_ms": 51.5471796875,
+                  "union_mean_per_region_ms": 0.8182092013888889
+                },
+                {
+                  "name": "kernel_kernel",
+                  "union_total_ms": 17.4576748046875,
+                  "union_mean_per_region_ms": 0.27710594928075394
+                },
+                {
+                  "name": "void flashinfer::sampling::RadixTopKKernel_Unified<1024u, 4u, false, true, (flashinfer::sampling::RadixTopKMode)2, float, int, flashinfer::sampling::DirectPageTableKernelPolicy<int>>(float*, int*, float*, int const*, int*, int const*, int const*, int const*, long, unsigned int, unsigned int, unsigned int, flashinfer::sampling::RadixRowState*, flashinfer::sampling::RadixDeterministicCollectScratch*, unsigned int, unsigned int)",
+                  "union_total_ms": 16.566068359375,
+                  "union_mean_per_region_ms": 0.2629534660218254
+                },
+                {
+                  "name": "void sglang::qsa_index_q_prep_kernel<__nv_bfloat16, 128, true, false>(sglang::QsaIndexQPrepParams)",
+                  "union_total_ms": 2.1577421875,
+                  "union_mean_per_region_ms": 0.034249875992063486
+                },
+                {
+                  "name": "void sglang::qsa_index_k_compress_kernel<__nv_bfloat16, 128, true, false>(sglang::QsaIndexKCompressParams)",
+                  "union_total_ms": 2.07019140625,
+                  "union_mean_per_region_ms": 0.032860181051587306
+                },
+                {
+                  "name": "_expand_qsa_block_indices_kernel",
+                  "union_total_ms": 1.3356015625,
+                  "union_mean_per_region_ms": 0.0212000248015873
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.0129150390625,
+                  "union_mean_per_region_ms": 0.016078016493055555
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.6875068359375,
+                  "union_mean_per_region_ms": 0.010912806919642856
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 26.9807685546875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.42826616753472224
+            },
+            "qsa.resolve_refetch": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 95.74601300000006,
+              "cpu_inclusive_mean_per_region_ms": 1.5197779841269852,
+              "cpu_exclusive_total_ms": 95.74601300000006,
+              "cpu_exclusive_mean_per_region_ms": 1.5197779841269852,
+              "gpu_actual_inclusive_union_total_ms": 16.5907685546875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.26334553261408733,
+              "gpu_actual_exclusive_union_total_ms": 16.5907685546875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 16.5907685546875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void sglang::load_cache_to_device_buffer_kernel<1024, 512, 2048, true, false, true, false, int, long>(int const*, int*, long const*, int const*, void const*, void const*, void*, void*, int*, long const*, int const*, short*, int const*, long, long, long, long, long, long, long, long*, int*, int*, long)",
+                  "union_total_ms": 14.1733466796875,
+                  "union_mean_per_region_ms": 0.2249737568204365
+                },
+                {
+                  "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}> >(at::TensorIteratorBase&, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}> >(at::TensorIteratorBase&, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}> const&)::{lambda(int)#1})",
+                  "union_total_ms": 1.2879169921875,
+                  "union_mean_per_region_ms": 0.020443126860119048
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.1295048828125,
+                  "union_mean_per_region_ms": 0.017928648933531747
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 15.1207763671875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.24001232328869046
+            },
+            "qsa.selected": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 365.59797299999997,
+              "cpu_inclusive_mean_per_region_ms": 5.803142428571428,
+              "cpu_exclusive_total_ms": 70.93040073437496,
+              "cpu_exclusive_mean_per_region_ms": 1.1258793767361104,
+              "gpu_actual_inclusive_union_total_ms": 16.4753818359375,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.26151399739583336,
+              "gpu_actual_exclusive_union_total_ms": 0.0,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 1.7093359375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.027132316468253967
+            },
+            "qsa.writeback": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 50.62661399999998,
+              "cpu_inclusive_mean_per_region_ms": 0.8035970476190474,
+              "cpu_exclusive_total_ms": 50.62661399999998,
+              "cpu_exclusive_mean_per_region_ms": 0.8035970476190474,
+              "gpu_actual_inclusive_union_total_ms": 0.76550390625,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.012150855654761905,
+              "gpu_actual_exclusive_union_total_ms": 0.76550390625,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.76550390625,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 7.9413212890625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.12605271887400793
+            }
+          },
+          "accounting_note": "CPU wall and GPU unions overlap in time and must not be added. GPU total union equals QSA-associated union plus its time residual; unassociated-event union may overlap associated work on another stream. Per-label inclusive GPU unions overlap across nested labels."
+        }
+      },
+      "1": {
+        "arm": "offload",
+        "rank": 1,
+        "trace": "<PRIVATE_ARTIFACT>",
+        "trace_events": 1686492,
+        "schema": {
+          "cpu_decode_steps": 64,
+          "cpu_qsa_span_counts": {
+            "qsa.batch_metadata": 64,
+            "qsa.compact_mapping": 768,
+            "qsa.fa2_attention": 768,
+            "qsa.fa2_extract": 768,
+            "qsa.fa2_metadata_scratch": 768,
+            "qsa.handoff": 1,
+            "qsa.handoff.allocate_validate": 1,
+            "qsa.handoff.d2h_submit": 768,
+            "qsa.handoff.gather_pack": 768,
+            "qsa.handoff.wait_copy": 768,
+            "qsa.hot_gather": 768,
+            "qsa.indexed_unpack": 768,
+            "qsa.indexer": 768,
+            "qsa.resolve_refetch": 768,
+            "qsa.selected": 768,
+            "qsa.state_allocate": 12,
+            "qsa.writeback": 768
+          },
+          "gpu_projection_counts": {
+            "qsa.batch_metadata": 64,
+            "qsa.compact_mapping": 768,
+            "qsa.fa2_attention": 768,
+            "qsa.fa2_extract": 768,
+            "qsa.fa2_metadata_scratch": 768,
+            "qsa.handoff": 1,
+            "qsa.handoff.allocate_validate": 1,
+            "qsa.handoff.d2h_submit": 768,
+            "qsa.handoff.gather_pack": 768,
+            "qsa.hot_gather": 768,
+            "qsa.indexed_unpack": 768,
+            "qsa.indexer": 768,
+            "qsa.resolve_refetch": 768,
+            "qsa.state_allocate": 12,
+            "qsa.writeback": 384
+          },
+          "inventory_double_count_example": {
+            "qsa.batch_metadata_cpu": 64,
+            "qsa.batch_metadata_gpu_projection": 64,
+            "combined_incorrect": 128
+          },
+          "gpu_projection_is_busy_time": false
+        },
+        "device_coverage": {
+          "trace_device_events": 146251,
+          "trace_device_union_ms": 2816.011263671875,
+          "profile_step_device_events": 145099,
+          "profile_step_device_union_ms": 2813.99028125,
+          "outside_step_device_events": 1152,
+          "outside_step_time_residual_ms": 2.020982421875,
+          "attribution_methods": {
+            "external_id_cpu": 106955,
+            "gpu_projection_fallback": 38144,
+            "outside_profile_steps": 1152
+          }
+        },
+        "cuda_runtime_coverage": {
+          "trace_runtime_events": 240892,
+          "trace_runtime_union_ms": 1739.560763671875,
+          "profile_step_runtime_events": 208043,
+          "profile_step_runtime_union_ms": 1655.8386728515625,
+          "profile_step_qsa_scoped_runtime_events": 38309,
+          "profile_step_qsa_scoped_runtime_union_ms": 1272.4307001953125,
+          "outside_step_runtime_events": 32849,
+          "attribution_methods": {
+            "cpu_thread_containment": 208043,
+            "outside_profile_steps": 32849
+          }
+        },
+        "first_handoff": {
+          "regions": 1,
+          "cpu_wall_total_ms": 1356.592174,
+          "cpu_wall_mean_ms": 1356.592174,
+          "cpu_wall_median_ms": 1356.592174,
+          "cpu_wall_p95_ms": 1356.592174,
+          "named_qsa_cpu_union_total_ms": 1279.690404296875,
+          "named_qsa_cpu_union_mean_per_region_ms": 1279.690404296875,
+          "cpu_wall_unattributed_residual_total_ms": 76.90176970312511,
+          "cpu_wall_unattributed_residual_mean_per_region_ms": 76.90176970312511,
+          "gpu_actual_device_union_total_ms": 68.282361328125,
+          "gpu_actual_device_union_mean_per_region_ms": 68.282361328125,
+          "gpu_kernel_union_total_ms": 6.699154296875,
+          "gpu_memcpy_union_total_ms": 61.58320703125,
+          "gpu_memset_union_total_ms": 0.0,
+          "gpu_qsa_associated_union_total_ms": 68.282361328125,
+          "gpu_qsa_unassociated_time_residual_total_ms": 0.0,
+          "gpu_accounting_identity_error_ms": 0.0,
+          "gpu_unassociated_event_union_total_ms": 0.0,
+          "device_events": 3211,
+          "device_events_with_runtime_correlation": 3211,
+          "device_attribution_methods": {
+            "external_id_cpu": 3211
+          },
+          "cpu_cuda_runtime_union_total_ms": 1168.3111640625,
+          "cpu_cuda_runtime_qsa_scoped_union_total_ms": 1168.3111640625,
+          "cpu_cuda_runtime_unscoped_time_residual_total_ms": 0.0,
+          "labels": {
+            "qsa.handoff": {
+              "cpu_occurrences": 1,
+              "cpu_inclusive_total_ms": 1356.592174,
+              "cpu_inclusive_mean_per_region_ms": 1356.592174,
+              "cpu_exclusive_total_ms": 76.90176970312511,
+              "cpu_exclusive_mean_per_region_ms": 76.90176970312511,
+              "gpu_actual_inclusive_union_total_ms": 68.282361328125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 68.282361328125,
+              "gpu_actual_exclusive_union_total_ms": 0.050591796875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0392021484375,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0113896484375,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.024642578125,
+                  "union_mean_per_region_ms": 0.024642578125
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.0040625,
+                  "union_mean_per_region_ms": 0.0040625
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::BUnaryFunctor<long, long, long, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<long, long, long, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul>)",
+                  "union_total_ms": 0.002015625,
+                  "union_mean_per_region_ms": 0.002015625
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::BUnaryFunctor<long, long, long, at::native::remainder_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<long, long, long, at::native::remainder_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul>)",
+                  "union_total_ms": 0.0016318359375,
+                  "union_mean_per_region_ms": 0.0016318359375
+                },
+                {
+                  "name": "void at::native::(anonymous namespace)::CatArrayBatchedCopy_vectorized<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 1, 128, 1, 16, 2>(char*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+                  "union_total_ms": 0.001408203125,
+                  "union_mean_per_region_ms": 0.001408203125
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul>)",
+                  "union_total_ms": 0.0012802734375,
+                  "union_mean_per_region_ms": 0.0012802734375
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul>)",
+                  "union_total_ms": 0.0011533203125,
+                  "union_mean_per_region_ms": 0.0011533203125
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul>)",
+                  "union_total_ms": 0.0011513671875,
+                  "union_mean_per_region_ms": 0.0011513671875
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 3.2219384765625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 3.2219384765625
+            },
+            "qsa.handoff.allocate_validate": {
+              "cpu_occurrences": 1,
+              "cpu_inclusive_total_ms": 1110.3021999999999,
+              "cpu_inclusive_mean_per_region_ms": 1110.3021999999999,
+              "cpu_exclusive_total_ms": 1110.3021999999999,
+              "cpu_exclusive_mean_per_region_ms": 1110.3021999999999,
+              "gpu_actual_inclusive_union_total_ms": 0.0850556640625,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0850556640625,
+              "gpu_actual_exclusive_union_total_ms": 0.0850556640625,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0037119140625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.08134375,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 0.0037119140625,
+                  "union_mean_per_region_ms": 0.0037119140625
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 1095.8318671875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 1095.8318671875
+            },
+            "qsa.handoff.d2h_submit": {
+              "cpu_occurrences": 768,
+              "cpu_inclusive_total_ms": 39.965087999999994,
+              "cpu_inclusive_mean_per_region_ms": 39.965087999999994,
+              "cpu_exclusive_total_ms": 39.965087999999994,
+              "cpu_exclusive_mean_per_region_ms": 39.965087999999994,
+              "gpu_actual_inclusive_union_total_ms": 61.4904736328125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 61.4904736328125,
+              "gpu_actual_exclusive_union_total_ms": 61.4904736328125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 61.4904736328125,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 9.8634814453125,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 9.8634814453125
+            },
+            "qsa.handoff.gather_pack": {
+              "cpu_occurrences": 768,
+              "cpu_inclusive_total_ms": 76.18469799999995,
+              "cpu_inclusive_mean_per_region_ms": 76.18469799999995,
+              "cpu_exclusive_total_ms": 76.18469799999995,
+              "cpu_exclusive_mean_per_region_ms": 76.18469799999995,
+              "gpu_actual_inclusive_union_total_ms": 6.570283203125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 6.570283203125,
+              "gpu_actual_exclusive_union_total_ms": 6.570283203125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 6.570283203125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+                  "union_total_ms": 4.894482421875,
+                  "union_mean_per_region_ms": 4.894482421875
+                },
+                {
+                  "name": "void at::native::(anonymous namespace)::CatArrayBatchedCopy_vectorized<at::native::(anonymous namespace)::OpaqueType<1u>, unsigned int, 2, 128, 1, 16, 16>(char*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<1u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+                  "union_total_ms": 1.67580078125,
+                  "union_mean_per_region_ms": 1.67580078125
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 13.41080078125,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 13.41080078125
+            },
+            "qsa.handoff.wait_copy": {
+              "cpu_occurrences": 768,
+              "cpu_inclusive_total_ms": 51.515775000000005,
+              "cpu_inclusive_mean_per_region_ms": 51.515775000000005,
+              "cpu_exclusive_total_ms": 51.515775000000005,
+              "cpu_exclusive_mean_per_region_ms": 51.515775000000005,
+              "gpu_actual_inclusive_union_total_ms": 0.0,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0,
+              "gpu_actual_exclusive_union_total_ms": 0.0,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 45.69094921875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 45.69094921875
+            },
+            "qsa.state_allocate": {
+              "cpu_occurrences": 12,
+              "cpu_inclusive_total_ms": 1.722636,
+              "cpu_inclusive_mean_per_region_ms": 1.722636,
+              "cpu_exclusive_total_ms": 1.722636,
+              "cpu_exclusive_mean_per_region_ms": 1.722636,
+              "gpu_actual_inclusive_union_total_ms": 0.08595703125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.08595703125,
+              "gpu_actual_exclusive_union_total_ms": 0.08595703125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.08595703125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.0302412109375,
+                  "union_mean_per_region_ms": 0.0302412109375
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.020228515625,
+                  "union_mean_per_region_ms": 0.020228515625
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.015486328125,
+                  "union_mean_per_region_ms": 0.015486328125
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.0100166015625,
+                  "union_mean_per_region_ms": 0.0100166015625
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#5}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#5}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#5}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.009984375,
+                  "union_mean_per_region_ms": 0.009984375
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 0.292126953125,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.292126953125
+            }
+          },
+          "accounting_note": "CPU wall and GPU unions overlap in time and must not be added. GPU total union equals QSA-associated union plus its time residual; unassociated-event union may overlap associated work on another stream. Per-label inclusive GPU unions overlap across nested labels.",
+          "allocate_validate_nested_cpu_hotspots": {
+            "cpu_op": [
+              {
+                "name": "aten::empty",
+                "inclusive_sum_ms": 1094.5569040000003
+              },
+              {
+                "name": "aten::sort",
+                "inclusive_sum_ms": 14.377361
+              },
+              {
+                "name": "aten::_unique2",
+                "inclusive_sum_ms": 7.6193919999999995
+              },
+              {
+                "name": "aten::copy_",
+                "inclusive_sum_ms": 2.460852
+              },
+              {
+                "name": "aten::arange",
+                "inclusive_sum_ms": 2.085459
+              },
+              {
+                "name": "aten::to",
+                "inclusive_sum_ms": 1.42645
+              },
+              {
+                "name": "aten::_to_copy",
+                "inclusive_sum_ms": 1.4215740000000001
+              },
+              {
+                "name": "aten::add",
+                "inclusive_sum_ms": 1.1995799999999999
+              },
+              {
+                "name": "aten::equal",
+                "inclusive_sum_ms": 0.18912299999999999
+              },
+              {
+                "name": "aten::empty_strided",
+                "inclusive_sum_ms": 0.052658
+              },
+              {
+                "name": "aten::select",
+                "inclusive_sum_ms": 0.020091
+              },
+              {
+                "name": "aten::slice",
+                "inclusive_sum_ms": 0.018318
+              }
+            ],
+            "cuda_runtime": [
+              {
+                "name": "cudaHostAlloc",
+                "inclusive_sum_ms": 1094.510976
+              },
+              {
+                "name": "cudaMemcpyAsync",
+                "inclusive_sum_ms": 1.2659090000000002
+              },
+              {
+                "name": "cudaLaunchKernel",
+                "inclusive_sum_ms": 0.039850000000000003
+              },
+              {
+                "name": "cudaStreamSynchronize",
+                "inclusive_sum_ms": 0.013680999999999999
+              },
+              {
+                "name": "cudaStreamIsCapturing",
+                "inclusive_sum_ms": 0.001452
+              }
+            ]
+          },
+          "nested_hotspot_note": "Nested CPU-op and CUDA-runtime inclusive sums overlap and must not be added to the enclosing CPU wall."
+        },
+        "steady_decode_steps_2_64": {
+          "regions": 63,
+          "cpu_wall_total_ms": 8538.830607,
+          "cpu_wall_mean_ms": 135.53699376190477,
+          "cpu_wall_median_ms": 135.127315,
+          "cpu_wall_p95_ms": 137.8182221,
+          "named_qsa_cpu_union_total_ms": 989.768134765625,
+          "named_qsa_cpu_union_mean_per_region_ms": 15.710605313740079,
+          "cpu_wall_unattributed_residual_total_ms": 7549.0624722343755,
+          "cpu_wall_unattributed_residual_mean_per_region_ms": 119.82638844816469,
+          "gpu_actual_device_union_total_ms": 2624.9748056640624,
+          "gpu_actual_device_union_mean_per_region_ms": 41.66626675657242,
+          "gpu_kernel_union_total_ms": 2622.56426953125,
+          "gpu_memcpy_union_total_ms": 2.4105361328125,
+          "gpu_memset_union_total_ms": 0.0,
+          "gpu_qsa_associated_union_total_ms": 296.4578642578125,
+          "gpu_qsa_unassociated_time_residual_total_ms": 2328.51694140625,
+          "gpu_accounting_identity_error_ms": 0.0,
+          "gpu_unassociated_event_union_total_ms": 2328.51694140625,
+          "device_events": 139677,
+          "device_events_with_runtime_correlation": 74535,
+          "device_attribution_methods": {
+            "external_id_cpu": 102129,
+            "gpu_projection_fallback": 37548
+          },
+          "cpu_cuda_runtime_union_total_ms": 477.6282294921875,
+          "cpu_cuda_runtime_qsa_scoped_union_total_ms": 100.3258369140625,
+          "cpu_cuda_runtime_unscoped_time_residual_total_ms": 377.302392578125,
+          "labels": {
+            "qsa.batch_metadata": {
+              "cpu_occurrences": 63,
+              "cpu_inclusive_total_ms": 6.561695999999999,
+              "cpu_inclusive_mean_per_region_ms": 0.10415390476190474,
+              "cpu_exclusive_total_ms": 6.561695999999999,
+              "cpu_exclusive_mean_per_region_ms": 0.10415390476190474,
+              "gpu_actual_inclusive_union_total_ms": 0.2421630859375,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.0038438585069444442,
+              "gpu_actual_exclusive_union_total_ms": 0.2421630859375,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.112009765625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.1301533203125,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.0565693359375,
+                  "union_mean_per_region_ms": 0.0008979259672619047
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<2, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.0554404296875,
+                  "union_mean_per_region_ms": 0.0008800068204365079
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 2.0012021484375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.03176511346726191
+            },
+            "qsa.compact_mapping": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 116.48869200000009,
+              "cpu_inclusive_mean_per_region_ms": 1.8490268571428585,
+              "cpu_exclusive_total_ms": 116.48869200000009,
+              "cpu_exclusive_mean_per_region_ms": 1.8490268571428585,
+              "gpu_actual_inclusive_union_total_ms": 8.175763671875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.1297740265376984,
+              "gpu_actual_exclusive_union_total_ms": 8.175763671875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 7.0166240234375,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 1.1591396484375,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_put_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_put_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_put_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_put_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})",
+                  "union_total_ms": 2.5314189453125,
+                  "union_mean_per_region_ms": 0.04018125310019841
+                },
+                {
+                  "name": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#1}::operator()() const::{lambda(unsigned char)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#1}::operator()() const::{lambda(unsigned char)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#1}::operator()() const::{lambda(unsigned char)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#1}::operator()() const::{lambda(unsigned char)#1} const&)::{lambda(int)#1})",
+                  "union_total_ms": 2.438505859375,
+                  "union_mean_per_region_ms": 0.038706442212301594
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.40501953125,
+                  "union_mean_per_region_ms": 0.022301897321428572
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.6416796875,
+                  "union_mean_per_region_ms": 0.010185391865079366
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 23.3178828125,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.3701251240079365
+            },
+            "qsa.fa2_attention": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 66.03306500000001,
+              "cpu_inclusive_mean_per_region_ms": 1.048143888888889,
+              "cpu_exclusive_total_ms": 66.03306500000001,
+              "cpu_exclusive_mean_per_region_ms": 1.048143888888889,
+              "gpu_actual_inclusive_union_total_ms": 169.8876767578125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 2.6966297898065474,
+              "gpu_actual_exclusive_union_total_ms": 169.8876767578125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 169.8876767578125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void cutlass::device_kernel<flash::enable_sm80_to_sm89<flash::FlashAttnFwdSm80<flash::CollectiveMainloopFwdSm80<8, 1, true, cute::tuple<cute::C<128>, cute::C<64>, cute::C<256> >, 256, cutlass::bfloat16_t, float, cutlass::arch::Sm80, false, false, false, true, false, false, true, false, cutlass::bfloat16_t>, flash::CollectiveEpilogueFwd<cute::tuple<cute::C<128>, cute::C<256>, cute::C<64> >, cute::tuple<cute::C<1>, cute::C<1>, cute::C<1> >, cutlass::bfloat16_t, cutlass::arch::Sm80, 256, true, true, false, false>, flash::SingleTileScheduler<true, false, true, 128> > > >(flash::enable_sm80_to_sm89<flash::FlashAttnFwdSm80<flash::CollectiveMainloopFwdSm80<8, 1, true, cute::tuple<cute::C<128>, cute::C<64>, cute::C<256> >, 256, cutlass::bfloat16_t, float, cutlass::arch::Sm80, false, false, false, true, false, false, true, false, cutlass::bfloat16_t>, flash::CollectiveEpilogueFwd<cute::tuple<cute::C<128>, cute::C<256>, cute::C<64> >, cute::tuple<cute::C<1>, cute::C<1>, cute::C<1> >, cutlass::bfloat16_t, cutlass::arch::Sm80, 256, true, true, false, false>, flash::SingleTileScheduler<true, false, true, 128> > >::Params)",
+                  "union_total_ms": 168.3112197265625,
+                  "union_mean_per_region_ms": 2.671606662326389
+                },
+                {
+                  "name": "void flash::prepare_varlen_num_blocks_kernel<1, true>(int, int, int, int const*, int const*, int const*, int const*, int const*, int const*, int, int, int, int, int, cutlass::FastDivmod, cutlass::FastDivmod, int*, int*, int*, int*, int*, bool, bool, bool, int)",
+                  "union_total_ms": 1.57645703125,
+                  "union_mean_per_region_ms": 0.025023127480158728
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 10.097888671875,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.16028394717261904
+            },
+            "qsa.fa2_extract": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 39.478795000000005,
+              "cpu_inclusive_mean_per_region_ms": 0.6266475396825397,
+              "cpu_exclusive_total_ms": 39.478795000000005,
+              "cpu_exclusive_mean_per_region_ms": 0.6266475396825397,
+              "gpu_actual_inclusive_union_total_ms": 1.653119140625,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.026239986359126985,
+              "gpu_actual_exclusive_union_total_ms": 1.653119140625,
+              "gpu_actual_exclusive_kernel_union_total_ms": 1.653119140625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "_compact_kv",
+                  "union_total_ms": 1.653119140625,
+                  "union_mean_per_region_ms": 0.026239986359126985
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 0.0,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.0
+            },
+            "qsa.fa2_metadata_scratch": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 89.71771099999992,
+              "cpu_inclusive_mean_per_region_ms": 1.4240906507936495,
+              "cpu_exclusive_total_ms": 89.71771099999992,
+              "cpu_exclusive_mean_per_region_ms": 1.4240906507936495,
+              "gpu_actual_inclusive_union_total_ms": 2.244416015625,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.03562565104166667,
+              "gpu_actual_exclusive_union_total_ms": 2.244416015625,
+              "gpu_actual_exclusive_kernel_union_total_ms": 2.244416015625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "_fa2_valid_counts",
+                  "union_total_ms": 0.904931640625,
+                  "union_mean_per_region_ms": 0.01436399429563492
+                },
+                {
+                  "name": "_fa2_prefix_sum",
+                  "union_total_ms": 0.696873046875,
+                  "union_mean_per_region_ms": 0.01106147693452381
+                },
+                {
+                  "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)",
+                  "union_total_ms": 0.642611328125,
+                  "union_mean_per_region_ms": 0.010200179811507936
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 4.97565234375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.07897860863095238
+            },
+            "qsa.hot_gather": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 52.701470999999955,
+              "cpu_inclusive_mean_per_region_ms": 0.836531285714285,
+              "cpu_exclusive_total_ms": 52.701470999999955,
+              "cpu_exclusive_mean_per_region_ms": 0.836531285714285,
+              "gpu_actual_inclusive_union_total_ms": 3.1913017578125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.05065558345734127,
+              "gpu_actual_exclusive_union_total_ms": 3.1913017578125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 3.1913017578125,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+                  "union_total_ms": 1.84894921875,
+                  "union_mean_per_region_ms": 0.029348400297619048
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.3423525390625,
+                  "union_mean_per_region_ms": 0.021307183159722222
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 7.7409658203125,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.12287247333829365
+            },
+            "qsa.indexed_unpack": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 29.148133000000012,
+              "cpu_inclusive_mean_per_region_ms": 0.462668777777778,
+              "cpu_exclusive_total_ms": 29.148133000000012,
+              "cpu_exclusive_mean_per_region_ms": 0.462668777777778,
+              "gpu_actual_inclusive_union_total_ms": 2.3310234375,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.03700037202380952,
+              "gpu_actual_exclusive_union_total_ms": 2.3310234375,
+              "gpu_actual_exclusive_kernel_union_total_ms": 2.3310234375,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+                  "union_total_ms": 2.3310234375,
+                  "union_mean_per_region_ms": 0.03700037202380952
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 3.9684970703125,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.0629920169890873
+            },
+            "qsa.indexer": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 372.0105050000002,
+              "cpu_inclusive_mean_per_region_ms": 5.904928650793654,
+              "cpu_exclusive_total_ms": 372.0105050000002,
+              "cpu_exclusive_mean_per_region_ms": 5.904928650793654,
+              "gpu_actual_inclusive_union_total_ms": 91.652900390625,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 1.4548079427083334,
+              "gpu_actual_exclusive_union_total_ms": 91.652900390625,
+              "gpu_actual_exclusive_kernel_union_total_ms": 91.652900390625,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "matmul_kernel_persistent",
+                  "union_total_ms": 50.3802705078125,
+                  "union_mean_per_region_ms": 0.7996868334573413
+                },
+                {
+                  "name": "kernel_kernel",
+                  "union_total_ms": 17.3811484375,
+                  "union_mean_per_region_ms": 0.27589124503968254
+                },
+                {
+                  "name": "void flashinfer::sampling::RadixTopKKernel_Unified<1024u, 4u, false, true, (flashinfer::sampling::RadixTopKMode)2, float, int, flashinfer::sampling::DirectPageTableKernelPolicy<int>>(float*, int*, float*, int const*, int*, int const*, int const*, int const*, long, unsigned int, unsigned int, unsigned int, flashinfer::sampling::RadixRowState*, flashinfer::sampling::RadixDeterministicCollectScratch*, unsigned int, unsigned int)",
+                  "union_total_ms": 16.1408486328125,
+                  "union_mean_per_region_ms": 0.25620394655257933
+                },
+                {
+                  "name": "void sglang::qsa_index_q_prep_kernel<__nv_bfloat16, 128, true, false>(sglang::QsaIndexQPrepParams)",
+                  "union_total_ms": 2.10079296875,
+                  "union_mean_per_region_ms": 0.03334592013888889
+                },
+                {
+                  "name": "void sglang::qsa_index_k_compress_kernel<__nv_bfloat16, 128, true, false>(sglang::QsaIndexKCompressParams)",
+                  "union_total_ms": 2.0114921875,
+                  "union_mean_per_region_ms": 0.03192844742063492
+                },
+                {
+                  "name": "_expand_qsa_block_indices_kernel",
+                  "union_total_ms": 1.30812109375,
+                  "union_mean_per_region_ms": 0.020763826884920636
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 0.9830380859375,
+                  "union_mean_per_region_ms": 0.015603779141865079
+                },
+                {
+                  "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+                  "union_total_ms": 0.67808203125,
+                  "union_mean_per_region_ms": 0.010763206845238096
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 23.8583349609375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.37870372953869047
+            },
+            "qsa.resolve_refetch": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 95.22156900000003,
+              "cpu_inclusive_mean_per_region_ms": 1.5114534761904768,
+              "cpu_exclusive_total_ms": 95.22156900000003,
+              "cpu_exclusive_mean_per_region_ms": 1.5114534761904768,
+              "gpu_actual_inclusive_union_total_ms": 16.3269560546875,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.2591580326140873,
+              "gpu_actual_exclusive_union_total_ms": 16.3269560546875,
+              "gpu_actual_exclusive_kernel_union_total_ms": 16.3269560546875,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [
+                {
+                  "name": "void sglang::load_cache_to_device_buffer_kernel<1024, 512, 2048, true, false, true, false, int, long>(int const*, int*, long const*, int const*, void const*, void const*, void*, void*, int*, long const*, int const*, short*, int const*, long, long, long, long, long, long, long, long*, int*, int*, long)",
+                  "union_total_ms": 13.9633818359375,
+                  "union_mean_per_region_ms": 0.22164098152281747
+                },
+                {
+                  "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}> >(at::TensorIteratorBase&, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}> >(at::TensorIteratorBase&, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}> const&)::{lambda(int)#1})",
+                  "union_total_ms": 1.2649501953125,
+                  "union_mean_per_region_ms": 0.020078574528769842
+                },
+                {
+                  "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+                  "union_total_ms": 1.0986240234375,
+                  "union_mean_per_region_ms": 0.0174384765625
+                }
+              ],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 14.7737666015625,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.23450423177083332
+            },
+            "qsa.selected": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 365.3357210000001,
+              "cpu_inclusive_mean_per_region_ms": 5.7989796984127,
+              "cpu_exclusive_total_ms": 71.77586357812498,
+              "cpu_exclusive_mean_per_region_ms": 1.1392994218749997,
+              "gpu_actual_inclusive_union_total_ms": 16.0616630859375,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.25494703311011907,
+              "gpu_actual_exclusive_union_total_ms": 0.0,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 1.7035380859375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.027040287078373016
+            },
+            "qsa.writeback": {
+              "cpu_occurrences": 756,
+              "cpu_inclusive_total_ms": 50.63062699999996,
+              "cpu_inclusive_mean_per_region_ms": 0.8036607460317454,
+              "cpu_exclusive_total_ms": 50.63062699999996,
+              "cpu_exclusive_mean_per_region_ms": 0.8036607460317454,
+              "gpu_actual_inclusive_union_total_ms": 0.7525439453125,
+              "gpu_actual_inclusive_union_mean_per_region_ms": 0.011945141989087301,
+              "gpu_actual_exclusive_union_total_ms": 0.7525439453125,
+              "gpu_actual_exclusive_kernel_union_total_ms": 0.0,
+              "gpu_actual_exclusive_memcpy_union_total_ms": 0.7525439453125,
+              "gpu_actual_exclusive_memset_union_total_ms": 0.0,
+              "gpu_actual_exclusive_top_kernels": [],
+              "cpu_cuda_runtime_exclusive_union_total_ms": 7.8881083984375,
+              "cpu_cuda_runtime_exclusive_union_mean_per_region_ms": 0.12520806981646826
+            }
+          },
+          "accounting_note": "CPU wall and GPU unions overlap in time and must not be added. GPU total union equals QSA-associated union plus its time residual; unassociated-event union may overlap associated work on another stream. Per-label inclusive GPU unions overlap across nested labels."
+        }
+      }
+    }
+  },
+  "steady_same_rank_comparison": {
+    "0": {
+      "cpu_wall_mean_ms": {
+        "resident": 129.16348033333333,
+        "offload": 135.72677742857144,
+        "offload_minus_resident": 6.563297095238113
+      },
+      "named_qsa_cpu_union_mean_per_region_ms": {
+        "resident": 9.32085232204861,
+        "offload": 15.752434399801587,
+        "offload_minus_resident": 6.431582077752976
+      },
+      "cpu_wall_unattributed_residual_mean_per_region_ms": {
+        "resident": 119.84262801128472,
+        "offload": 119.97434302876984,
+        "offload_minus_resident": 0.1317150174851207
+      },
+      "gpu_actual_device_union_mean_per_region_ms": {
+        "resident": 47.09040699404762,
+        "offload": 43.081355468750004,
+        "offload_minus_resident": -4.009051525297615
+      },
+      "gpu_qsa_associated_union_mean_per_region_ms": {
+        "resident": 4.2949647197420635,
+        "offload": 4.809986762152778,
+        "offload_minus_resident": 0.5150220424107136
+      }
+    },
+    "1": {
+      "cpu_wall_mean_ms": {
+        "resident": 129.07981926984127,
+        "offload": 135.53699376190477,
+        "offload_minus_resident": 6.457174492063501
+      },
+      "named_qsa_cpu_union_mean_per_region_ms": {
+        "resident": 9.318144438244047,
+        "offload": 15.710605313740079,
+        "offload_minus_resident": 6.392460875496031
+      },
+      "cpu_wall_unattributed_residual_mean_per_region_ms": {
+        "resident": 119.76167483159722,
+        "offload": 119.82638844816469,
+        "offload_minus_resident": 0.06471361656747376
+      },
+      "gpu_actual_device_union_mean_per_region_ms": {
+        "resident": 37.804885757688496,
+        "offload": 41.66626675657242,
+        "offload_minus_resident": 3.8613809988839236
+      },
+      "gpu_qsa_associated_union_mean_per_region_ms": {
+        "resident": 4.343916558159722,
+        "offload": 4.7056803850446425,
+        "offload_minus_resident": 0.36176382688492076
+      }
+    }
+  },
+  "first_handoff_slow_rank": {
+    "rank": 0,
+    "cpu_wall_ms": 1357.30918
+  },
+  "slow_rank_aggregate_without_cross_rank_sum": {
+    "resident": {
+      "cpu_wall_mean_ms": 129.16348033333333,
+      "named_qsa_cpu_union_mean_per_region_ms": 9.32085232204861,
+      "cpu_wall_unattributed_residual_mean_per_region_ms": 119.84262801128472,
+      "gpu_actual_device_union_mean_per_region_ms": 47.09040699404762
+    },
+    "offload": {
+      "cpu_wall_mean_ms": 135.72677742857144,
+      "named_qsa_cpu_union_mean_per_region_ms": 15.752434399801587,
+      "cpu_wall_unattributed_residual_mean_per_region_ms": 119.97434302876984,
+      "gpu_actual_device_union_mean_per_region_ms": 43.081355468750004
+    }
+  },
+  "slow_rank_aggregate_note": "Each value is max(rank aggregate mean), a slow-rank proxy. It is not mean(per-step max across ranks) and therefore is not an exact tensor-parallel synchronous critical path."
+}

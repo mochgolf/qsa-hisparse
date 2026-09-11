@@ -1,0 +1,282 @@
+{
+  "schema_version": "qwen38-hisparse-cpu-lru-v1",
+  "kind": "CPU trace replay; not a GPU or transfer benchmark",
+  "trace": {
+    "source_commit": "6f25e04479152cfe68e76a16b5c00236a6f360f8",
+    "path": "<PRIVATE_ARTIFACT>",
+    "rank": 0,
+    "layers": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31,
+      35,
+      39,
+      43,
+      47
+    ],
+    "positions": [
+      38185,
+      38951
+    ],
+    "position_count": 767,
+    "warm_position": 38185,
+    "measured_transition_count": 766,
+    "rows": 9204
+  },
+  "policy": {
+    "capacity_unit": "compressed QSA block slots per layer",
+    "cache_scope": "one independent LRU per QSA layer",
+    "update": "set-at-once; current selection protected; hits more MRU than new misses",
+    "tie_break": "ascending block ID within hit and miss groups",
+    "warmup": "first position preloaded; no empty-cache miss counted"
+  },
+  "self_check": {
+    "synthetic_hit_priority_and_selection_protection": "passed",
+    "capacity_512_misses": 1579601,
+    "capacity_512_denominator": 4706304,
+    "expected": {
+      "misses": 1579601,
+      "denominator": 4706304
+    },
+    "passed": true
+  },
+  "capacities": {
+    "512": {
+      "warm_position": 38185,
+      "measured_positions": [
+        38186,
+        38951
+      ],
+      "measured_tokens": 766,
+      "selected_blocks_per_token_12_layers": 6144,
+      "miss_blocks_total": 1579601,
+      "miss_blocks_denominator": 4706304,
+      "miss_fraction": 0.3356351395914926,
+      "miss_blocks_per_token_12_layers": {
+        "n": 766,
+        "min": 856,
+        "mean": 2062.1422976501303,
+        "p95": 3025.0,
+        "p99": 3419.6000000000004,
+        "max": 3850
+      },
+      "miss_blocks_per_layer_step": {
+        "n": 9192,
+        "min": 26,
+        "mean": 171.8451914708442,
+        "p95": 292.0,
+        "p99": 334.0,
+        "max": 430
+      },
+      "miss_pages_per_token_sum_of_12_layers": {
+        "n": 766,
+        "min": 630,
+        "mean": 1180.9647519582245,
+        "p95": 1526.25,
+        "p99": 1758.4,
+        "max": 2040
+      }
+    },
+    "1024": {
+      "warm_position": 38185,
+      "measured_positions": [
+        38186,
+        38951
+      ],
+      "measured_tokens": 766,
+      "selected_blocks_per_token_12_layers": 6144,
+      "miss_blocks_total": 779539,
+      "miss_blocks_denominator": 4706304,
+      "miss_fraction": 0.16563719640720193,
+      "miss_blocks_per_token_12_layers": {
+        "n": 766,
+        "min": 273,
+        "mean": 1017.6749347258485,
+        "p95": 1778.5,
+        "p99": 2104.05,
+        "max": 2515
+      },
+      "miss_blocks_per_layer_step": {
+        "n": 9192,
+        "min": 3,
+        "mean": 84.80624456048739,
+        "p95": 184.0,
+        "p99": 236.09000000000015,
+        "max": 324
+      },
+      "miss_pages_per_token_sum_of_12_layers": {
+        "n": 766,
+        "min": 241,
+        "mean": 689.2584856396867,
+        "p95": 1050.25,
+        "p99": 1213.700000000001,
+        "max": 1571
+      }
+    },
+    "1536": {
+      "warm_position": 38185,
+      "measured_positions": [
+        38186,
+        38951
+      ],
+      "measured_tokens": 766,
+      "selected_blocks_per_token_12_layers": 6144,
+      "miss_blocks_total": 485059,
+      "miss_blocks_denominator": 4706304,
+      "miss_fraction": 0.10306580280406875,
+      "miss_blocks_per_token_12_layers": {
+        "n": 766,
+        "min": 134,
+        "mean": 633.2362924281985,
+        "p95": 1243.0,
+        "p99": 1555.0,
+        "max": 1932
+      },
+      "miss_blocks_per_layer_step": {
+        "n": 9192,
+        "min": 0,
+        "mean": 52.7696910356832,
+        "p95": 129.0,
+        "p99": 176.0,
+        "max": 283
+      },
+      "miss_pages_per_token_sum_of_12_layers": {
+        "n": 766,
+        "min": 122,
+        "mean": 463.97127937336813,
+        "p95": 802.75,
+        "p99": 986.4000000000001,
+        "max": 1357
+      }
+    },
+    "2048": {
+      "warm_position": 38185,
+      "measured_positions": [
+        38186,
+        38951
+      ],
+      "measured_tokens": 766,
+      "selected_blocks_per_token_12_layers": 6144,
+      "miss_blocks_total": 334456,
+      "miss_blocks_denominator": 4706304,
+      "miss_fraction": 0.07106553252828547,
+      "miss_blocks_per_token_12_layers": {
+        "n": 766,
+        "min": 57,
+        "mean": 436.6266318537859,
+        "p95": 888.5,
+        "p99": 1198.1000000000024,
+        "max": 1819
+      },
+      "miss_blocks_per_layer_step": {
+        "n": 9192,
+        "min": 0,
+        "mean": 36.38555265448216,
+        "p95": 96.44999999999891,
+        "p99": 140.0,
+        "max": 224
+      },
+      "miss_pages_per_token_sum_of_12_layers": {
+        "n": 766,
+        "min": 55,
+        "mean": 335.6161879895561,
+        "p95": 626.75,
+        "p99": 812.2000000000007,
+        "max": 1099
+      }
+    },
+    "4096": {
+      "warm_position": 38185,
+      "measured_positions": [
+        38186,
+        38951
+      ],
+      "measured_tokens": 766,
+      "selected_blocks_per_token_12_layers": 6144,
+      "miss_blocks_total": 113628,
+      "miss_blocks_denominator": 4706304,
+      "miss_fraction": 0.02414378671671018,
+      "miss_blocks_per_token_12_layers": {
+        "n": 766,
+        "min": 13,
+        "mean": 148.33942558746736,
+        "p95": 365.5,
+        "p99": 775.0000000000014,
+        "max": 1819
+      },
+      "miss_blocks_per_layer_step": {
+        "n": 9192,
+        "min": 0,
+        "mean": 12.361618798955613,
+        "p95": 40.0,
+        "p99": 81.0,
+        "max": 204
+      },
+      "miss_pages_per_token_sum_of_12_layers": {
+        "n": 766,
+        "min": 13,
+        "mean": 122.80809399477806,
+        "p95": 281.75,
+        "p99": 533.5500000000008,
+        "max": 1098
+      }
+    }
+  },
+  "page_demand": {
+    "geometry": {
+      "full_page_tokens": 64,
+      "compress_ratio": 4,
+      "compressed_slots_per_full_page": 16,
+      "capacity_pages_for_compressed_slots": {
+        "512": 32,
+        "1024": 64,
+        "1536": 96,
+        "2048": 128,
+        "4096": 256
+      }
+    },
+    "selected_pages_per_layer_step": {
+      "n": 9192,
+      "min": 87,
+      "mean": 168.17547867711053,
+      "p95": 204.0,
+      "p99": 223.09000000000015,
+      "max": 278
+    },
+    "selected_pages_per_token_sum_of_12_layers": {
+      "n": 766,
+      "min": 1555,
+      "mean": 2018.1057441253263,
+      "p95": 2289.0,
+      "p99": 2383.8,
+      "max": 2581
+    },
+    "selected_pages_per_token_max_layer": {
+      "n": 766,
+      "min": 150,
+      "mean": 199.34334203655354,
+      "p95": 230.5,
+      "p99": 257.35,
+      "max": 278
+    },
+    "selected_pages_per_token_union_across_layers": {
+      "n": 766,
+      "min": 355,
+      "mean": 439.60966057441254,
+      "p95": 485.0,
+      "p99": 501.70000000000005,
+      "max": 542
+    }
+  },
+  "limitations": [
+    "single deterministic 38185-token prompt and 768-token completion",
+    "does not model host/device bandwidth, copy scheduling, or overlap",
+    "page counts use QSA full page 64 tokens and ratio 4, so 16 compressed slots/page",
+    "one QSA trace does not establish quality, concurrency, or steady service throughput"
+  ]
+}

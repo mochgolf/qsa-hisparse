@@ -1,0 +1,25 @@
+From 1438ee37e2b8ff4a330e2b5401637e23684b9e12 Mon Sep 17 00:00:00 2001
+From: QSA HiSparse contributors <mochgolf@users.noreply.github.com>
+Date: Fri, 11 Sep 2026 05:17:49 -0700
+Subject: [PATCH 07/11] Expose freeze-GC completion at info level
+
+---
+ python/sglang/srt/utils/common.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/python/sglang/srt/utils/common.py b/python/sglang/srt/utils/common.py
+index bbffe4795f..c77a68ef9d 100644
+--- a/python/sglang/srt/utils/common.py
++++ b/python/sglang/srt/utils/common.py
+@@ -4124,7 +4124,7 @@ def freeze_gc(context: str):
+     g0_before, g1_before, g2_before = gc_object_counts()
+     gc.freeze()
+     g0_after, g1_after, g2_after = gc_object_counts()
+-    logger.debug(
++    logger.info(
+         f"Freezing GC in {context} process. "
+         f"gen0: {g0_before}->{g0_after}, "
+         f"gen1: {g1_before}->{g1_after}, "
+-- 
+2.43.0
+

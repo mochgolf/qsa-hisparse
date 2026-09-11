@@ -1,0 +1,41 @@
+{
+  "schema": "qsa-hisparse-deployment-validation-v1",
+  "status": "PASS_DEPLOYMENT_VALIDATION",
+  "source": {
+    "commit": "8606d4b2df088512157c8df9615cff10e11028ae",
+    "clean": true
+  },
+  "smoke": {
+    "prompt_tokens": 2048,
+    "completion_tokens": 8,
+    "ttft_s": 0.544006128096953,
+    "mean_tpot_ms": 18.46465584821999,
+    "decode_cuda_graph_delta": 14.0,
+    "decode_eager_fallback_delta": 0,
+    "active_tp_ranks": [
+      "0",
+      "1"
+    ],
+    "kv_capacity_before": 2097152.0,
+    "kv_capacity_after": 2097152.0,
+    "mamba_capacity_before": 40.0,
+    "mamba_capacity_after": 40.0
+  },
+  "launch_shape": {
+    "max_model_len": 262144,
+    "tensor_parallel_size": 2,
+    "max_running_requests": 8,
+    "max_total_tokens": 2097152,
+    "chunked_prefill_size": 2048,
+    "cuda_graph_decode_batches": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ]
+  }
+}

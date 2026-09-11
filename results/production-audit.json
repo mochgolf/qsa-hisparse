@@ -1,0 +1,23 @@
+{
+  "schema": "qsa-hisparse-final-deployment-validation-v1",
+  "status": "PASS_DEPLOYMENT_VALIDATION",
+  "github": {
+    "remote": "https://github.com/mochgolf/sglang"
+  },
+  "acceptance": {
+    "real_8x256k": "b8-production-execution-01 PASS",
+    "latest_upstream_8x256k": "upstream-b8-execution-06 PASS",
+    "deterministic_exact_oracle": "12/12 PASS",
+    "deployment_smoke": "PASS"
+  },
+  "scope": {
+    "simultaneous_prefill": false,
+    "max_decode_leases": 8,
+    "mtp": false,
+    "fixed_slo_claim": false
+  },
+  "validated_source": {
+    "commit": "5401b6e65925422acd3c9a015935267970acbf4b",
+    "clean": true
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schema": "qsa-hisparse-fastpath-summary-v1",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4090 48GB",
+    "count": 2,
+    "compute_capability": "8.9",
+    "tensor_parallel_size": 2
+  },
+  "b1_38k": {
+    "baseline_commit": "5401b6e65925422acd3c9a015935267970acbf4b",
+    "candidate_commit": "a8987a6fd3057edab2bef029fa36ac420e550dba",
+    "prompt_tokens": 38185,
+    "completion_tokens": 768,
+    "baseline_steady_tok_s": 69.38087119098387,
+    "candidate_steady_tok_s": 86.06596426161593,
+    "gain_fraction": 0.24048549382874151,
+    "component_gather_max_abs": 0.0,
+    "component_ragged_max_abs_vs_fp32": 0.000493071973323822
+  },
+  "batched_short": {
+    "baseline_commit": "5401b6e65925422acd3c9a015935267970acbf4b",
+    "candidate_commit": "687a39bbe0af00240fecb61872e8643ccb076cb7",
+    "b2": {
+      "prompt_tokens": [
+        4096,
+        4099
+      ],
+      "baseline_aggregate_tok_s": 130.49907112640358,
+      "candidate_aggregate_tok_s": 158.3350835536257,
+      "gain_fraction": 0.21330429547854557
+    },
+    "b8": {
+      "prompt_tokens": [
+        4096,
+        4097,
+        4098,
+        4099,
+        4096,
+        4097,
+        4098,
+        4099
+      ],
+      "baseline_aggregate_tok_s": 400.15546203028634,
+      "candidate_aggregate_tok_s": 464.14573643424416,
+      "gain_fraction": 0.1599135348029177
+    }
+  },
+  "scope": {
+    "mtp": false,
+    "cross_arm_service_output_ids_equal": false,
+    "kernel_correctness_qualified_separately": true,
+    "fixed_slo_claim": false
+  }
+}

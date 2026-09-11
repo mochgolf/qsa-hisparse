@@ -1,0 +1,62 @@
+{
+  "schema": "qsa-hisparse-marlin-g64-recovery-v1",
+  "status": "PASS_DEPLOYMENT_VALIDATION",
+  "source": {
+    "base_commit": "8606d4b2df088512157c8df9615cff10e11028ae",
+    "fixed_commit": "9f8016f5aac9c87d08d01f51761b3874127856a0",
+    "branch": "qwen38-hisparse-upstream-latest-20260911"
+  },
+  "root_cause": "TP2 splits the MoE down-projection K dimension to 320, which is not divisible by checkpoint group size 128, so latest upstream rejected Marlin and fell back to Triton",
+  "fix": "Read each symmetric g128 checkpoint scale group as two identical g64 groups, retain rank-local W2 scales, and bound Marlin repack peak memory",
+  "component": {
+    "status": "PASS",
+    "rank0_w13_relative_error": 0.00294,
+    "rank1_w13_relative_error": 0.00266,
+    "rank0_w2_local_relative_error": 0.00331,
+    "rank1_w2_local_relative_error": 0.00319,
+    "full_w2_table_negative_relative_error": [
+      1.16,
+      1.62
+    ],
+    "real_checkpoint_g128_to_g64_bit_equal": true
+  },
+  "matched_b1_no_mtp": {
+    "prompt_tokens": 38185,
+    "completion_tokens": 768,
+    "baseline_steady_decode_tok_s": 66.76804684471674,
+    "fixed_mean_steady_decode_tok_s": 86.37414571184803,
+    "fixed_mean_full_decode_tok_s": 86.32665973496702,
+    "gain_fraction": 0.29364493636798206,
+    "old_marlin_mean_steady_decode_tok_s": 86.06596426161595,
+    "fixed_over_old_marlin_fraction": 1.0035807586991683,
+    "repeat_count": 2
+  },
+  "route": {
+    "marlin_moe_tp_ranks": [
+      0,
+      1
+    ],
+    "hisparse_b1_tp_ranks": [
+      0,
+      1
+    ],
+    "decode_cuda_graph_delta": 4602,
+    "decode_eager_fallback_delta": 0,
+    "triton_default_config_warning": false
+  },
+  "resource_recovery": {
+    "kv_available_tokens_before": 2097152,
+    "kv_available_tokens_after": 2097152,
+    "mamba_slots_before": 40,
+    "mamba_slots_after": 40,
+    "running_requests_after": 0,
+    "queued_requests_after": 0
+  },
+  "scope": "The corrected MoE path was remeasured at matched B1/38K/no-MTP. Existing 8x256K capacity evidence predates this patch and was not repeated because the patch does not modify HiSparse scheduling or KV ownership.",
+  "deployment_validation": {
+    "candidate_commit": "9f8016f5aac9c87d08d01f51761b3874127856a0",
+    "smoke_prompt_tokens": 2048,
+    "smoke_completion_tokens": 8,
+    "source_clean": true
+  }
+}

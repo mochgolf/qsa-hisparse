@@ -1,0 +1,27 @@
+{
+  "schema": "qsa-hisparse-short-prompt-hotfix-v1",
+  "source_commit": "5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0",
+  "checks": {
+    "cpu_suite": "PASS_9_SKIPPED_1",
+    "triton_interpreter_lengths": [
+      1,
+      2,
+      3,
+      4,
+      2047,
+      2048,
+      2051,
+      2052
+    ],
+    "openai_short": {
+      "prompt_tokens": 19,
+      "completion_tokens": 4,
+      "expected_response": true
+    },
+    "boundary_2048": {
+      "prompt_tokens": 2048,
+      "completion_tokens": 8,
+      "output_ids_match_previous_oracle": true
+    }
+  }
+}

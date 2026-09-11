@@ -1,0 +1,86 @@
+{
+  "mode": "p2-offload",
+  "output_ids": [
+    27775,
+    383,
+    279,
+    3766,
+    2450,
+    3425,
+    11,
+    1532,
+    369,
+    279,
+    7873,
+    5048,
+    1103,
+    8559,
+    20375,
+    95088
+  ],
+  "per_rank": {
+    "0": {
+      "prefill_chunks": 64,
+      "decode_forwards": 15
+    },
+    "1": {
+      "prefill_chunks": 64,
+      "decode_forwards": 15
+    }
+  },
+  "tp_schedule_equal": true,
+  "closure": {
+    "0": {
+      "logical_available": true,
+      "mamba_available_equals_startup": true,
+      "lease_active": true,
+      "lease_free": true,
+      "staging_owner": true,
+      "host_bytes": true,
+      "hot_bytes": true,
+      "pending_release_count": true,
+      "leases_empty": true,
+      "raw_storage_unchanged": true,
+      "index_storage_unchanged": true
+    },
+    "1": {
+      "logical_available": true,
+      "mamba_available_equals_startup": true,
+      "lease_active": true,
+      "lease_free": true,
+      "staging_owner": true,
+      "host_bytes": true,
+      "hot_bytes": true,
+      "pending_release_count": true,
+      "leases_empty": true,
+      "raw_storage_unchanged": true,
+      "index_storage_unchanged": true
+    }
+  },
+  "gc_gate": {
+    "schema": "qsa-hisparse-p3a-gc-freeze-gate-v1",
+    "status": "PASS",
+    "verdict": "PASS",
+    "timeout_s": 60,
+    "required_processes": [
+      "detokenizer_manager",
+      "scheduler_tp0",
+      "scheduler_tp1",
+      "tokenizer_manager"
+    ],
+    "health_to_post_offset": true,
+    "old_successes_ignored": true,
+    "http": {
+      "http_status": 200,
+      "body": "Garbage collection frozen.\n"
+    },
+    "post_health_successes": true,
+    "requests_started_after_gate": true
+  },
+  "nvml": {
+    "path": "<PRIVATE_ARTIFACT>",
+    "sample_count": 312,
+    "sampled_nvml_peak_mib": 44330,
+    "errors": []
+  }
+}
