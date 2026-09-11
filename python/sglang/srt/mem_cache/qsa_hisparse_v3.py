@@ -448,14 +448,17 @@ class QSAHiSparseV3:
         li = self.pool._transfer_full_attention_id(layer.layer_id)
         state = self.states[li]
         with operations_nvtx_range("qsa.compact_mapping"):
-            self.compact[:, 1:2049].copy_(unpacked)
+            selected = min(self.seq_len // 4, 512) * 4
+            self.compact[:, 1 : 1 + selected].copy_(unpacked[:, :selected])
             tail = self.seq_len % 4
             if tail:
-                self.compact[0, 2049:2049 + tail].copy_(self.full.k_buffer[li][1:1 + tail].view(torch.uint8))
-                self.compact[1, 2049:2049 + tail].copy_(self.full.v_buffer[li][1:1 + tail].view(torch.uint8))
-            valid = raw_indices[0, :2048 + tail].long()
+                start = 1 + selected
+                self.compact[0, start:start + tail].copy_(self.full.k_buffer[li][1:1 + tail].view(torch.uint8))
+                self.compact[1, start:start + tail].copy_(self.full.v_buffer[li][1:1 + tail].view(torch.uint8))
+            valid = raw_indices[0, :selected + tail].long()
             base = getattr(self, "compact_base", 0)
-            self.compact_table[0, valid] = torch.arange(1 + base, 2049 + tail + base, dtype=torch.int32, device=self.device)
+            self.compact_table[0, valid] = torch.arange(
+                1 + base, 1 + selected + tail + base, dtype=torch.int32, device=self.device)
         self.check_selected(layer, raw_indices, blocks, miss_count)
 
     def check_selected(self, layer, raw_indices, blocks, miss_count, *, compact=None, mapping=None):
@@ -465,32 +468,37 @@ class QSAHiSparseV3:
             li = self.pool._transfer_full_attention_id(layer.layer_id)
             state = self.states[li]
             tail, base = self.seq_len % 4, getattr(self, "compact_base", 0)
-            valid = raw_indices[0, :2048 + tail].long()
+            selected = min(self.seq_len // 4, 512) * 4
+            valid = raw_indices[0, :selected + tail].long()
             compact = self.compact if compact is None else compact
             mapping = self.compact_table[0, valid] if mapping is None else mapping
-            ids = blocks[0].cpu().long()
-            if len(torch.unique(ids)) != 512 or int(ids.min()) < 0 or int(ids.max()) >= self.seq_len // 4:
+            ids = blocks[0, : selected // 4].cpu().long()
+            if (len(torch.unique(ids)) != selected // 4
+                    or (ids.numel() and (int(ids.min()) < 0 or int(ids.max()) >= self.seq_len // 4))):
                 raise AssertionError("invalid selected C4 set")
-            if not torch.equal(raw_indices[0, :2048].cpu().reshape(-1, 4), ids[:, None] * 4 + torch.arange(4)):
+            if not torch.equal(raw_indices[0, :selected].cpu().reshape(-1, 4), ids[:, None] * 4 + torch.arange(4)):
                 raise AssertionError("invalid C4 expansion")
             # Sync only the copy completion needed by this byte check, never the device.
             if state["done"] is not None:
                 state["done"].synchronize()
             expected = self.host[li].index_select(0, ids)
             ek, ev = expected[:, :1024].reshape(-1, 1, 256), expected[:, 1024:].reshape(-1, 1, 256)
-            if not torch.equal(compact[0, 1:2049].cpu(), ek) or not torch.equal(compact[1, 1:2049].cpu(), ev):
+            if (not torch.equal(compact[0, 1 : 1 + selected].cpu(), ek)
+                    or not torch.equal(compact[1, 1 : 1 + selected].cpu(), ev)):
                 raise AssertionError("selected unpack K/V bytes differ")
-            if not torch.equal(raw_indices[0, 2048:].cpu(), torch.cat((
+            if not torch.equal(raw_indices[0, selected:].cpu(), torch.cat((
                 torch.arange(self.seq_len - tail, self.seq_len, dtype=torch.int32),
-                torch.full((3 - tail,), -1, dtype=torch.int32),
+                torch.full((2051 - selected - tail,), -1, dtype=torch.int32),
             ))):
                 raise AssertionError("pending tail indices/mask differ")
             for plane, source in ((0, self.full.k_buffer[li]), (1, self.full.v_buffer[li])):
-                if not torch.equal(compact[plane, 2049:2049 + tail].cpu(), source[1:1 + tail].view(torch.uint8).cpu()):
+                if not torch.equal(compact[plane, 1 + selected : 1 + selected + tail].cpu(),
+                                   source[1:1 + tail].view(torch.uint8).cpu()):
                     raise AssertionError("pending tail bytes differ")
-            if not torch.equal(mapping.cpu(), torch.arange(1 + base, 2049 + tail + base, dtype=torch.int32)):
+            if not torch.equal(mapping.cpu(), torch.arange(
+                    1 + base, 1 + selected + tail + base, dtype=torch.int32)):
                 raise AssertionError("compact physical mapping differs")
-            self.record("selected_check", layer=layer.layer_id, bytes_checked=2048 * 512,
+            self.record("selected_check", layer=layer.layer_id, bytes_checked=selected * 512,
                         tail=tail, tail_bytes_checked=tail * 512, mapping_checked=True,
                         page_boundary=self.seq_len % 64 == 0,
                         latest_writeback_event_ms=(state["copy_begin"].elapsed_time(state["done"])

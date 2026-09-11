@@ -274,15 +274,17 @@ class TestQSAHiSparseP2(unittest.TestCase):
         hot = torch.full((batch * 2112, 2048), 91, dtype=torch.uint8)
         tokens = torch.full((batch, 2112), -1, dtype=torch.int32)
         slots = torch.tensor([7, 0, 6, 1, 5, 2, 4, 3], dtype=torch.int32)
-        lengths = torch.tensor([2052 + row % 4 for row in range(batch)], dtype=torch.int32)
+        lengths = torch.tensor([1, 2, 3, 4, 2047, 2048, 2051, 2052], dtype=torch.int32)
         real = torch.tensor([batch], dtype=torch.int32)
         members = k[:2048].view(2048, 1, 256)
         unpacked = torch.stack([
             torch.stack((members ^ row, members ^ (137 + row))) for row in range(batch)])
         raw = torch.full((batch, 2051), -1, dtype=torch.int32)
-        raw[:, :2048] = torch.arange(2048)
         for row, length in enumerate(lengths.tolist()):
-            raw[row, 2048:2048 + length % 4] = torch.arange(2048, 2048 + length % 4)
+            selected = min(length // 4, 512) * 4
+            raw[row, :selected] = torch.arange(selected)
+            raw[row, selected:selected + length % 4] = torch.arange(
+                length - length % 4, length)
         for real_count in (0, batch):
             real.fill_(real_count)
             before = [x.clone() for x in (hot, tokens, compact, table)]
@@ -295,14 +297,16 @@ class TestQSAHiSparseP2(unittest.TestCase):
                     self.assertTrue(torch.equal(actual, expected))
             else:
                 for row, slot in enumerate(slots.tolist()):
-                    base, tail = slot * 2052, int(lengths[row]) % 4
-                    self.assertTrue(torch.equal(compact[:, base + 1:base + 2049], unpacked[row]))
+                    base, length = slot * 2052, int(lengths[row])
+                    selected, tail = min(length // 4, 512) * 4, length % 4
+                    self.assertTrue(torch.equal(
+                        compact[:, base + 1:base + 1 + selected], unpacked[row, :, :selected]))
                     for plane, source in enumerate((k, v)):
                         ring = start + slot * 5 + 1
-                        self.assertTrue(torch.equal(compact[plane, base + 2049:base + 2049 + tail],
+                        self.assertTrue(torch.equal(compact[plane, base + 1 + selected:base + 1 + selected + tail],
                                                     source[ring:ring + tail].view(tail, 1, 256)))
-                    self.assertTrue(torch.equal(table[slot, raw[row, :2048 + tail].long()],
-                                                torch.arange(base + 1, base + 2049 + tail, dtype=torch.int32)))
+                    self.assertTrue(torch.equal(table[slot, raw[row, :selected + tail].long()],
+                                                torch.arange(base + 1, base + 1 + selected + tail, dtype=torch.int32)))
                     if tail == 0:
                         ring = start + slot * 5 + 1
                         expected = torch.cat((k[ring:ring + 4].flatten(), v[ring:ring + 4].flatten()))

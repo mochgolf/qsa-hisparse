@@ -439,25 +439,27 @@ class QSAHiSparseP2:
     def _check_graph_selected(self, saved):
         for row, (lease, seq) in enumerate(saved):
             state = self.requests[lease.req_pool_idx]
+            selected = min(seq // 4, 512) * 4
+            valid = selected + seq % 4
             for li, lid in enumerate(self.layer_ids):
                 raw = self.graph_audit["raw"][li, row:row + 1]
                 compact = self.graph_audit["compact"][li, :, lease.slot * 2052:(lease.slot + 1) * 2052]
                 state.check_selected(SimpleNamespace(layer_id=lid), raw, raw[:, :2048:4] // 4,
                                      self.graph_audit["miss_count"][li, row:row + 1],
                                      compact=compact,
-                                     mapping=self.graph_audit["mapping"][li, row, :2048 + seq % 4])
-                if int(self.graph_audit["valid_counts"][li, row]) != 2048 + seq % 4:
+                                     mapping=self.graph_audit["mapping"][li, row, :valid])
+                if int(self.graph_audit["valid_counts"][li, row]) != valid:
                     raise AssertionError("QSA graph FA2 valid count differs")
                 if state.decode_steps in (1, 2, 3, 384, 767) or seq % 4 == 0:
                     misses = int(self.graph_audit["miss_count"][li, row])
                     self.record("graph_selected_check", lease, layer_id=lid, seq_len=seq,
                                 resolver_out=self.graph_audit["resolver_out"][li, row].cpu().tolist(),
-                                selected_blocks=(raw[0, :2048:4] // 4).cpu().tolist(),
+                                selected_blocks=(raw[0, :selected:4] // 4).cpu().tolist(),
                                 miss_count=misses,
                                 miss_src=self.graph_audit["miss_src"][li, row, :misses].cpu().tolist(),
                                 miss_dst=self.graph_audit["miss_dst"][li, row, :misses].cpu().tolist(),
                                 closed_block_selected=bool(seq % 4 == 0 and
-                                    torch.any(raw[0, :2048:4] // 4 == seq // 4 - 1)))
+                                    torch.any(raw[0, :selected:4] // 4 == seq // 4 - 1)))
 
     def native_lease_snapshot(self, state, *, include_pages=False):
         lease = state.lease
@@ -660,8 +662,6 @@ class QSAHiSparseP2:
     def _handoff(self, req):
         state = self._request(req.kv.req_pool_idx, req.rid)
         lease, prompt_len = state.lease, state.seq_len
-        if prompt_len < 2048:
-            raise ValueError("QSA P2 requires at least 512 complete prefill C4 blocks")
         before = self.runner.token_to_kv_pool_allocator.available_size()
         self.slots.begin_handoff(lease)
         self.record("handoff_begin", lease, prompt_len=prompt_len)
@@ -694,8 +694,9 @@ class QSAHiSparseP2:
                     state.full.v_buffer[li][1:1 + tail].copy_(v[segment])
                 layer_state = state.make_state()
                 stage_short_prefix(layer_state["hot"], layer_state["tokens"], state.host[li, :blocks])
-                layer_state["hot"][2048].copy_(state.host[li, blocks - 1], non_blocking=True)
-                layer_state["tokens"][0, 2048] = blocks - 1
+                if blocks:
+                    layer_state["hot"][2048].copy_(state.host[li, blocks - 1], non_blocking=True)
+                    layer_state["tokens"][0, 2048] = blocks - 1
                 state.states.append(layer_state)
                 self.record("handoff_layer", lease, layer=lid, d2h_bytes=blocks * 2048, bytes_checked=self.strict)
             state.offloaded = True
@@ -763,6 +764,8 @@ class QSAHiSparseP2:
         with operations_nvtx_range("qsa.hot_gather"):
             gather_indices = self.gather_indices[:count * 512]
             gather_indices.copy_(self.out[:count].view(-1))
+            gather_indices.view(count, 512).masked_fill_(
+                self.initial_lru[:, :512] >= self.batch_lens[:count, None], 0)
             if graph:
                 # Preserve native invalid output; mask only inactive capture rows.
                 gather_indices.view(count, 512).masked_fill_(self.graph_row_ids[:count] >= self.real, 0)

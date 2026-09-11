@@ -39,11 +39,12 @@ def finish_compact(Unpacked, K, V, Compact, Table, Raw, Slots, Lengths, Real,
     if row < tl.load(Real):
         slot, seq = tl.load(Slots + row), tl.load(Lengths + row)
         tail = seq % 4
+        selected_count = tl.minimum((seq // 4) * 4, 2048)
         byte = chunk * 1024 + tl.arange(0, 1024)
         member, dim = byte // 256, byte % 256
-        selected = member < 2048
-        pending = (member >= 2048) & (member < 2048 + tail)
-        ring = (RING_START + slot * 5 + 1 + member - 2048) * 256 + dim
+        selected = member < selected_count
+        pending = (member >= selected_count) & (member < selected_count + tail)
+        ring = (RING_START + slot * 5 + 1 + member - selected_count) * 256 + dim
         for plane in tl.static_range(2):
             u = tl.load(Unpacked + (row * 2 + plane) * 2048 * 256 + byte,
                         selected, other=0)
@@ -54,7 +55,7 @@ def finish_compact(Unpacked, K, V, Compact, Table, Raw, Slots, Lengths, Real,
             dst = ((plane * PLANE_STRIDE + slot * 2052 + 1 + member) * 256 + dim)
             tl.store(Compact + dst, tl.where(selected, u, t), selected | pending)
         member_id = chunk * 4 + tl.arange(0, 4)
-        valid = member_id < 2048 + tail
+        valid = member_id < selected_count + tail
         logical = tl.load(Raw + row * 2051 + member_id, valid, other=0)
         tl.store(Table + slot * CAPACITY + logical,
                  slot * 2052 + 1 + member_id, valid)
