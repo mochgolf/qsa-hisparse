@@ -4124,7 +4124,7 @@ def freeze_gc(context: str):
     g0_before, g1_before, g2_before = gc_object_counts()
     gc.freeze()
     g0_after, g1_after, g2_after = gc_object_counts()
-    logger.debug(
+    logger.info(
         f"Freezing GC in {context} process. "
         f"gen0: {g0_before}->{g0_after}, "
         f"gen1: {g1_before}->{g1_after}, "
