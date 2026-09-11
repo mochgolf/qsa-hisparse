@@ -90,7 +90,7 @@ class HyperConnectionBase(nn.Module):
         self.hidden_size = config.hidden_size
         self.params_dtype = config.params_dtype
 
-    def mix(self, hyper_input: torch.Tensor):
+    def mix(self, hyper_input: torch.Tensor, *, stable: bool = False):
         assert hyper_input.shape[-1] == self.hc_count * self.hidden_size
         mixed_input = hyper_input.view(
             *hyper_input.shape[:-1], self.hc_count, self.hidden_size
@@ -219,7 +219,7 @@ class GatedResidual(HyperConnectionBase):
         self._mix_compute = torch.compile(_mix_compute)
         self._combine_compute = torch.compile(_combine_compute)
 
-    def mix(self, hyper_input: torch.Tensor):
+    def mix(self, hyper_input: torch.Tensor, *, stable: bool = False):
         assert hyper_input.shape[-1] == self.hc_count * self.hidden_size
         if hyper_input.shape[0] == 0:
             mixed_input = hyper_input.new_empty(
@@ -233,7 +233,29 @@ class GatedResidual(HyperConnectionBase):
             hyper_input_normed = self.hc_norm(
                 hyper_input.unflatten(-1, (self.hc_count, self.hidden_size))
             ).flatten(-2)
-        if (
+        if stable and fused_hc_mix_supported(
+            hyper_input_normed,
+            self.input_mix_weight_down.weight,
+            self.input_mix_weight_up.weight,
+            stable=True,
+        ):
+            mixed_input = fused_hc_mix(
+                hyper_input_normed,
+                self.input_mix_weight_down.weight,
+                self.input_mix_weight_up.weight,
+                self.hc_count,
+                self.hidden_size,
+                stable=True,
+            ).to(self.params_dtype)
+        elif stable:
+            mixed_input = self._mix_compute(
+                hyper_input_normed,
+                self.input_mix_weight_down.weight,
+                self.input_mix_weight_up.weight,
+                self.hc_count,
+                self.hidden_size,
+            ).to(self.params_dtype)
+        elif (
             self._jit_mix_ok
             and hyper_input_normed.is_cuda
             and hyper_input_normed.dtype in (torch.bfloat16, torch.float16)
