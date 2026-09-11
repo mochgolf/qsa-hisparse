@@ -42,6 +42,21 @@ class Event:
 
 
 class TestQSAHiSparseP2(unittest.TestCase):
+    def test_extend_uses_hisparse_writer(self):
+        backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
+        backend._store_kv = Mock()
+        backend._is_speculative_paged_mode = Mock(return_value=True)
+        backend._forward_paged_attention = Mock(return_value=torch.ones((1, 1)))
+        backend._pad_extend_output = Mock(side_effect=lambda output, _: output)
+        layer = SimpleNamespace(tp_q_head_num=1, head_dim=1)
+        loc = torch.tensor([262143])
+        batch = SimpleNamespace(out_cache_loc=loc, forward_mode=object())
+        q = k = v = torch.ones((1, 1, 1))
+
+        backend.forward_extend(q, k, v, layer, batch, topk_indices=torch.zeros((1, 1)))
+
+        backend._store_kv.assert_called_once_with(layer, loc, k, v)
+
     def test_capture_environment_is_rejected(self):
         with patch.dict(os.environ, {"SGLANG_QSA_HISPARSE_V3_CAPTURE": "/tmp/old-trace"}), \
                 self.assertRaisesRegex(ValueError, "does not support V3 capture"):
