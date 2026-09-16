@@ -9,7 +9,7 @@ the controller does not submit a separate generation request. Choose a
 non-generating endpoint or disable that server option when readiness must avoid
 inference.
 
-Copy `service-profile.example.json` outside the repository and fill in absolute
+Copy [service-profile.example.json](service-profile.example.json) outside the repository and fill in absolute
 paths. The example is a generic TP2/B8/256K profile; preserve any additional
 machine-specific launch flags in your own profile. Keep local checkpoint paths,
 profiles, ownership records, and logs outside this checkout.
@@ -24,7 +24,8 @@ python3 scripts/qsa_service.py stop --profile /absolute/path/to/service/current.
 
 The machine-specific `qwen-service.sh` wrapper accepts the same commands and
 options. It selects `service/current.json` by default. For rollback, invoke
-`qwen-service.sh restart --profile /absolute/path/to/service/rollback.json`.
+`../qwen-service.sh restart --profile /absolute/path/to/service/rollback.json`
+from this repository's root, or use the wrapper's absolute path.
 `QWEN_SERVICE_PROFILE` can select another default profile. Profiles that manage
 the same service must use the same `name` and `state_dir`; `restart` stops the
 owned invocation before applying the selected profile. Editing a profile while
