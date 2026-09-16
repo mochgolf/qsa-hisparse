@@ -126,6 +126,57 @@ and response are retained, with the parser correction recorded separately.
 Request text and warm-hit requirements were unchanged; runtime code was not
 modified, and the corrected check passed after an explicit cache flush.
 
+## Real DSH MCP sessions
+
+The deployed native/light service at source `b9d35e934a` was also exercised
+through DSH MCP with eight real agent sessions, each completing two turns.
+The default `claude-code-like` preset, local model and `xhigh` reasoning setting
+were retained; sessions used read-only permissions. The first turn read and
+explained eight different implementation topics, making 15 file reads and
+three searches. The second turn reused each conversation without further
+tools and requested a fixed JSON structure. Neither turn was retried.
+
+| Observation | First turn | Second turn |
+| --- | ---: | ---: |
+| Completed sessions | 8/8 | 8/8 |
+| Foreground model calls | 19 | 8 |
+| Wall time until all sessions completed | 90.86 s | 37.08 s |
+| Median session latency | 72.91 s | 18.58 s |
+| Input tokens, including reused tokens | 621,660 | 312,615 |
+| Reused input tokens | 513,088 | 294,272 |
+| Token-weighted cache hit rate | 82.54% | 94.13% |
+
+Both turns recorded actual B8 decode with CUDA graphs. During the second
+turn, the 13 B8 throughput samples after the first post-idle sample ranged
+from 400.08 to 416.77 tokens/s, with a median of 403.20 tokens/s. This is
+aggregate decode throughput, not per-request or end-to-end throughput. The
+first post-idle sample was 2.33 tokens/s and remains in the raw evidence.
+The turns have different workloads and output lengths; their latency ratio
+is not a cache speedup measurement. Individual foreground model calls had
+28,835–51,580 input tokens.
+
+DSH generated eight auxiliary title requests, in addition to the 27 foreground
+calls. All 35 HTTP requests returned 200, with no new aborted or retracted
+requests, tool failures or service errors. GPU memory sampled about every
+five seconds peaked at 46,118 MiB per card, 146 MiB above the starting value.
+At final idle, running/queued requests and active logical KV usage were zero;
+all 2,097,152 logical token slots and 40 Mamba slots were available. The same
+production process remained ready. No code, configuration or service restart
+was needed for this test.
+
+Output quality is a separate result: all eight second-turn replies were valid
+JSON and retained the correct task ID, but only five matched the requested
+structure. Tasks 4 and 7 returned four facts, and task 8 returned five,
+instead of the requested three. Only three replies fell within the requested
+400–600 Chinese-character interval. These original failures are retained;
+completion does not imply complete instruction adherence or factual review.
+
+Prompts, MCP events, visible responses, metric snapshots, service logs and
+the analysis script are retained locally in
+`../results/dsh-mcp-concurrency-20260916-083905/`. This short real-agent check
+does not establish long-duration stability, eight simultaneous 262K contexts
+or cold/warm numerical equality.
+
 ## Reproduction entry points
 
 - `test/manual/qsa_hisparse_prefix_acceptance.py`: frozen token fixtures, two
