@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import pytest
 import torch
 from torch import nn
 
@@ -14,7 +15,14 @@ def test_deterministic_inference_uses_stable_hc(monkeypatch):
     assert qwen4_exp._stable_hc()
 
 
-def test_offloaded_int8_row_ple_constructs_table_on_meta(monkeypatch):
+@pytest.mark.parametrize(
+    "storage_dtype, expected_dtype",
+    [("int8_row", torch.int8), ("int8", torch.int8),
+     ("float8_e4m3fn", torch.float8_e4m3fn), ("bfloat16", torch.bfloat16)],
+)
+def test_offloaded_ple_preserves_storage_dtype_on_meta(
+    monkeypatch, storage_dtype, expected_dtype
+):
     devices = []
 
     class FakeEmbedding(nn.Module):
@@ -34,11 +42,11 @@ def test_offloaded_int8_row_ple_constructs_table_on_meta(monkeypatch):
         make_ngram_vocab_size_divisible_by=8,
         eos_token_id=2,
         seed=1234,
-        ple_embedding_dtype="int8_row",
+        ple_embedding_dtype=storage_dtype,
         ple_offload_embedding=True,
     )
     embedding = qwen4_exp.Qwen4ExpNGramEmbedding(config, embedding_dim=4)
 
     assert devices == ["meta"]
-    assert embedding.ngram_embedding.weight.dtype == torch.int8
-    assert embedding.ple_row_scale_mode
+    assert embedding.ngram_embedding.weight.dtype == expected_dtype
+    assert embedding.ple_row_scale_mode == (storage_dtype == "int8_row")
