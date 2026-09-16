@@ -1,0 +1,19 @@
+{
+  "schema": "qsa-hisparse-artifacts-v1",
+  "generated_at": "2026-09-11",
+  "upstream": {
+    "repository": "https://github.com/sgl-project/sglang",
+    "base_commit": "4309c7ce19dc42fb42cc9e7d883691c8dd8bda10"
+  },
+  "candidate": {
+    "repository": "https://github.com/mochgolf/sglang",
+    "branch": "qwen38-hisparse-upstream-latest-20260911",
+    "commit": "5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0",
+    "patch_count": 13
+  },
+  "raw_artifacts_included": false,
+  "validation": {
+    "candidate_commit": "5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0",
+    "status": "PASS_SHORT_PROMPT_AND_BOUNDARY_VALIDATION"
+  }
+}

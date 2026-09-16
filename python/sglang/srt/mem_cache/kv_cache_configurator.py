@@ -1934,7 +1934,7 @@ class KVCacheConfigurator:
                 num_request_slots=req_to_token_pool.req_to_token.shape[0],
             )
             if os.environ.get("SGLANG_QSA_HISPARSE_V3") == "p2-offload":
-                from sglang.srt.mem_cache.qsa_hisparse_slots import QSAHiSparseSlots
+                from sglang.srt.mem_cache.qsa_hisparse.slots import QSAHiSparseSlots
 
                 if (max_running_requests not in (2, 4, 8)
                         or max_total_num_tokens != max_running_requests * 262144

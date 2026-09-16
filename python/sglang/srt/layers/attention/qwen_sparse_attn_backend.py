@@ -243,18 +243,18 @@ class QwenSparseAttnBackend(AttentionBackend):
         self._fa2_graph_active_logged = set()
         self._trtllm_sparse_tables = {}
         self._mtp_shared_sparse_indices = None
-        self.hisparse_v3 = None
+        self.qsa_hisparse = None
         if runner is not None and os.environ.get("SGLANG_QSA_HISPARSE_V3"):
-            from sglang.srt.mem_cache.qsa_hisparse_v3 import QSAHiSparseV3
+            from sglang.srt.mem_cache.qsa_hisparse.single_request import QSAHiSparseSingleRequest
 
             mode = os.environ["SGLANG_QSA_HISPARSE_V3"]
             if mode in ("p2-offload", "p2-resident"):
-                from sglang.srt.mem_cache.qsa_hisparse_p2 import QSAHiSparseP2
+                from sglang.srt.mem_cache.qsa_hisparse.runtime import QSAHiSparseRuntime
 
-                self.hisparse_v3 = QSAHiSparseP2(runner, mode)
+                self.qsa_hisparse = QSAHiSparseRuntime(runner, mode)
             else:
-                self.hisparse_v3 = QSAHiSparseV3(runner, mode)
-            self.token_to_kv_pool.qsa_hisparse_v3 = self.hisparse_v3
+                self.qsa_hisparse = QSAHiSparseSingleRequest(runner, mode)
+            self.token_to_kv_pool.qsa_hisparse = self.qsa_hisparse
         self._trtllm_workspace = None
         self._graph_extend_lens = None
         self._graph_extend_lens_pin = None
@@ -273,8 +273,8 @@ class QwenSparseAttnBackend(AttentionBackend):
         )
 
     def _store_kv(self, layer, loc, k: torch.Tensor, v: torch.Tensor) -> None:
-        if self.hisparse_v3 is not None:
-            loc = self.hisparse_v3.write_locations(loc)
+        if self.qsa_hisparse is not None:
+            loc = self.qsa_hisparse.write_locations(loc)
         cache_dtype = getattr(self.token_to_kv_pool, "dtype", k.dtype)
         if not is_fp8_kv_dtype(cache_dtype):
             self.token_to_kv_pool.set_kv_buffer(layer, loc, k, v)
@@ -805,8 +805,8 @@ class QwenSparseAttnBackend(AttentionBackend):
         if forward_batch.forward_mode.is_idle():
             self.forward_metadata = None
             return
-        if self.hisparse_v3 is not None:
-            self.hisparse_v3.begin_batch(forward_batch)
+        if self.qsa_hisparse is not None:
+            self.qsa_hisparse.begin_batch(forward_batch)
         self.forward_metadata = self._metadata_from_forward_batch(forward_batch)
 
     def init_forward_metadata_out_graph(
@@ -997,9 +997,9 @@ class QwenSparseAttnBackend(AttentionBackend):
             and forward_mode.is_decode()
             and spec_info is None
             and self.qsa_profile is not None
-            and self.hisparse_v3 is not None
-            and getattr(self.hisparse_v3, "is_qsa_p2", False)
-            and getattr(self.hisparse_v3, "graph_enabled", False)
+            and self.qsa_hisparse is not None
+            and getattr(self.qsa_hisparse, "uses_qsa_hisparse_leases", False)
+            and getattr(self.qsa_hisparse, "graph_enabled", False)
         ):
             shape = self._qsa_local_head_shape()
             if shape is not None:
@@ -1427,8 +1427,8 @@ class QwenSparseAttnBackend(AttentionBackend):
         req_to_token = self.req_to_token_pool.req_to_token
         req_indices = forward_batch.req_pool_indices.tolist()
         raw_slots = [
-            self.hisparse_v3.prefill_slots(req_indices[i], sequence_lens[i])
-            if self.hisparse_v3 is not None
+            self.qsa_hisparse.prefill_slots(req_indices[i], sequence_lens[i])
+            if self.qsa_hisparse is not None
             else req_to_token[req_indices[i], :sequence_lens[i]].long()
             for i in range(len(sequence_lens))
         ]
@@ -1566,14 +1566,14 @@ class QwenSparseAttnBackend(AttentionBackend):
         metadata,
         topk: int,
     ) -> bool:
-        hisparse = self.hisparse_v3
+        hisparse = self.qsa_hisparse
         expected_topk = int(self.token_to_kv_pool.qsa_token_topk)
         if self.token_to_kv_pool.qsa_compress_ratio > 1:
             expected_topk += self.token_to_kv_pool.qsa_compress_ratio - 1
         return (
             q.shape[0] in self._fa2_graph_wrappers
             and hisparse is not None
-            and getattr(hisparse, "is_qsa_p2", False)
+            and getattr(hisparse, "uses_qsa_hisparse_leases", False)
             and getattr(hisparse, "mode", None) == "p2-offload"
             and getattr(hisparse, "graph_enabled", False)
             and hisparse.offloaded
@@ -1711,12 +1711,12 @@ class QwenSparseAttnBackend(AttentionBackend):
             raise ValueError("QSA sparse attention requires topk_indices")
         if save_kv_cache:
             self._store_kv(layer, forward_batch.out_cache_loc, k, v)
-            if self.hisparse_v3 is not None:
-                if (getattr(self.hisparse_v3, "graph_enabled", False)
+            if self.qsa_hisparse is not None:
+                if (getattr(self.qsa_hisparse, "graph_enabled", False)
                         and self._resolve_metadata(forward_batch).is_cuda_graph):
-                    self.hisparse_v3.after_store(layer, graph=True)
+                    self.qsa_hisparse.after_store(layer, graph=True)
                 else:
-                    self.hisparse_v3.after_store(layer)
+                    self.qsa_hisparse.after_store(layer)
         q = q.reshape(-1, layer.tp_q_head_num, layer.head_dim)
         return self._forward_paged_attention(q, layer, forward_batch, topk_indices)
 
@@ -1744,13 +1744,13 @@ class QwenSparseAttnBackend(AttentionBackend):
             if metadata.row_req_pool_indices is not None
             else forward_batch.req_pool_indices
         )
-        if self.hisparse_v3 is not None and self.hisparse_v3.offloaded:
+        if self.qsa_hisparse is not None and self.qsa_hisparse.offloaded:
             graph_args = ({"graph": True} if metadata.is_cuda_graph and
-                          getattr(self.hisparse_v3, "graph_enabled", False) else {})
-            k_buffer, v_buffer, req_table, row_req_indices = self.hisparse_v3.selected(
+                          getattr(self.qsa_hisparse, "graph_enabled", False) else {})
+            k_buffer, v_buffer, req_table, row_req_indices = self.qsa_hisparse.selected(
                 layer, topk_indices, **graph_args)
         # Both V3 arms use the same FA2 decode implementation.
-        trtllm_decode = None if self.hisparse_v3 is not None else _resolve_trtllm_sparse_decode()
+        trtllm_decode = None if self.qsa_hisparse is not None else _resolve_trtllm_sparse_decode()
         if trtllm_decode is not None:
             return self._forward_trtllm_sparse(
                 q,
@@ -1838,8 +1838,8 @@ class QwenSparseAttnBackend(AttentionBackend):
                     softmax_scale=layer.scaling,
                     causal=True,
                 )
-        if self.hisparse_v3 is not None:
-            self.hisparse_v3.capture_decode(
+        if self.qsa_hisparse is not None:
+            self.qsa_hisparse.capture_decode(
                 layer, q, packed_k, packed_v, topk_indices, output, k_scale, v_scale,
                 valid_counts, cu_seqlens_q, cu_seqlens_k,
             )

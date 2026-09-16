@@ -17,8 +17,12 @@ def test_deterministic_inference_uses_stable_hc(monkeypatch):
 
 @pytest.mark.parametrize(
     "storage_dtype, expected_dtype",
-    [("int8_row", torch.int8), ("int8", torch.int8),
-     ("float8_e4m3fn", torch.float8_e4m3fn), ("bfloat16", torch.bfloat16)],
+    [
+        ("int8_row", torch.int8),
+        ("int8", torch.int8),
+        ("float8_e4m3fn", torch.float8_e4m3fn),
+        ("bfloat16", torch.bfloat16),
+    ],
 )
 def test_offloaded_ple_preserves_storage_dtype_on_meta(
     monkeypatch, storage_dtype, expected_dtype

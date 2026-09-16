@@ -267,7 +267,7 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = Tr
         return
 
     qsa_hisparse = getattr(
-        tree_cache.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse_v3", None
+        tree_cache.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse", None
     )
     if qsa_hisparse is not None:
         qsa_lease = qsa_hisparse.release(req.kv.req_pool_idx, req.rid)

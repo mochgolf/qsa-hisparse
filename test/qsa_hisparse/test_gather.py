@@ -39,11 +39,24 @@ def test_gather_preserves_scales_and_padding(dtype, strided):
         if strided
         else torch.tensor([0, 3, 10, 11], dtype=torch.int32)
     )
-    packed_k = torch.full((batch * stride, heads, dim), float("nan"), dtype=torch.bfloat16)
+    packed_k = torch.full(
+        (batch * stride, heads, dim), float("nan"), dtype=torch.bfloat16
+    )
     packed_v = packed_k.clone()
     qwen_sparse_kv_extraction_compact_triton(
-        k, v, table, requests, indices, lengths, offsets, packed_k, packed_v,
-        batch, topk, k_scale=0.5, v_scale=2.0,
+        k,
+        v,
+        table,
+        requests,
+        indices,
+        lengths,
+        offsets,
+        packed_k,
+        packed_v,
+        batch,
+        topk,
+        k_scale=0.5,
+        v_scale=2.0,
         zero_fill_cols=stride if strided else 0,
     )
 
@@ -55,17 +68,22 @@ def test_gather_preserves_scales_and_padding(dtype, strided):
             if dtype == torch.float8_e4m3fn:
                 expected *= scale
             torch.testing.assert_close(
-                actual[start:start + count], expected.to(torch.bfloat16), rtol=0, atol=0
+                actual[start : start + count],
+                expected.to(torch.bfloat16),
+                rtol=0,
+                atol=0,
             )
             if strided:
-                assert torch.count_nonzero(actual[start + count:start + stride]) == 0
+                assert torch.count_nonzero(actual[start + count : start + stride]) == 0
     if not strided:
-        assert torch.isnan(packed_k[int(offsets[-1]):]).all()
-        assert torch.isnan(packed_v[int(offsets[-1]):]).all()
+        assert torch.isnan(packed_k[int(offsets[-1]) :]).all()
+        assert torch.isnan(packed_v[int(offsets[-1]) :]).all()
 
 
 def test_paged_backend_passes_fp8_scales_to_gather():
-    from sglang.srt.layers.attention.qwen_sparse_attn_backend import QwenSparseAttnBackend
+    from sglang.srt.layers.attention.qwen_sparse_attn_backend import (
+        QwenSparseAttnBackend,
+    )
 
     backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
     backend._fa2_scratch = {}
@@ -94,7 +112,13 @@ def test_paged_backend_passes_fp8_scales_to_gather():
         return q
 
     actual = backend._forward_trtllm_sparse(
-        q, k, v, layer, SimpleNamespace(), metadata,
-        torch.tensor([[0, 1, -1]], dtype=torch.int32), decode,
+        q,
+        k,
+        v,
+        layer,
+        SimpleNamespace(),
+        metadata,
+        torch.tensor([[0, 1, -1]], dtype=torch.int32),
+        decode,
     )
     torch.testing.assert_close(actual, q.reshape(1, -1), rtol=0, atol=0)

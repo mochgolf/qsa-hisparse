@@ -10,8 +10,9 @@ from sglang.srt.layers.attention.qwen_sparse_attn_backend import (
 class TestQwenSparseFlashAttentionResolution(unittest.TestCase):
     def test_sm89_uses_vendored_flash_attention_without_classic_fa2(self):
         _resolve_flash_attn_varlen_func.cache_clear()
-        with patch.dict(sys.modules, {"flash_attn": None}), patch(
-            "torch.cuda.get_device_capability", return_value=(8, 9)
+        with (
+            patch.dict(sys.modules, {"flash_attn": None}),
+            patch("torch.cuda.get_device_capability", return_value=(8, 9)),
         ):
             resolved = _resolve_flash_attn_varlen_func()
         self.assertEqual(

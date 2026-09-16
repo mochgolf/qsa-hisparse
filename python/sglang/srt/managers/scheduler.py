@@ -1262,8 +1262,8 @@ class Scheduler(
 
     def init_hisparse_coordinator(self) -> None:
         self.hisparse_coordinator: Optional[HiSparseCoordinator] = None
-        qsa = getattr(self.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse_v3", None)
-        if not self.enable_hisparse and not getattr(qsa, "is_qsa_p2", False):
+        qsa = getattr(self.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse", None)
+        if not self.enable_hisparse and not getattr(qsa, "uses_qsa_hisparse_leases", False):
             return
         # Coordinator was created inside ModelRunner.initialize() before CUDA graph capture.
         self.hisparse_coordinator = self.tp_worker.model_runner.hisparse_coordinator
@@ -3751,7 +3751,7 @@ class Scheduler(
             available - self.beam_coordinator.pending_member_rows(active_batch), 0
         )
         res = min(pp_budget, available)
-        if getattr(self.hisparse_coordinator, "is_qsa_p2", False):
+        if getattr(self.hisparse_coordinator, "uses_qsa_hisparse_leases", False):
             if beam_width is not None and beam_width != 1:
                 raise ValueError("QSA P2 does not support beam/prefix ownership sharing")
             slots = self.hisparse_coordinator.adapter.slots
@@ -3879,7 +3879,7 @@ class Scheduler(
             self.priority_scheduling_preemption_threshold,
             max_prefill_bs=int(self.max_prefill_bs),
             max_running_requests=self.max_running_requests,
-            prefill_max_requests=(1 if getattr(self.hisparse_coordinator, "is_qsa_p2", False)
+            prefill_max_requests=(1 if getattr(self.hisparse_coordinator, "uses_qsa_hisparse_leases", False)
                                   else get_schedule().prefill_max_requests),
             prefill_delayer_single_pass=prefill_delayer_single_pass,
             dllm_config=self.dllm_config,
@@ -5392,7 +5392,7 @@ class Scheduler(
 
         # Delete requests in the running batch
         inflight = self.collect_inflight_reqs()
-        if getattr(self.hisparse_coordinator, "is_qsa_p2", False):
+        if getattr(self.hisparse_coordinator, "uses_qsa_hisparse_leases", False):
             inflight.update(item.req for item in self.hisparse_coordinator.ack_staging_queue)
         for req in inflight:
             if not req.finished() and (

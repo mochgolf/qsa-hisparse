@@ -299,7 +299,7 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
             from sglang.srt.layers.attention.qsa.config import (
                 parse_qsa_profile,
             )
-            from sglang.srt.mem_cache.qsa_hisparse_slots import QSAHiSparseSlots
+            from sglang.srt.mem_cache.qsa_hisparse.slots import QSAHiSparseSlots
             from sglang.srt.mem_cache.qsa_kv_pool import QSATokenToKVPool
 
             schedule = get_schedule()

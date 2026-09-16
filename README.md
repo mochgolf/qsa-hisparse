@@ -1,80 +1,73 @@
 # QSA HiSparse
 
-Experimental integration of HiSparse CPU KV offload with Qwen Sparse Attention
-(QSA) in [SGLang](https://github.com/sgl-project/sglang).
+QSA HiSparse is a maintained SGLang source fork for Qwen Sparse Attention with
+CPU KV offload. The runtime, kernels, scheduler integration, tests, and build
+files are all in this repository. Clone it and install the source directly.
 
-This repository keeps the reviewable experiment assets: the upstream patch
-series, design notes, bounded validation harnesses, profiles, and reduced
-results. Sanitized SVG figures derived from NSYS are included; raw service logs,
-SSE traces, NSYS reports/SQLite exports, model weights, and other machine data
-are intentionally excluded. Public artifacts omit local paths, process IDs,
-served-model aliases, private email addresses, and live endpoint state.
+The fork retains SGLang's Git ancestry and the original QSA commits. The latest
+integrated upstream revision is `76e06febab` (2026-09-16); see
+[provenance](PROVENANCE.json) and the [upstream maintenance guide](UPSTREAM.md).
 
-Read the full Chinese engineering write-up:
-[在双 RTX 4090 48GB 上把 HiSparse 移植到 QSA](docs/blog/qsa-hisparse-dual-4090-48gb.md).
+## Install
 
-## Tested revision
-
-- SGLang upstream base: `4309c7ce19dc42fb42cc9e7d883691c8dd8bda10`
-- QSA HiSparse head: `5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0`
-- Fork branch: [`mochgolf/qwen38-hisparse-upstream-latest-20260911`](https://github.com/mochgolf/sglang/tree/qwen38-hisparse-upstream-latest-20260911)
-- Hardware: 2x SM89 GPUs, tensor parallelism 2
-- Model setup: Qwen3.8 Flash Next, BF16 compute, FP8 E4M3 KV, no MTP
-
-## Measured results
-
-The short-context fast-path A/B used the same service configuration for each
-pair. A separate matched latest-upstream check restored B1 from 66.77 to 86.37
-tok/s (+29.36%) after correcting its MoE backend. The 256K run used 261,120
-prompt tokens per request and one pre-correction latest-upstream service lifetime.
-
-| Workload | Before | QSA HiSparse fast path | Change |
-| --- | ---: | ---: | ---: |
-| B1, 38K | 69.38 tok/s | 86.07 tok/s | +24.05% |
-| B2, 4K | 130.50 tok/s aggregate | 158.34 tok/s aggregate | +21.33% |
-| B8, 4K | 400.16 tok/s aggregate | 464.15 tok/s aggregate | +15.99% |
-
-| 256K concurrency | Aggregate decode | Per request | Mean TPOT |
-| ---: | ---: | ---: | ---: |
-| 1 | 64.47 tok/s | 64.47 tok/s | 15.51 ms |
-| 2 | 96.65 tok/s | 48.33 tok/s | 20.68 ms |
-| 4 | 148.76 tok/s | 37.19 tok/s | 26.92 ms |
-| 8 | 214.85 tok/s | 26.86 tok/s | 37.36 ms |
-
-The B8 result proves admission, decode, completion, and release of eight
-256K-class requests on the tested server. Prefill remained serialized or
-interleaved by the scheduler, and these single-run numbers are not a fixed SLO.
-
-## Repository layout
-
-- `patches/`: ordered 13-commit patch series against the pinned upstream base
-- `docs/design/`: memory model, interface contract, and integration plan
-- `docs/results/`: phase conclusions and independent review summaries
-- `experiments/`: frozen microbenchmark, profile, fast-path, and service drivers
-- `results/`: compact manifests and reduced measurements
-
-## Apply the patch series
+Use a separate environment on Linux with NVIDIA CUDA. Python 3.10+ is required;
+the exact Torch, CUDA-related packages, and other dependencies are declared in
+[`python/pyproject.toml`](python/pyproject.toml). Building native extensions
+also requires the upstream Rust/CUDA build toolchain.
 
 ```bash
-git clone https://github.com/sgl-project/sglang.git
-git -C sglang checkout 4309c7ce19dc42fb42cc9e7d883691c8dd8bda10
-git -C sglang am ../qsa-hisparse/patches/*.patch
+git clone https://github.com/mochgolf/qsa-hisparse.git
+cd qsa-hisparse
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ./python
 ```
 
-The frozen drivers document the acceptance logic used on the test server. They
-use placeholders for private artifacts and require equivalent model, NUMA,
-CUDA, and SGLang settings before execution. Start with
-[`docs/design/deployment-assessment.md`](docs/design/deployment-assessment.md)
-and [`docs/results/latest-upstream-scaling.md`](docs/results/latest-upstream-scaling.md).
+The Python distribution and imports retain the name `sglang` for compatibility.
+This checkout supplies SGLang itself; use one SGLang checkout per environment.
+See the [upstream README](README.sglang.md) for general SGLang setup.
 
-## Scope
+## Run
 
-Validated behavior includes TP2 ownership, lifecycle and generation reuse,
-FP8 K/V payloads and scales, host writeback/refetch, CUDA Graph decode from B1
-through B8, resource recovery, and 8x256K-class capacity. Concurrent GPU
-prefill and a portable production SLO are outside the current evidence.
+The current offload contract targets Qwen3.8 Flash Next, TP2, FP8 E4M3 KV,
+C4 compression, page size 64, and a 262,144-token per-request capacity. The
+multi-request runtime permits 2, 4, or 8 request slots, including B1 decode
+within that capacity. Unsupported configurations fail during startup.
+
+After installing the runtime and preparing a compatible model:
+
+```bash
+MODEL_PATH=/path/to/model bash examples/qsa_hisparse/serve.sh
+```
+
+This launches the bounded B8 configuration on two GPUs. Model weights, host RAM,
+and GPU capacity must fit the checkpoint. Read the [runtime guide](QSA_HISPARSE.md)
+for memory ownership, mode selection, optional INT8-row PLE offload, and limits.
+
+## Read and develop
+
+| Entry point | Purpose |
+| --- | --- |
+| [`qsa_hisparse/`](python/sglang/srt/mem_cache/qsa_hisparse/) | Configuration, C4 layout, leases, runtime, scheduler coordinator |
+| [`qwen_sparse_attn_backend.py`](python/sglang/srt/layers/attention/qwen_sparse_attn_backend.py) | Prefill writes, sparse selection, FA2 decode and graph integration |
+| [`qsa/`](python/sglang/srt/layers/attention/qsa/) | Metadata, indexer, gather and graph byte-movement kernels |
+| [`test/qsa_hisparse/`](test/qsa_hisparse/) | Focused CPU and Triton-interpreter regression suite |
+| [`QSA_HISPARSE.md`](QSA_HISPARSE.md) | Architecture, invariants, configuration and source map |
+| [`UPSTREAM.md`](UPSTREAM.md) | Merge workflow and compatibility review points |
+| [`VALIDATION.md`](VALIDATION.md) | Current integration evidence and remaining GPU checks |
+| [`archive/`](archive/README.md) | Frozen 2026-09-11 experiments, engineering write-up and measurements |
+
+Run the CPU suite in an environment with the runtime dependencies and pytest:
+
+```bash
+python -m pip install pytest
+QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh
+```
+
+Historical throughput and 8×256K service results apply to their recorded source
+revisions. They are not performance claims for the current upstream merge.
 
 ## License
 
-Apache-2.0. The patch series targets SGLang and retains its original file
-headers and commit attribution.
+Apache-2.0. SGLang's source headers, license, and commit attribution are retained.

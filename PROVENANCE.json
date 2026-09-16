@@ -1,19 +1,38 @@
 {
-  "schema": "qsa-hisparse-artifacts-v1",
-  "generated_at": "2026-09-11",
+  "schema": "qsa-hisparse-source-v1",
+  "updated_at": "2026-09-16",
+  "layout": "self-contained-sglang-source-fork",
   "upstream": {
     "repository": "https://github.com/sgl-project/sglang",
-    "base_commit": "4309c7ce19dc42fb42cc9e7d883691c8dd8bda10"
+    "branch": "main",
+    "merged_commit": "76e06febab732d28a61b75a61b7835284568cdfb",
+    "merge_commit": "59ad842ebc36a49f16e7040782b08ae2d3e221da",
+    "commits_since_previous_base": 226
   },
-  "candidate": {
-    "repository": "https://github.com/mochgolf/sglang",
-    "branch": "qwen38-hisparse-upstream-latest-20260911",
+  "imported_qsa_source": {
     "commit": "5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0",
-    "patch_count": 13
+    "previous_upstream_base": "4309c7ce19dc42fb42cc9e7d883691c8dd8bda10",
+    "original_artifact_commit": "e1ac504a5e281af5423c6d59c5eeb402c1dbcd9a",
+    "historical_provenance": "archive/PROVENANCE.json"
   },
-  "raw_artifacts_included": false,
   "validation": {
-    "candidate_commit": "5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0",
-    "status": "PASS_SHORT_PROMPT_AND_BOUNDARY_VALIDATION"
-  }
+    "status": "CPU_VALIDATED_GPU_NOT_RUN",
+    "report": "VALIDATION.md",
+    "cpu_command": "QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh",
+    "cpu_passed": 102,
+    "cpu_skipped": 3,
+    "subtests_passed": 9,
+    "test_environment": {
+      "python": "3.12.3",
+      "torch": "2.13.0",
+      "triton": "3.7.1",
+      "flashinfer_python": "0.6.18",
+      "transformers": "5.12.1",
+      "sglang_kernel": "0.4.6.post1"
+    },
+    "source_requires_sglang_kernel": "0.4.7",
+    "gpu_service_validation": "not_run",
+    "performance_claim": null
+  },
+  "raw_artifacts_included": false
 }

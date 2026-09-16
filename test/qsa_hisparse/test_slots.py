@@ -10,7 +10,7 @@ import torch
 
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.memory_pool import MHATokenToKVPool, ReqToTokenPool
-from sglang.srt.mem_cache.qsa_hisparse_slots import QSAHiSparseSlots
+from sglang.srt.mem_cache.qsa_hisparse.slots import QSAHiSparseSlots
 from sglang.srt.mem_cache.qsa_kv_pool import QSATokenToKVPool
 
 
@@ -30,16 +30,31 @@ class TestQSAHiSparseSlots(unittest.TestCase):
     def test_two_requests_staging_reuse_and_release(self):
         slots = QSAHiSparseSlots(128, 64, 2)
         raw = MHATokenToKVPool(
-            size=slots.raw_pool_size, page_size=64, dtype=torch.float8_e4m3fn,
-            head_num=1, head_dim=256, layer_num=1, device="cpu",
-            enable_memory_saver=False, enable_alt_stream=False,
+            size=slots.raw_pool_size,
+            page_size=64,
+            dtype=torch.float8_e4m3fn,
+            head_num=1,
+            head_dim=256,
+            layer_num=1,
+            device="cpu",
+            enable_memory_saver=False,
+            enable_alt_stream=False,
         )
         pool = QSATokenToKVPool(
-            size=256, page_size=64, dtype=torch.float8_e4m3fn, head_num=1,
-            head_dim=256, full_attention_layer_ids=[3], device="cpu",
-            mamba_pool=SimpleNamespace(), qsa_index_kv_heads=1,
-            qsa_index_head_dim=128, qsa_compress_ratio=4, qsa_token_topk=2048,
-            num_request_slots=3, full_kv_pool=raw,
+            size=256,
+            page_size=64,
+            dtype=torch.float8_e4m3fn,
+            head_num=1,
+            head_dim=256,
+            full_attention_layer_ids=[3],
+            device="cpu",
+            mamba_pool=SimpleNamespace(),
+            qsa_index_kv_heads=1,
+            qsa_index_head_dim=128,
+            qsa_compress_ratio=4,
+            qsa_token_topk=2048,
+            num_request_slots=3,
+            full_kv_pool=raw,
         )
         logical = PagedTokenToKVPoolAllocator(256, 64, pool.dtype, "cpu", pool, False)
         reqs = ReqToTokenPool(2, 128, "cpu", False)
@@ -64,8 +79,10 @@ class TestQSAHiSparseSlots(unittest.TestCase):
         akeys = torch.full((32, 1, 128), 11, dtype=torch.bfloat16)
         pool.set_qsa_compressed_k_buffer(3, ar[3::4] // 4, akeys)
         # CPU copy models ownership of completed host bytes, not DMA correctness.
-        host_a = [p.view(torch.uint8)[slots.staging_slice(a, 0, 128)].clone()
-                  for p in (raw.k_buffer[0], raw.v_buffer[0])]
+        host_a = [
+            p.view(torch.uint8)[slots.staging_slice(a, 0, 128)].clone()
+            for p in (raw.k_buffer[0], raw.v_buffer[0])
+        ]
         slots.begin_handoff(a)
         with self.assertRaisesRegex(RuntimeError, "before all layer copies"):
             slots.finish_handoff(a, Event(False))
@@ -81,10 +98,16 @@ class TestQSAHiSparseSlots(unittest.TestCase):
             plane.view(torch.uint8)[slots.staging_slice(b, 0, 128)].fill_(byte)
         bkeys = torch.full((32, 1, 128), 29, dtype=torch.bfloat16)
         pool.set_qsa_compressed_k_buffer(3, br[3::4] // 4, bkeys)
-        self.assertTrue(torch.equal(pool.get_qsa_compressed_k_buffer(3)[ar[3::4] // 4], akeys))
+        self.assertTrue(
+            torch.equal(pool.get_qsa_compressed_k_buffer(3)[ar[3::4] // 4], akeys)
+        )
         self.assertTrue(torch.all(host_a[0] == 7) and torch.all(host_a[1] == 19))
         # Both prefix reads and writes use the same fixed-position helper.
-        self.assertTrue(torch.all(raw.v_buffer[0].view(torch.uint8)[slots.staging_slice(b, 0, 65)] == 43))
+        self.assertTrue(
+            torch.all(
+                raw.v_buffer[0].view(torch.uint8)[slots.staging_slice(b, 0, 65)] == 43
+            )
+        )
         with self.assertRaises(IndexError):
             raw.k_buffer[0].view(torch.uint8).index_select(0, br)
         with self.assertRaises(RuntimeError):
@@ -99,12 +122,22 @@ class TestQSAHiSparseSlots(unittest.TestCase):
 
         # Reordered batch rows and independent tail phases retain physical identity.
         for seq_a, seq_b in ((65, 66), (67, 68), (69, 70), (71, 72)):
-            wa, wb = slots.ring_write_location(a, seq_a), slots.ring_write_location(b, seq_b)
+            wa, wb = (
+                slots.ring_write_location(a, seq_a),
+                slots.ring_write_location(b, seq_b),
+            )
             raw.k_buffer[0].view(torch.uint8)[wa].fill_(seq_a)
             raw.k_buffer[0].view(torch.uint8)[wb].fill_(seq_b + 64)
             self.assertNotEqual(wa, wb)
             for lease, seq, value in ((b, seq_b, seq_b + 64), (a, seq_a, seq_a)):
-                self.assertTrue(torch.all(raw.k_buffer[0].view(torch.uint8)[slots.ring_write_location(lease, seq)] == value))
+                self.assertTrue(
+                    torch.all(
+                        raw.k_buffer[0].view(torch.uint8)[
+                            slots.ring_write_location(lease, seq)
+                        ]
+                        == value
+                    )
+                )
             self.assertEqual(logical.available_size(), 0)
         rb = slots.ring_slice(b)
         b_ring = raw.k_buffer[0].view(torch.uint8)[rb].clone()
@@ -117,8 +150,11 @@ class TestQSAHiSparseSlots(unittest.TestCase):
             self.assertEqual(slots.snapshot()["lease_free"], 0)
             waits.append(name)
 
-        slots.drain(a, Event(on_wait=lambda: waited("consumer")),
-                    [Event(on_wait=lambda: waited("copy"))])
+        slots.drain(
+            a,
+            Event(on_wait=lambda: waited("consumer")),
+            [Event(on_wait=lambda: waited("copy"))],
+        )
         self.assertEqual(waits, ["consumer", "copy"])
         with self.assertRaises(RuntimeError):
             slots.commit_release(a)
@@ -134,19 +170,24 @@ class TestQSAHiSparseSlots(unittest.TestCase):
         reqs.free_rows([a.req_pool_idx])
         self.assertEqual(logical.available_size(), 128)
         self.assertTrue(torch.equal(raw.k_buffer[0].view(torch.uint8)[rb], b_ring))
-        self.assertTrue(torch.equal(pool.get_qsa_compressed_k_buffer(3)[br[3::4] // 4], bkeys))
+        self.assertTrue(
+            torch.equal(pool.get_qsa_compressed_k_buffer(3)[br[3::4] // 4], bkeys)
+        )
 
         c, cr = claim("C")
         self.assertEqual(c.req_pool_idx, a.req_pool_idx)
         self.assertEqual(c.generation, a.generation + 1)
-        for callback in (lambda: slots.finish_handoff(a, Event()),
-                         lambda: slots.drain(a, Event(), []),
-                         lambda: slots.logical_flushed(a, logical),
-                         lambda: slots.commit_release(a)):
+        for callback in (
+            lambda: slots.finish_handoff(a, Event()),
+            lambda: slots.drain(a, Event(), []),
+            lambda: slots.logical_flushed(a, logical),
+            lambda: slots.commit_release(a),
+        ):
             with self.assertRaisesRegex(RuntimeError, "stale"):
                 callback()
         with self.assertRaises(ValueError):
             slots.drain(c, None, [])
+
         # Failed drains retain the staging lease; a successful retry may free it.
         def fail():
             raise RuntimeError("copy failed")
@@ -168,7 +209,9 @@ class TestQSAHiSparseSlots(unittest.TestCase):
         self.assertEqual(slots.snapshot()["lease_free"], 2)
         self.assertEqual(slots.snapshot()["staging_available_tokens"], 128)
         self.assertEqual(len(torch.unique(logical.get_all_free_pages())), 4)
-        self.assertEqual((raw.k_buffer[0].data_ptr(), raw.v_buffer[0].data_ptr()), raw_ptrs)
+        self.assertEqual(
+            (raw.k_buffer[0].data_ptr(), raw.v_buffer[0].data_ptr()), raw_ptrs
+        )
 
 
 if __name__ == "__main__":
