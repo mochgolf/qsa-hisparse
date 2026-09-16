@@ -71,3 +71,9 @@ set before deploying the merged source.
 The throughput, latency and 8×256K capacity measurements under `archive/` remain
 historical evidence for their recorded revisions. They are not validation of
 this merge or of the source-fork refactor.
+
+Before publication, remote commit `33828617caff4a58de7cc32544b42ca4de948f56`
+(blog prose edits) was merged into the relocated archive article. The runtime,
+tests and packaging sources remain identical to `2da3ca5a09`; the original
+69-file archive equality check above describes the migration snapshot, before
+that editorial update.
