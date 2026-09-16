@@ -24,6 +24,9 @@ SGLang ownership.
    retains the eager comparison runtime and shared per-request writeback/checking
    routines. Its internal byte checks supplement independent tests; they do not
    establish correctness by themselves.
+7. [`prefix.py`](python/sglang/srt/mem_cache/qsa_hisparse/prefix.py) owns bounded,
+   immutable host checkpoints; [`prefix_cache.py`](python/sglang/srt/mem_cache/qsa_hisparse/prefix_cache.py)
+   matches and restores them through the scheduler. See [prefix reuse](PREFIX_CACHE.md).
 
 The old `qsa_hisparse_p2.py`, `qsa_hisparse_v3.py`, and `qsa_hisparse_slots.py`
 contain compatibility imports only. Current runtime code and tests use the new
@@ -83,10 +86,16 @@ request slots. Multi-request chunked prefill is 2,048 or 4,096 tokens. Graph
 decode captures every batch size from 1 through capacity, with graph padding
 and prefill graphs disabled.
 
-Radix/prefix sharing, overlap scheduling, speculation, PD disaggregation,
+GPU radix sharing, overlap scheduling, speculation, PD disaggregation,
 mixed prefill/decode, preemption, and concurrent physical prefill staging remain
 outside this contract. Unsupported settings fail validation. This source
 migration does not widen the supported model geometry.
+
+Optional host prefix checkpoints have separate ownership from active leases.
+They restore into the existing staging arena and fresh logical/index pages;
+they do not retain additional GPU raw-KV pools. Keep `--disable-radix-cache`
+when enabling this specialized cache. Its configuration and qualification scope
+are documented in [PREFIX_CACHE.md](PREFIX_CACHE.md).
 
 [`examples/qsa_hisparse/serve.sh`](examples/qsa_hisparse/serve.sh) spells out the
 B8 options. For the original AutoRound INT8-row PLE checkpoint, add:

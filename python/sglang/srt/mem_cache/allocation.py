@@ -344,6 +344,22 @@ def _alloc_page_size(batch: ScheduleBatch) -> int:
 def alloc_for_extend(
     batch: ScheduleBatch,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    rollback = getattr(batch.tree_cache, "rollback_prefix_for_extend", None)
+    if rollback is None:
+        return _alloc_for_extend(batch)
+    try:
+        return _alloc_for_extend(batch)
+    except BaseException as error:
+        try:
+            rollback(batch.reqs)
+        except BaseException as cleanup_error:
+            error.add_note(f"QSA prefix allocation rollback retained ownership: {cleanup_error!r}")
+        raise
+
+
+def _alloc_for_extend(
+    batch: ScheduleBatch,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Allocate KV cache for extend batch and write to req_to_token_pool.
 
@@ -353,8 +369,6 @@ def alloc_for_extend(
     """
     # free out-of-window swa tokens
     batch.maybe_evict_swa()
-
-    prefix_tensors = [r.prefix_indices for r in batch.reqs]
 
     reuse_kv = None
     if batch.is_dllm():
@@ -375,6 +389,10 @@ def alloc_for_extend(
     req_pool_indices = alloc_req_slots(
         batch.req_to_token_pool, batch.reqs, batch.tree_cache
     )
+    prepare_prefix = getattr(batch.tree_cache, "prepare_prefix_for_extend", None)
+    if prepare_prefix is not None:
+        prepare_prefix(batch.reqs)
+    prefix_tensors = [r.prefix_indices for r in batch.reqs]
     req_pool_indices_cpu = torch.tensor(
         req_pool_indices, dtype=torch.int64, pin_memory=pin_memory
     )
@@ -412,6 +430,10 @@ def alloc_for_extend(
             batch=batch,
         )
 
+    note_allocation = getattr(batch.tree_cache, "note_extend_allocation", None)
+    if note_allocation is not None:
+        note_allocation(batch.reqs, out_cache_loc)
+
     # Write to req_to_token_pool
     write_cache_indices(
         out_cache_loc,
@@ -432,7 +454,8 @@ def alloc_for_extend(
             target_seq_lens_cpu=batch.seq_lens_cpu,
         )
     except Exception:
-        batch.tree_cache.token_to_kv_pool_allocator.free(out_cache_loc)
+        if note_allocation is None:
+            batch.tree_cache.token_to_kv_pool_allocator.free(out_cache_loc)
         raise
 
     # DSV4-NPU hook: no-op on non-DSV4 paths.
@@ -447,6 +470,10 @@ def alloc_for_extend(
     for req, seq_len in zip(batch.reqs, batch.seq_lens_cpu.tolist()):
         req.kv.kv_allocated_len = seq_len
         req.kv.kv_committed_len = seq_len
+
+    restore_prefix = getattr(batch.tree_cache, "restore_prefix_for_extend", None)
+    if restore_prefix is not None:
+        restore_prefix(batch.reqs)
 
     return out_cache_loc, req_pool_indices_device, req_pool_indices_cpu
 

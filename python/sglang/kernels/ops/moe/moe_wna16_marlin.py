@@ -17,9 +17,12 @@ _MAX_THREAD_N = 256
 
 @cache_once
 def _jit_moe_wna16_marlin_module(
-    dtype: torch.dtype, is_ep: bool, has_bias: bool
+    dtype: torch.dtype,
+    is_ep: bool,
+    has_bias: bool,
+    use_deterministic_reduce: bool = False,
 ) -> Module:
-    args = make_cpp_args(dtype, is_ep, has_bias)
+    args = make_cpp_args(dtype, is_ep, has_bias, use_deterministic_reduce)
     return load_jit(
         "moe_wna16_marlin",
         *args,
@@ -67,7 +70,18 @@ def moe_wna16_marlin_gemm(
     use_atomic_add: bool = False,
     use_fp32_reduce: bool = False,
     is_zp_float: bool = False,
+    use_deterministic_reduce: bool = False,
 ) -> torch.Tensor:
+    """Run Marlin; deterministic reduction gives each CTA whole K slices.
+
+    The opt-in path removes batch-dependent split-K accumulation partitions.
+    It uses blockM8 and no atomic addition. This changes arithmetic order from
+    the default split-K path; it does not preserve historical split-K bits.
+    """
+    if use_deterministic_reduce and (moe_block_size != 8 or use_atomic_add):
+        raise ValueError(
+            "Deterministic Marlin reduction requires blockM8 and no atomics"
+        )
     device = a.device
 
     # Allocate output if not provided
@@ -136,7 +150,9 @@ def moe_wna16_marlin_gemm(
     b_bias_t = _or_empty(b_bias_or_none, device, a.dtype)
     global_scale_t = _or_empty(global_scale_or_none, device, a.dtype)
 
-    module = _jit_moe_wna16_marlin_module(a.dtype, is_ep, has_bias)
+    module = _jit_moe_wna16_marlin_module(
+        a.dtype, is_ep, has_bias, use_deterministic_reduce
+    )
     module.moe_wna16_marlin_gemm(
         a,
         c,

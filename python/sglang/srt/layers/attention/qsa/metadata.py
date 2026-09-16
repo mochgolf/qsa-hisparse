@@ -12,6 +12,7 @@ import msgspec
 import torch
 
 from sglang.srt.layers.attention.qsa.kernel import qsa_fast_topk
+from sglang.srt.runtime_context import get_context, get_exec
 
 
 def build_qsa_row_ranges(
@@ -82,8 +83,8 @@ class QSAIndexerMetadata(msgspec.Struct, frozen=True):
     graph_prefix_lengths: Optional[torch.Tensor] = None
     decode_page_table: Optional[torch.Tensor] = None
     decode_lengths: Optional[torch.Tensor] = None
-    # Match graph's score stride: FlashInfer's deterministic top-k collection
-    # order depends on this width, even when the valid score prefix is equal.
+    # Match graph's native score stride. Deterministic selection separately
+    # canonicalizes the selected indices, independent of collector order.
     decode_score_width: Optional[int] = None
     decode_logical_positions: Optional[torch.Tensor] = None
     pending_ring_slots: Optional[torch.Tensor] = None
@@ -119,7 +120,16 @@ class QSAIndexerMetadata(msgspec.Struct, frozen=True):
             )
         if row_starts is None or row_ends is None:
             raise ValueError("QSA top-k transform requires row_starts and row_ends")
-        return qsa_fast_topk(logits, row_starts, row_ends, topk=self.block_topk)
+        return qsa_fast_topk(
+            logits,
+            row_starts,
+            row_ends,
+            topk=self.block_topk,
+            deterministic=(
+                get_context().is_config_namespace_published("exec")
+                and get_exec().deterministic.enable_deterministic_inference
+            ),
+        )
 
     def get_prefill_mqa_inputs(
         self,

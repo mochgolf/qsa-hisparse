@@ -44,6 +44,9 @@ MODEL_PATH=/path/to/model bash examples/qsa_hisparse/serve.sh
 This launches the bounded B8 configuration on two GPUs. Model weights, host RAM,
 and GPU capacity must fit the checkpoint. Read the [runtime guide](QSA_HISPARSE.md)
 for memory ownership, mode selection, optional INT8-row PLE offload, and limits.
+The [service controller](examples/qsa_hisparse/SERVICE.md) provides start, stop,
+restart, status, and logs. [Host prefix reuse](PREFIX_CACHE.md) keeps reusable
+state in CPU memory while preserving the existing GPU staging and decode pools.
 
 ## Read and develop
 

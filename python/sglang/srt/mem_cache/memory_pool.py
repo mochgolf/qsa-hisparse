@@ -345,7 +345,9 @@ class ReqToTokenPool:
 
     def clear(self):
         self.free_slots = list(range(1, self._alloc_size))
-        self.req_generation.zero_()
+        # Row identities remain monotonic across flushes. Physical lease owners
+        # retain generations to reject callbacks from a released request; a
+        # flush must not make a newly allocated row impersonate that request.
         if self._aux_cache is not None:
             self._aux_cache.clear()
 

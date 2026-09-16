@@ -22,6 +22,7 @@ from sglang.srt.layers.linear import ReplicatedLinear
 from sglang.srt.layers.rotary_embedding.utils import apply_rotary_emb
 from sglang.srt.layers.utils import MultiPlatformOp
 from sglang.srt.model_executor.runner import get_is_capture_mode
+from sglang.srt.runtime_context import get_context, get_exec
 
 # Cap on the fp32 [query_rows, compressed_keys] prefill logits workspace;
 # top-k is per row, so tiling rows does not change the selection.
@@ -440,6 +441,11 @@ class QSAIndexer(MultiPlatformOp):
         if rows == 0:
             return output
 
+        deterministic = (
+            get_context().is_config_namespace_published("exec")
+            and get_exec().deterministic.enable_deterministic_inference
+        )
+
         row_chunk_size = _qsa_prefill_row_chunk_size(
             rows, compressed_keys.shape[0], q.shape[1]
         )
@@ -466,6 +472,7 @@ class QSAIndexer(MultiPlatformOp):
                     row_starts[chunk_slice],
                     row_ends[chunk_slice],
                     topk=self.block_topk,
+                    deterministic=deterministic,
                 )
             selected = expand_qsa_block_indices(
                 block_indices,
@@ -495,7 +502,11 @@ class QSAIndexer(MultiPlatformOp):
             compressed_lengths,
             max_model_len,
         )
-        if logits.is_cuda and self.block_topk == 512:
+        deterministic = (
+            get_context().is_config_namespace_published("exec")
+            and get_exec().deterministic.enable_deterministic_inference
+        )
+        if logits.is_cuda and self.block_topk == 512 and not deterministic:
             # Decode rows start at zero, so compressed lengths double as row lengths;
             # skip the generic zero-fill + subtract.
             from sglang.kernels.ops.elementwise.fast_topk import fast_topk
@@ -509,7 +520,11 @@ class QSAIndexer(MultiPlatformOp):
         else:
             row_starts = torch.zeros_like(compressed_lengths, dtype=torch.int32)
             block_indices = qsa_fast_topk(
-                logits, row_starts, compressed_lengths, topk=self.block_topk
+                logits,
+                row_starts,
+                compressed_lengths,
+                topk=self.block_topk,
+                deterministic=deterministic,
             )
         return expand_qsa_block_indices(
             block_indices,

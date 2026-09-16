@@ -294,3 +294,11 @@ __pycache__/
 *.sqlite
 *.pt
 raw/
+
+# Private service state and raw local validation evidence
+/.local/
+/service/
+/qwen-service.sh
+/results/prefix-cache-service-*/
+/results/dsh-mcp-concurrency-*/
+/examples/qsa_hisparse/service-profile.local*.json
