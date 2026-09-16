@@ -24,6 +24,7 @@
 #include "../marlin/dequant.h"
 #include "../marlin/marlin.cuh"
 #include "../marlin/marlin_dtypes.cuh"
+#include "stripe_schedule.h"
 #include <type_traits>
 
 #define STATIC_ASSERT_SCALAR_TYPE_VALID(scalar_t)                                        \
@@ -55,7 +56,8 @@ template <
                                          // with a separate quantization scale
     const bool is_zp_float,              // is zero point of float16 type?
     const bool kIsEP,                    // expert parallelism
-    const bool kHasBias                  // has per-expert bias
+    const bool kHasBias,                 // has per-expert bias
+    const bool kDeterministicReduce = false
     >
 __global__ void Marlin(
     const int4* __restrict__ A,                              // fp16 input matrix of shape mxk
@@ -298,7 +300,8 @@ template <
                                          // with a separate quantization scale
     const bool is_zp_float,              // is zero point of float16 type?
     const bool kIsEP,                    // expert parallelism
-    const bool kHasBias                  // has per-expert bias
+    const bool kHasBias,                 // has per-expert bias
+    const bool kDeterministicReduce = false
     >
 __global__ void Marlin(
     const int4* __restrict__ A,  // fp16 input matrix of shape mxk
@@ -394,7 +397,12 @@ __global__ void Marlin(
 
   int k_tiles = prob_k / 16 / thread_k_blocks;
   int n_tiles = prob_n / 16 / thread_n_blocks;
-  int iters = div_ceil(k_tiles * n_tiles * parallel, gridDim.x);
+  int iters;
+  if constexpr (kDeterministicReduce) {
+    iters = whole_k_stripe_iters(k_tiles, n_tiles, parallel, gridDim.x);
+  } else {
+    iters = div_ceil(k_tiles * n_tiles * parallel, gridDim.x);
+  }
 
   if constexpr (!has_act_order && group_blocks != -1) {
     if (group_blocks >= thread_k_blocks) {

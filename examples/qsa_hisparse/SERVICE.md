@@ -72,6 +72,28 @@ positive cache budget only after the chosen source implements and passes its
 prefix checks. The rollback profile preserves its original source and launch
 environment. Health/model probes do not certify prefix reuse.
 
+With `--enable-deterministic-inference`, Marlin uses stable integer alignment,
+blockM8, K/N tiles64/128, 128 threads, and one CTA per SM with complete K
+slices. This removes batch-dependent split-K accumulation partitions. It changes
+floating accumulation order in deterministic mode; the flag-off path retains
+native alignment, launch heuristics, and split-K arithmetic. Other model
+backends still require their own cold/warm and concurrent qualification.
+
+The independent `test/manual/marlin_batch_invariance.py` fixture uses the actual
+TP-local symmetric W4/group64 profile: gate-up2560×640, down320×2560,
+BF16/E512/top10. Its default compares target rows at M1–8 and larger selected
+shapes under different routing backgrounds; `--cuda-graphs` also changes routing
+between graph replays. It reports independent float64 CPU dequantization error
+and requires bitwise agreement across selected target placements, with no fitted
+tolerance. The earlier group128/M76 alignment diagnostic is a separate fixture.
+
+```bash
+python3 test/manual/marlin_batch_invariance.py --cpu-only --output /tmp/marlin-cpu.json
+# Root-run GPU checks, without a model load:
+python3 test/manual/marlin_batch_invariance.py --output /tmp/marlin-batch.json
+python3 test/manual/marlin_batch_invariance.py --cuda-graphs --batch-sizes 1 8 96 2048 --patterns identical spread_routes --output /tmp/marlin-graphs.json
+```
+
 CPU lifecycle qualification (uses isolated fake HTTP servers and user units):
 
 ```bash

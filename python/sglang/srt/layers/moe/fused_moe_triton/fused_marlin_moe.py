@@ -252,6 +252,10 @@ def fused_marlin_moe(
     for block_size_m in [8, 16, 32, 48, 64]:
         if M * topk / E / block_size_m < 0.9:
             break
+    if deterministic:
+        # Keep the same M tile/kernel configuration for prefill and decode;
+        # whole-K CTA slices below fix the remaining batch-dependent grouping.
+        block_size_m = 8
 
     if global_num_experts == -1:
         global_num_experts = E
@@ -345,6 +349,7 @@ def fused_marlin_moe(
         use_atomic_add=use_atomic_add,
         use_fp32_reduce=True,
         is_zp_float=False,
+        use_deterministic_reduce=deterministic,
     )
 
     if activation == "silu" and is_gated and gemm1_alpha is not None:
@@ -408,6 +413,7 @@ def fused_marlin_moe(
         use_atomic_add=use_atomic_add,
         use_fp32_reduce=True,
         is_zp_float=False,
+        use_deterministic_reduce=deterministic,
     ).view(-1, topk, K)
 
     output = zero_copy_context.get_moe_output(hidden_states)

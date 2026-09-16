@@ -16,7 +16,7 @@ def moe_align_block_size_stable(
     shapes, with no device-to-host synchronization or floating point reductions.
 
     Stable placement fixes run-to-run split-K grouping for identical inputs.
-    Different batch shapes can still change Marlin's K-stripe partition.
+    Batch invariance additionally requires deterministic whole-K CTA reduction.
     """
     flat = topk_ids.reshape(-1)
     num_pairs = flat.numel()
