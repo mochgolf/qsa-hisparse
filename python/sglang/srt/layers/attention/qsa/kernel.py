@@ -9,6 +9,56 @@ import triton
 import triton.language as tl
 
 
+# Account conservatively for gathered fp32 scores, masks, int64 indices, sort
+# outputs/workspace and the preceding tile. This bounds wide explicit tensors;
+# actual allocator peaks remain part of GPU qualification, not this estimate.
+_QSA_DETERMINISTIC_TOPK_TILE_BYTES = 16 * 1024 * 1024
+_QSA_DETERMINISTIC_TOPK_BYTES_PER_SCORE = 64
+
+
+def _qsa_deterministic_topk_tile_rows(rows: int, width: int) -> int:
+    if width <= 0:
+        return max(rows, 1)
+    return max(
+        1,
+        min(
+            rows,
+            _QSA_DETERMINISTIC_TOPK_TILE_BYTES
+            // (width * _QSA_DETERMINISTIC_TOPK_BYTES_PER_SCORE),
+        ),
+    )
+
+
+def _qsa_stable_topk(logits, starts, lengths, topk):
+    """Exact stable selection with static row tiles and no device scalar reads."""
+    rows, width = logits.shape
+    output = torch.full((rows, topk), -1, dtype=torch.int32, device=logits.device)
+    if rows == 0 or width == 0:
+        return output
+    columns = torch.arange(width, device=logits.device, dtype=torch.int64)
+    tile_rows = _qsa_deterministic_topk_tile_rows(rows, width)
+    selected_width = min(topk, width)
+    sentinel = torch.iinfo(torch.int64).max
+    for begin in range(0, rows, tile_rows):
+        end = min(begin + tile_rows, rows)
+        tile_lengths = lengths[begin:end, None]
+        # Place each valid interval first in relative-index order. Stable ties
+        # therefore prefer its lower logical indices, including valid -inf
+        # scores ahead of the -inf padding that follows the interval.
+        absolute = starts[begin:end, None].long() + columns
+        absolute.clamp_(max=width - 1)
+        scores = logits[begin:end].gather(1, absolute)
+        scores.masked_fill_(columns >= tile_lengths, -float("inf"))
+        ranked = torch.argsort(scores, dim=-1, descending=True, stable=True)
+        selected = ranked[:, :selected_width]
+        selected = torch.where(selected < tile_lengths, selected, sentinel)
+        ordered = selected.sort(dim=-1).values
+        output[begin:end, :selected_width] = torch.where(
+            ordered == sentinel, -1, ordered
+        ).to(torch.int32)
+    return output
+
+
 def average_pool_qsa_keys(key_groups: torch.Tensor) -> torch.Tensor:
     """FP32-average complete key groups shaped ``[groups, ratio, kv_heads, dim]``."""
 
@@ -25,11 +75,19 @@ def qsa_fast_topk(
     row_starts: torch.Tensor,
     row_ends: torch.Tensor,
     topk: int,
+    deterministic: bool = False,
 ) -> torch.Tensor:
-    """Select compressed blocks, with a compatibility fallback for top-k 512."""
+    """Select exact score top-k; deterministic rows use ascending logical order.
+
+    Deterministic selection prefers smaller indices at equal-score boundaries.
+    Canonical index order also removes collector/score-stride-dependent ordering
+    from the sparse attention reduction. The native atomic collector is unchanged.
+    """
 
     lengths = (row_ends - row_starts).to(device=logits.device, dtype=torch.int32)
     starts = row_starts.to(device=logits.device, dtype=torch.int32)
+    if deterministic:
+        return _qsa_stable_topk(logits, starts, lengths, topk)
     if logits.is_cuda:
         if topk == 512:
             # Prefer the JIT kernel: it ships with the sglang python package,
@@ -62,9 +120,8 @@ def qsa_fast_topk(
         length = int(lengths[row])
         width = min(length, topk)
         if width:
-            output[row, :width] = torch.topk(
-                logits[row, start : start + length], width
-            ).indices.to(torch.int32)
+            selected = torch.topk(logits[row, start : start + length], width).indices
+            output[row, :width] = selected.to(torch.int32)
     return output
 
 

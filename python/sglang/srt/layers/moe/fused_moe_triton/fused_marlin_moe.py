@@ -4,8 +4,11 @@ import torch
 import torch.nn.functional as F
 import triton
 import triton.language as tl
-
 from sglang.srt.layers import zero_copy_context
+from sglang.srt.layers.moe.fused_moe_triton.stable_align import (
+    moe_align_block_size_stable,
+)
+from sglang.srt.runtime_context import get_context, get_exec
 from sglang.srt.utils import is_cuda
 from sglang.srt.utils.custom_op import register_custom_op
 
@@ -13,7 +16,6 @@ _is_cuda = is_cuda()
 
 if _is_cuda:
     from sgl_kernel import moe_sum_reduce
-
     from sglang.kernels.ops.activation.activation import silu_and_mul
     from sglang.kernels.ops.moe.moe_wna16_marlin import moe_wna16_marlin_gemm
 
@@ -192,6 +194,16 @@ def fused_marlin_moe(
     """
     from sglang.srt.layers.moe.fused_moe_triton import moe_align_block_size
 
+    # Standalone kernel callers have no published server execution config.
+    deterministic = (
+        get_context().is_config_namespace_published("exec")
+        and get_exec().deterministic.enable_deterministic_inference
+    )
+    if deterministic:
+        # Atomic row placement changes which tokens share split-K stripes,
+        # even when the GEMM's own global reduction is lock ordered.
+        moe_align_block_size = moe_align_block_size_stable
+
     assert hidden_states.shape[0] == gating_output.shape[0], "Number of tokens mismatch"
     assert hidden_states.shape[1] == w1.shape[1] * 16, "Hidden size mismatch w1"
     assert hidden_states.shape[1] == w2.shape[2] // (num_bits // 2), (
@@ -298,9 +310,13 @@ def fused_marlin_moe(
     intermediate_cache3 = intermediate_cache3.view(-1, K)
 
     use_atomic_add = (
-        hidden_states.dtype == torch.half
-        or torch.cuda.get_device_capability(hidden_states.device)[0] >= 9
-    ) and (not is_mxfp4_marlin)
+        not deterministic
+        and (
+            hidden_states.dtype == torch.half
+            or torch.cuda.get_device_capability(hidden_states.device)[0] >= 9
+        )
+        and (not is_mxfp4_marlin)
+    )
 
     intermediate_cache1 = moe_wna16_marlin_gemm(
         hidden_states,
