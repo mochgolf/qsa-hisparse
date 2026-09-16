@@ -18,7 +18,7 @@ def main():
     from pathlib import Path
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--url", default="http://127.0.0.1:8082")
+    parser.add_argument("--url", default="http://127.0.0.1:30000")
     parser.add_argument("--fixtures", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()

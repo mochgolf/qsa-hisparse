@@ -40,7 +40,7 @@ def measure(url, ids, salt):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--url", default="http://127.0.0.1:8081")
+    parser.add_argument("--url", default="http://127.0.0.1:30000")
     parser.add_argument("--fixtures", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--lengths", nargs="+", type=int, default=[8192, 65536, 262016])

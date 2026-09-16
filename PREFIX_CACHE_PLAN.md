@@ -10,13 +10,9 @@ per-request QSA HiSparse offload service. Add reusable host-resident prefixes
 and one-command start, stop, restart, status, and log access. Automatic GPU
 sleep/unload is outside this task.
 
-Two implementation agents use `gpt-5.6-sol` with `xhigh` reasoning. One owns
-prefix storage/runtime/scheduler integration and its focused tests; the other
-owns service management and its tests. The main agent owns integration review,
-independent evidence, exclusive GPU scheduling, live qualification, and the
-final serving configuration. The user authorizes stopping and starting the
-production service during development. Only the main agent changes live GPU
-service state, so experiments cannot collide.
+Prefix storage/runtime/scheduler integration and service management have
+separate focused tests. Integration review and live qualification use
+independent evidence and exclusive GPU scheduling so experiments cannot collide.
 
 ## Implementation contract
 
@@ -87,10 +83,9 @@ arena. The current prefix-aware prefill attention path gathers full-context K/V
 from that arena; a cache hit therefore needs restoration, not only token-index
 reuse. Mamba prefix matching also requires a usable state checkpoint.
 
-The saved original rollback source is the separate `sources/sglang` checkout at
-`5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0`. Machine-specific profiles and
-measurements live outside this repository under `../service/` and
-`../results/prefix-cache-service-20260916/`; do not publish model paths or logs.
+The original rollback source is preserved in a separate private checkout.
+Machine-specific profiles and measurements stay outside this repository;
+do not publish model paths, environment details or raw logs.
 
 ## Baseline observation before candidate GPU execution
 
@@ -136,8 +131,8 @@ the exact largest-score set, resolves ties by smaller relative index, then
 orders selected indices increasingly with trailing -1 padding. Both prefill
 and decode must follow this contract. An independent Python ordering oracle
 and CUDA graph replay tests cover it. The initial FlashInfer implementation
-failed the first GPU call on SM89 RTX 4090 with `cudaErrorNotSupported`:
-[`qsa-topk-gpu-final.log`](../results/prefix-cache-service-20260916/qsa-topk-gpu-final.log).
+failed the first GPU call on SM89 RTX 4090 with `cudaErrorNotSupported`;
+the failure log is retained with the private validation evidence.
 Installed `flashinfer/topk.cuh:3535` documents that FilteredTopK requires 128 KiB
 of dynamic shared memory; `:3678` requires that path for explicit index ties or
 graph-safe selection. The target has 100 KiB per SM, so this API cannot satisfy

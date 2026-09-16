@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "name": "qwen-local",
+  "name": "qsa-example",
   "state_dir": "/absolute/path/to/private/service/state",
   "cwd": "/absolute/path/to/qsa-hisparse",
   "command": [
     "/absolute/path/to/venv/bin/python",
     "-m", "sglang.launch_server",
     "--model-path", "/absolute/path/to/local/checkpoint",
-    "--served-model-name", "local-qwen",
-    "--model-impl", "sglang", "--host", "127.0.0.1", "--port", "8081",
+    "--served-model-name", "example-model",
+    "--model-impl", "sglang", "--host", "127.0.0.1", "--port", "30000",
     "--tp-size", "2", "--pp-size", "1", "--dtype", "bfloat16",
     "--kv-cache-dtype", "fp8_e4m3", "--linear-attn-backend", "triton",
     "--mamba-ssm-dtype", "float32", "--mamba-radix-cache-strategy", "extra_buffer",
@@ -30,10 +30,10 @@
     "SGLANG_QSA_HISPARSE_V3_OBSERVE": "light",
     "SGLANG_QSA_HISPARSE_PREFIX_CACHE_MB": "0"
   },
-  "listen": {"host": "127.0.0.1", "port": 8081},
+  "listen": {"host": "127.0.0.1", "port": 30000},
   "readiness": {
     "path": "/health",
-    "model": "local-qwen",
+    "model": "example-model",
     "timeout_seconds": 600,
     "poll_seconds": 1,
     "request_timeout_seconds": 2

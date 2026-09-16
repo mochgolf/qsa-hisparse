@@ -274,7 +274,7 @@ def main():
         type=int,
         default=[64, 128, 2048, 4096, 8192, 32768, 65536, 262016],
     )
-    parser.add_argument("--url", default="http://127.0.0.1:8082")
+    parser.add_argument("--url", default="http://127.0.0.1:30000")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--min-prefix", type=int, default=0)
     parser.add_argument("--max-prefix", type=int, default=8192)

@@ -17,9 +17,9 @@ deterministic comparison corrections are `5c11ef5dc4`, and host prefix reuse is
 The final live concurrency, latency and strengthened ledger harnesses are
 `07e1d774bf`; the 19-file runtime manifest remained unchanged during qualification.
 Machine-specific profiles, frozen inputs, raw HTTP responses,
-source hashes and per-rank ledgers are retained outside the repository in
-`../results/prefix-cache-service-20260916/`. Model paths and raw logs are not
-part of this source distribution.
+source hashes and per-rank ledgers are retained privately outside the repository.
+Machine-specific paths, profiles and raw logs are not part of this source
+distribution.
 
 The frozen input manifest has SHA256
 `171231bd51a27bc106e66905c1a59136326cfddf927467d7167e0a48764216d8`.
@@ -172,8 +172,8 @@ instead of the requested three. Only three replies fell within the requested
 completion does not imply complete instruction adherence or factual review.
 
 Prompts, MCP events, visible responses, metric snapshots, service logs and
-the analysis script are retained locally in
-`../results/dsh-mcp-concurrency-20260916-083905/`. This short real-agent check
+the analysis script are retained privately outside this repository.
+This short real-agent check
 does not establish long-duration stability, eight simultaneous 262K contexts
 or cold/warm numerical equality.
 
