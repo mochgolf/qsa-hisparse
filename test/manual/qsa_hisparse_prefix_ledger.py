@@ -6,15 +6,36 @@ import json
 from pathlib import Path
 
 
+FIXED_POOL_FIELDS = (
+    "staging_capacity_tokens",
+    "raw_pool_size_tokens",
+    "raw_backing_size_tokens",
+    "ring_reserved_tokens",
+    "lease_capacity",
+    "logical_capacity",
+    "raw_bytes",
+    "index_bytes",
+    "host_reserved_bytes",
+    "hot_reserved_bytes",
+    "workspace_bytes",
+    "mamba_bytes",
+)
+
+
 def inspect(path):
-    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    contents = path.read_text()
+    assert contents.endswith("\n"), f"Incomplete final event record: {path}"
+    rows = [json.loads(line) for line in contents.splitlines()]
     assert rows, f"Empty event log: {path}"
     prefix = [row for row in rows if row["event"].startswith("prefix_")]
     assert prefix, f"No prefix events: {path}"
     raw_pointers = {tuple(row["raw_ptrs"]) for row in rows}
     index_pointers = {row["index_ptr"] for row in rows}
     assert len(raw_pointers) == len(index_pointers) == 1, "Device pool changed"
+    fixed_pools = {key: rows[0][key] for key in FIXED_POOL_FIELDS}
     for row in rows:
+        for key, value in fixed_pools.items():
+            assert row[key] == value, f"Fixed pool field changed: {key} in {path}"
         assert row["raw_storage_unchanged"] and row["index_storage_unchanged"]
         assert 0 <= row["lease_active"] <= row["lease_capacity"]
         assert row["pending_release_count"] >= 0
@@ -24,15 +45,34 @@ def inspect(path):
             <= row["prefix_cache_budget_bytes"]
         ), "Host cache exceeded its reserved byte budget"
     released = [
-        row for row in rows
+        row
+        for row in rows
         if row["event"] == "logical_release_complete" and row["lease_active"] == 0
     ]
     assert released and released[-1]["pending_release_count"] == 0
+    final = rows[-1]
+    assert final["lease_active"] == 0, f"Final event retains live leases: {path}"
+    assert final["pending_release_count"] == 0, f"Final event retains releases: {path}"
+    assert final["logical_available"] == final["logical_capacity"], (
+        f"Final event retains logical pages: {path}"
+    )
     sequence = [
-        {key: row[key] for key in (
-            "event", "prefix_cache_host_bytes", "prefix_cache_entries",
-            "prefix_cache_evictions", "prefix_cache_epoch",
-        )} | {"tokens": row.get("checkpoint_tokens", row.get("reused_tokens"))}
+        {
+            key: row[key]
+            for key in (
+                "event",
+                "prefix_cache_host_bytes",
+                "prefix_cache_entries",
+                "prefix_cache_evictions",
+                "prefix_cache_epoch",
+                "rid",
+                "generation",
+                "req_pool_idx",
+                "lease_slot",
+                "forward_id",
+            )
+        }
+        | {"tokens": row.get("checkpoint_tokens", row.get("reused_tokens"))}
         for row in prefix
     ]
     return {
@@ -52,6 +92,9 @@ def inspect(path):
         "idle_cuda_reserved_max": max(row["cuda_reserved"] for row in released),
         "last_idle_logical_available": released[-1]["logical_available"],
         "logical_capacity": released[-1]["logical_capacity"],
+        "final_event": final["event"],
+        "final_logical_available": final["logical_available"],
+        "fixed_pools": fixed_pools,
         "static_pools_unchanged": True,
     }, sequence
 
@@ -69,6 +112,9 @@ def main():
             report["ranks"].append(rank)
             sequences.append(sequence)
         assert len(sequences) == 2, "Expected TP2 event logs"
+        # Request rows, generations, lease slots and forward IDs describe the
+        # shared TP schedule. Device addresses belong to each rank's allocator;
+        # their stability is checked within inspect(), never across ranks.
         assert sequences[0] == sequences[1], "TP prefix publication/restore differs"
         for rank in report["ranks"]:
             assert rank["last_idle_logical_available"] == rank["logical_capacity"]
