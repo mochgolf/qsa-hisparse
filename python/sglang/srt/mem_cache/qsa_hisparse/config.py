@@ -1,9 +1,31 @@
 """Startup contract for the bounded QSA HiSparse execution modes."""
 
+import os
+
 import torch
 
 
+def prefix_cache_options():
+    try:
+        mb = int(os.environ.get("SGLANG_QSA_HISPARSE_PREFIX_CACHE_MB", "0"))
+        entries = int(
+            os.environ.get("SGLANG_QSA_HISPARSE_PREFIX_CACHE_MAX_ENTRIES", "256")
+        )
+    except ValueError as error:
+        raise ValueError(
+            "QSA prefix host budget and entry limit must be integers"
+        ) from error
+    if mb < 0 or entries <= 0:
+        raise ValueError(
+            "QSA prefix host budget must be nonnegative and entry limit positive"
+        )
+    return mb * 1024 * 1024, entries
+
+
 def validate_configuration(args, pool, *, p2=False, graph=False, strict=True):
+    budget, _ = prefix_cache_options()
+    if budget and not p2:
+        raise ValueError("QSA host prefixes require the multi-request offload runtime")
     if graph and not p2:
         raise ValueError("only QSA P2 offload supports the bounded graph path")
     max_requests = getattr(args, "max_running_requests", None) if p2 else 1

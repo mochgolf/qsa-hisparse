@@ -92,6 +92,12 @@ class SchedulerWeightUpdaterManager:
         # update_weights_from_* call. Engine is paused during the update so
         # the periodic log_stats path can't carry this.
         # `source` distinguishes disk vs distributed vs tensor vs ipc.
+        # Host checkpoints cannot survive any attempted model mutation, even
+        # when the caller requests no ordinary KV flush or a partial load fails.
+        cache = getattr(self.scheduler, "tree_cache", None)
+        invalidate = getattr(cache, "invalidate_model", None)
+        if invalidate is not None:
+            invalidate()
         t0 = time.perf_counter()
         try:
             yield

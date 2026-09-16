@@ -957,6 +957,13 @@ class PrefillAdder:
             if _rem_tokens is None:
                 return req
 
+        checkpoint_limit = getattr(self.tree_cache, "prefill_checkpoint_limit", None)
+        if (
+            checkpoint_limit is not None
+            and (limit := checkpoint_limit(req)) is not None
+        ):
+            _rem_tokens = min(_rem_tokens, limit)
+
         # A mid-chunk rank prefills this pass regardless of the delayer
         # verdict, so report prefillable=True and ignore the result.
         if self.prefill_delayer_single_pass is not None:
@@ -1156,10 +1163,46 @@ class PrefillAdder:
     def add_one_req(
         self, req: Req, has_chunked_req: bool, truncation_align_size: Optional[int]
     ):
+        pending_prefix = getattr(self.tree_cache, "pending_prefix_tokens", None)
+        charge = 0 if pending_prefix is None else pending_prefix(req)
+        checkpoint_limit = getattr(self.tree_cache, "prefill_checkpoint_limit", None)
+        limit = None if checkpoint_limit is None else checkpoint_limit(req)
+        original_chunk_tokens = self.rem_chunk_tokens
+        capped = limit is not None and (
+            original_chunk_tokens is None or limit < original_chunk_tokens
+        )
+        if capped:
+            self.rem_chunk_tokens = limit
+        # Host snapshots still require fresh logical/index pages. Charge those
+        # pages before the existing suffix/decode admission checks.
+        self.memory_budget.total_offset += charge
+        self.memory_budget.current_offset += charge
+        try:
+            return self._add_one_req(req, has_chunked_req, truncation_align_size)
+        finally:
+            if capped:
+                spent = limit - self.rem_chunk_tokens
+                self.rem_chunk_tokens = (
+                    None
+                    if original_chunk_tokens is None
+                    else original_chunk_tokens - spent
+                )
+            if req not in self.can_run_list:
+                self.memory_budget.total_offset -= charge
+                self.memory_budget.current_offset -= charge
+
+    def _add_one_req(
+        self, req: Req, has_chunked_req: bool, truncation_align_size: Optional[int]
+    ):
         if (x := self.prefill_max_requests) is not None and len(self.can_run_list) >= x:
             return AddReqResult.OTHER
 
-        if req.sampling_params.ignore_eos and getattr(self.tree_cache, "disable", True):
+        pending_prefix = getattr(self.tree_cache, "pending_prefix_tokens", None)
+        if (
+            req.sampling_params.ignore_eos
+            and getattr(self.tree_cache, "disable", True)
+            and not (pending_prefix is not None and pending_prefix(req))
+        ):
             return self.add_one_req_ignore_eos(req)
 
         # Reserve page_size for page-alignment overhead: the paged allocator may

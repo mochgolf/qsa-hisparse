@@ -13,14 +13,17 @@ from types import SimpleNamespace
 
 import torch
 
-from sglang.srt.mem_cache.qsa_hisparse.slots import QSAHiSparseSlots
-from sglang.srt.mem_cache.qsa_hisparse.config import validate_configuration
+from sglang.srt.mem_cache.qsa_hisparse.config import (
+    prefix_cache_options,
+    validate_configuration,
+)
 from sglang.srt.mem_cache.qsa_hisparse.layout import (
     pack_c4,
     stage_short_prefix,
     unpack_index,
 )
 from sglang.srt.mem_cache.qsa_hisparse.single_request import QSAHiSparseSingleRequest
+from sglang.srt.mem_cache.qsa_hisparse.slots import QSAHiSparseSlots
 from sglang.srt.utils.nvtx_utils import (
     NVTX_OPERATIONS_ENABLED,
     operations_nvtx_range,
@@ -161,8 +164,48 @@ class QSAHiSparseRuntime:
         ):
             raise ValueError("QSA P2 forbids mixed prefill/decode and preemption")
         self.capacity = 262144
+        budget, entries = prefix_cache_options()
+        self.prefix_cache = None
+        if budget:
+            if mode != "p2-offload" or any(
+                getattr(runner.server_args, flag, False)
+                for flag in (
+                    "enable_lora",
+                    "enable_linear_replayssm",
+                    "enable_mamba_extra_buffer",
+                )
+            ):
+                raise ValueError(
+                    "QSA host prefixes require offload without LoRA/replay/extra Mamba buffers"
+                )
+            from sglang.srt.mem_cache.qsa_hisparse.prefix import HostPrefixCache
+
+            self.prefix_cache = HostPrefixCache(budget, entries)
+            # The cache is process local. Flush advances its epoch after weight updates.
+            self.prefix_namespace = (
+                str(getattr(runner.server_args, "model_path", "")),
+                str(getattr(runner.server_args, "revision", "")),
+                str(self.pool.dtype),
+                runner.server_args.tp_size,
+                json.dumps(
+                    getattr(runner.model_config, "hf_config", {}).to_dict(),
+                    sort_keys=True,
+                )
+                if hasattr(getattr(runner.model_config, "hf_config", None), "to_dict")
+                else repr(getattr(runner.model_config, "hf_config", None)),
+            )
         self.slots = QSAHiSparseSlots(self.capacity, 64, self.max_requests)
         self.req_pool = runner.req_to_token_pool
+        if (
+            self.prefix_cache is not None
+            and getattr(self.req_pool, "mamba_ckpt_pool", None) is not None
+        ):
+            raise ValueError("QSA host prefixes require plain recurrent checkpoints")
+        if self.prefix_cache is not None and any(
+            getattr(self.req_pool.mamba_pool.mamba_cache, name, None) is not None
+            for name in ("replayssm_d", "replayssm_k", "replayssm_g")
+        ):
+            raise ValueError("QSA host prefixes cannot checkpoint ReplaySSM scratch")
         self.req_table = self.req_pool.req_to_token
         if self.req_table.shape[1] < self.capacity:
             raise ValueError("QSA P2 request table is smaller than a context")
@@ -878,6 +921,355 @@ class QSAHiSparseRuntime:
             raise RuntimeError("QSA P2 request identity/generation changed")
         return state
 
+    def _acquire_request(self, req_idx, rid):
+        lease = self.slots.acquire(
+            req_idx, int(self.req_pool.req_generation[req_idx]), rid
+        )
+        state = _RequestCache(self, lease)
+        state.prefix_epoch = getattr(getattr(self, "prefix_cache", None), "epoch", None)
+        state.prefix_basis_entry_id = None
+        state.prefix_basis_length = 0
+        self.requests[req_idx] = state
+        self.record("begin_prefill", lease)
+        return state
+
+    def note_prefix_basis(self, req, snapshot, entry_id):
+        # Remember identity only. Holding tensor references here would keep
+        # evicted host storage alive outside the cache's byte accounting.
+        state = self._request(req.kv.req_pool_idx, req.rid)
+        state.prefix_basis_entry_id = entry_id
+        state.prefix_basis_length = snapshot.length
+
+    def prefix_checkpoint_bytes(self, delta, token_count):
+        """Exact new tensor/key bytes reserved before a checkpoint is copied."""
+        mamba = self.req_pool.mamba_pool
+        size = sum(t[:, :1].nbytes for t in mamba.mamba_cache.conv)
+        size += mamba.mamba_cache.temporal[:, :1].nbytes
+        for sibling in mamba._slot_siblings:
+            for _, tensor, _, _ in sibling.iter_transfer_state_entries():
+                size += tensor[:1].nbytes
+        size += sum(t[:4].nbytes for t in self.pool.qsa_key_state_buffer_pool)
+        size += self.pool.qsa_rope_position_buffer[:4].nbytes
+        size += delta * len(self.layer_ids) * 2 * 256
+        size += sum(
+            t[: delta // 4].nbytes for t in self.pool.qsa_compressed_k_buffer_pool
+        )
+        return size + token_count * 8
+
+    @staticmethod
+    def _capture_slot_tensor(source, slot, *, layered=True):
+        shape = source[:, :1].shape if layered else source[:1].shape
+        target = torch.empty(shape, dtype=source.dtype, device="cpu")
+        if layered:
+            for li in range(source.shape[0]):
+                target[li, 0].copy_(source[li, slot])
+        else:
+            target[0].copy_(source[slot])
+        return target
+
+    @staticmethod
+    def _restore_slot_tensor(target, data, slot, *, layered=True):
+        if layered:
+            for li in range(target.shape[0]):
+                target[li, slot].copy_(data[li, 0])
+        else:
+            target[slot].copy_(data[0])
+
+    def _mamba_sibling_tensors(self):
+        from sglang.srt.mem_cache.ple_state_pool import NGramPool, ShortConvPool
+
+        for sibling in self.req_pool.mamba_pool._slot_siblings:
+            if isinstance(sibling, ShortConvPool):
+                yield sibling.conv_state, True
+            elif isinstance(sibling, NGramPool):
+                yield sibling.context, False
+            else:
+                raise ValueError(
+                    "QSA host prefixes do not support this Mamba slot sibling"
+                )
+
+    def _capture_mamba(self, slot):
+        cache = self.req_pool.mamba_pool.mamba_cache
+        conv = [self._capture_slot_tensor(t, slot) for t in cache.conv]
+        temporal = self._capture_slot_tensor(cache.temporal, slot)
+        siblings = [
+            self._capture_slot_tensor(t, slot, layered=layered)
+            for t, layered in self._mamba_sibling_tensors()
+        ]
+        return (conv, temporal, siblings) if siblings else (conv, temporal)
+
+    def _restore_mamba(self, data, slot):
+        cache = self.req_pool.mamba_pool.mamba_cache
+        for target, source in zip(cache.conv, data[0]):
+            self._restore_slot_tensor(target, source, slot)
+        self._restore_slot_tensor(cache.temporal, data[1], slot)
+        if self.req_pool.mamba_pool._slot_siblings:
+            for (target, layered), source in zip(
+                self._mamba_sibling_tensors(), data[2]
+            ):
+                self._restore_slot_tensor(target, source, slot, layered=layered)
+        torch.cuda.current_stream(self.device).synchronize()
+
+    @staticmethod
+    def _check_slot_tensor(target, data, slot, *, layered=True):
+        if layered:
+            return all(
+                torch.equal(
+                    target[li, slot].cpu().contiguous().view(torch.uint8),
+                    data[li, 0].contiguous().view(torch.uint8),
+                )
+                for li in range(target.shape[0])
+            )
+        return torch.equal(
+            target[slot].cpu().contiguous().view(torch.uint8),
+            data[0].contiguous().view(torch.uint8),
+        )
+
+    def _check_restored_mamba(self, data, slot):
+        cache = self.req_pool.mamba_pool.mamba_cache
+        good = all(
+            self._check_slot_tensor(target, source, slot)
+            for target, source in zip(cache.conv, data[0])
+        ) and self._check_slot_tensor(cache.temporal, data[1], slot)
+        if self.req_pool.mamba_pool._slot_siblings:
+            good = good and all(
+                self._check_slot_tensor(target, source, slot, layered=layered)
+                for (target, layered), source in zip(
+                    self._mamba_sibling_tensors(), data[2]
+                )
+            )
+        return good
+
+    def capture_prefix(self, req, namespace, tokens):
+        """Capture only an actual complete forward boundary, before handoff."""
+        from sglang.srt.mem_cache.qsa_hisparse.prefix import (
+            PrefixSegment,
+            PrefixSnapshot,
+        )
+
+        state = self._request(req.kv.req_pool_idx, req.rid)
+        length = state.seq_len
+        if (
+            self.slots.phases[state.lease.req_pool_idx] != "prefill"
+            or not length
+            or length % 64
+            or state.prefix_epoch != self.prefix_cache.epoch
+        ):
+            return None
+        if len(tokens) != length * 8:
+            raise RuntimeError("QSA prefix token/checkpoint boundary differs")
+        previous = self.prefix_cache.acquire(namespace, tokens, count=False)
+        reservation = None
+        retained = False
+        try:
+            ancestor = None if previous is None else previous.snapshot
+            if ancestor is not None and ancestor.length == length:
+                return None
+            if (
+                previous is not None
+                and previous.entry_id != state.prefix_basis_entry_id
+            ):
+                previous.close()
+                previous = None
+                if state.prefix_basis_length:
+                    previous = self.prefix_cache.acquire(
+                        namespace, tokens, state.prefix_basis_length, count=False
+                    )
+                    if (
+                        previous is not None
+                        and previous.entry_id != state.prefix_basis_entry_id
+                    ):
+                        previous.close()
+                        previous = None
+                ancestor = None if previous is None else previous.snapshot
+            # Token equality alone cannot justify shared raw/index bytes: an
+            # uncached forward can differ with its chunk partition. Share only
+            # a checkpoint this active request restored or published itself.
+            start = 0 if ancestor is None else ancestor.length
+            reservation = self.prefix_cache.reserve(
+                self.prefix_checkpoint_bytes(length - start, length)
+            )
+            if reservation is None:
+                return None
+            reservation.basis_reader = previous
+            retained = True
+            # Every copied tensor is immutable after publication. Avoid a growing
+            # device-side stack; each transfer has at most one prefill chunk.
+            segments = [] if ancestor is None else list(ancestor.segments)
+            if self.producer_stream is None:
+                raise RuntimeError(
+                    "QSA prefix capture has no registered model producer"
+                )
+            self.producer_stream.synchronize()
+            torch.cuda.current_stream(self.device).synchronize()
+            for offset in range(start, length, 4096):
+                stop = min(offset + 4096, length)
+                raw = torch.empty(
+                    (len(self.layer_ids), 2, stop - offset, 1, 256), dtype=torch.uint8
+                )
+                shape = self.pool.qsa_compressed_k_buffer_pool[0].shape[1:]
+                index = torch.empty(
+                    (len(self.layer_ids), (stop - offset) // 4, *shape),
+                    dtype=self.pool.index_state_dtype,
+                )
+                physical = self.slots.staging_slice(state.lease, offset, stop)
+                logical = self.req_table[req.kv.req_pool_idx, offset:stop:4].long() // 4
+                for li in range(len(self.layer_ids)):
+                    raw[li, 0].copy_(self.full.k_buffer[li][physical].view(torch.uint8))
+                    raw[li, 1].copy_(self.full.v_buffer[li][physical].view(torch.uint8))
+                    index[li].copy_(self.pool.qsa_compressed_k_buffer_pool[li][logical])
+                segments.append(PrefixSegment(offset, stop, raw, index))
+            ring = slice(req.kv.req_pool_idx * 4, (req.kv.req_pool_idx + 1) * 4)
+            pending = tuple(
+                t[ring].to("cpu", copy=True)
+                for t in self.pool.qsa_key_state_buffer_pool
+            )
+            rope = self.pool.qsa_rope_position_buffer[ring].to("cpu", copy=True)
+            mamba = self._capture_mamba(int(req.kv.mamba_pool_idx))
+            snapshot = PrefixSnapshot(
+                namespace, tokens, tuple(segments), pending, rope, mamba
+            )
+            return reservation, snapshot
+        except BaseException:
+            if reservation is not None:
+                reservation.close()
+            raise
+        finally:
+            if previous is not None and not retained:
+                previous.close()
+
+    def restore_prefix(self, req, snapshot):
+        """Restore into a fresh private lease and freshly allocated index pages."""
+        if req.kv.req_pool_idx in self.requests:
+            raise RuntimeError("QSA prefix restore cannot mutate an existing lease")
+        self.validate_prefix_checkpoint(snapshot)
+        state = self._acquire_request(req.kv.req_pool_idx, req.rid)
+        ring = slice(req.kv.req_pool_idx * 4, (req.kv.req_pool_idx + 1) * 4)
+        for segment in snapshot.segments:
+            physical = self.slots.staging_slice(
+                state.lease, segment.start, segment.stop
+            )
+            logical = (
+                self.req_table[
+                    req.kv.req_pool_idx, segment.start : segment.stop : 4
+                ].long()
+                // 4
+            )
+            for li in range(len(self.layer_ids)):
+                self.full.k_buffer[li][physical].view(torch.uint8).copy_(
+                    segment.raw[li, 0]
+                )
+                self.full.v_buffer[li][physical].view(torch.uint8).copy_(
+                    segment.raw[li, 1]
+                )
+                index = self.pool.qsa_compressed_k_buffer_pool[li]
+                index[logical] = segment.index[li].to(index.device)
+                if self.strict and (
+                    not torch.equal(
+                        self.full.k_buffer[li][physical].view(torch.uint8).cpu(),
+                        segment.raw[li, 0],
+                    )
+                    or not torch.equal(
+                        self.full.v_buffer[li][physical].view(torch.uint8).cpu(),
+                        segment.raw[li, 1],
+                    )
+                    or not torch.equal(
+                        index[logical].cpu().view(torch.uint8),
+                        segment.index[li].view(torch.uint8),
+                    )
+                ):
+                    raise AssertionError("QSA restored prefix bytes/index differ")
+        for target, data in zip(self.pool.qsa_key_state_buffer_pool, snapshot.pending):
+            target[ring].copy_(data)
+        self.pool.qsa_rope_position_buffer[ring].copy_(snapshot.rope)
+        self._restore_mamba(snapshot.mamba, int(req.kv.mamba_pool_idx))
+        if self.strict:
+            if (
+                not self._check_restored_mamba(
+                    snapshot.mamba, int(req.kv.mamba_pool_idx)
+                )
+                or any(
+                    not torch.equal(
+                        target[ring].cpu().view(torch.uint8), data.view(torch.uint8)
+                    )
+                    for target, data in zip(
+                        self.pool.qsa_key_state_buffer_pool, snapshot.pending
+                    )
+                )
+                or not torch.equal(
+                    self.pool.qsa_rope_position_buffer[ring].cpu(), snapshot.rope
+                )
+            ):
+                raise AssertionError("QSA restored recurrent/pending state differs")
+        req.kv.mamba_needs_clear = False
+        req.kv.mamba_cow_src_index = None
+        state.seq_len = snapshot.length
+        self.record(
+            "prefix_restore_complete",
+            state.lease,
+            reused_tokens=snapshot.length,
+            **self.prefix_cache.stats(),
+        )
+
+    def validate_prefix_checkpoint(self, snapshot):
+        """A missing state component must never turn into approximate reuse."""
+        from sglang.srt.mem_cache.ple_state_pool import NGramPool, ShortConvPool
+
+        for segment in snapshot.segments:
+            if (
+                segment.raw.shape
+                != (len(self.layer_ids), 2, segment.stop - segment.start, 1, 256)
+                or segment.raw.dtype != torch.uint8
+            ):
+                raise ValueError("QSA prefix raw geometry differs")
+            shape = self.pool.qsa_compressed_k_buffer_pool[0].shape[1:]
+            if (
+                segment.index.shape
+                != (len(self.layer_ids), (segment.stop - segment.start) // 4, *shape)
+                or segment.index.dtype != self.pool.index_state_dtype
+            ):
+                raise ValueError("QSA prefix compressed geometry differs")
+        if len(snapshot.pending) != len(self.pool.qsa_key_state_buffer_pool):
+            raise ValueError("QSA prefix checkpoint has missing pending layers")
+        expected = [(t[:4].shape, t.dtype) for t in self.pool.qsa_key_state_buffer_pool]
+        actual = [(t.shape, t.dtype) for t in snapshot.pending]
+        if (
+            actual != expected
+            or snapshot.rope.shape != self.pool.qsa_rope_position_buffer[:4].shape
+            or snapshot.rope.dtype != torch.int64
+        ):
+            raise ValueError("QSA prefix checkpoint pending/position geometry differs")
+        mamba = self.req_pool.mamba_pool
+        expected_arity = 3 if mamba._slot_siblings else 2
+        if len(snapshot.mamba) != expected_arity:
+            raise ValueError("QSA prefix checkpoint has missing recurrent siblings")
+        conv, temporal = snapshot.mamba[:2]
+        if (
+            len(conv) != len(mamba.mamba_cache.conv)
+            or [(t.shape, t.dtype) for t in conv]
+            != [(t[:, :1].shape, t.dtype) for t in mamba.mamba_cache.conv]
+            or (temporal.shape, temporal.dtype)
+            != (
+                mamba.mamba_cache.temporal[:, :1].shape,
+                mamba.mamba_cache.temporal.dtype,
+            )
+        ):
+            raise ValueError("QSA prefix recurrent geometry differs")
+        if mamba._slot_siblings:
+            if len(snapshot.mamba[2]) != len(mamba._slot_siblings):
+                raise ValueError("QSA prefix checkpoint has missing PLE siblings")
+            for sibling, data in zip(mamba._slot_siblings, snapshot.mamba[2]):
+                if isinstance(sibling, ShortConvPool):
+                    source = sibling.conv_state[:, :1]
+                elif isinstance(sibling, NGramPool):
+                    source = sibling.context[:1]
+                else:
+                    raise ValueError(
+                        "QSA prefix checkpoint has an unsupported slot sibling"
+                    )
+                if (data.shape, data.dtype) != (source.shape, source.dtype):
+                    raise ValueError("QSA prefix PLE geometry differs")
+
     def begin_batch(self, batch, *, graph=False):
         if batch.forward_mode.is_idle():
             self.batch_requests = []
@@ -914,12 +1306,7 @@ class QSAHiSparseRuntime:
             if req_idx not in self.requests:
                 if decode:
                     raise RuntimeError("QSA P2 decode without an admitted lease")
-                lease = self.slots.acquire(
-                    req_idx, int(self.req_pool.req_generation[req_idx]), rid
-                )
-                state = _RequestCache(self, lease)
-                self.requests[req_idx] = state
-                self.record("begin_prefill", lease)
+                self._acquire_request(req_idx, rid)
             state = self._request(req_idx, rid)
             self.slots.require(state.lease, "decode" if decode else "prefill")
             if graph and (

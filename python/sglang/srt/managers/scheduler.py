@@ -627,6 +627,22 @@ class Scheduler(
             c.attach_radix_cache(self.tree_cache)
 
         self.init_hisparse_coordinator()
+        qsa = getattr(
+            self.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse", None
+        )
+        if getattr(qsa, "prefix_cache", None) is not None:
+            from sglang.srt.mem_cache.chunk_cache import ChunkCache
+            from sglang.srt.mem_cache.qsa_hisparse.prefix_cache import QSAHostPrefixCache
+
+            if type(self.tree_cache) is not ChunkCache or self.enable_hierarchical_cache:
+                raise ValueError(
+                    "QSA host prefixes require the private chunk-cache scheduler"
+                )
+            if self.req_to_token_pool.enable_mamba_extra_buffer:
+                raise ValueError(
+                    "QSA host prefixes require one mutable Mamba slot per request"
+                )
+            self.tree_cache = QSAHostPrefixCache(self.tree_cache, qsa, self.tp_cpu_group)
 
         if (
             get_disagg().disaggregation_mode == "decode"
