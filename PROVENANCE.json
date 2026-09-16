@@ -32,7 +32,14 @@
     },
     "source_requires_sglang_kernel": "0.4.7",
     "gpu_service_validation": "not_run",
-    "performance_claim": null
+    "performance_claim": null,
+    "source_commit": "2da3ca5a09b422a17643f8755854a04d2aaf663c",
+    "python_wheel": {
+      "status": "PASS",
+      "rust_extensions": "disabled",
+      "isolated_install_and_import": "PASS",
+      "published": false
+    }
   },
   "raw_artifacts_included": false
 }
