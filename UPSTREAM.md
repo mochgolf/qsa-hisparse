@@ -54,10 +54,18 @@ diff against `upstream/main` to see the downstream integration.
   tokenwise QSA and `QSAProfile.variant`; downstream references were removed
   from sizing and graph setup.
 
-The current merge combines upstream gather memory-safety changes and PLE file
+The 2026-09-16 merge combined upstream gather memory-safety changes and PLE file
 storage with QSA scale handling, deterministic HC, and the offload graph path.
 The focused suite is in `test/qsa_hisparse/`; its runner also selects affected
 upstream pool, scheduler, PLE, and release tests.
+
+The 2026-09-23 update merges upstream `172b1b4825` (421 commits after
+`76e06febab`). It carries the upstream `owned_kv_len` cache-release contract
+through the QSA host-prefix adapter, keeps QSA's CPU request identities for
+decode while speculative modes use upstream device slots, and combines the
+upstream meta-device PLE table construction with QSA INT8-row storage. The
+`README.sglang.md` snapshot is byte-identical to upstream's README at this
+revision. See [validation](VALIDATION.md) for checks and remaining GPU scope.
 
 CPU tests and packaging checks do not qualify a CUDA deployment. Before
 replacing a serving process, run applicable GPU/kernel and service checks with
