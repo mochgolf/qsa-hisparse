@@ -5,7 +5,8 @@
 Status: **CPU_VALIDATED_GPU_NOT_RUN**. This update merges SGLang main at
 `172b1b4825ac9865076b78ef2c0daa66c7cc39dd`, 421 commits after the
 previous upstream revision. The merge was based on QSA HiSparse remote main
-`83bee0adf5`, which already includes the prefix-cache service branch.
+`83bee0adf5`, which already includes the prefix-cache service branch. The
+integration merge is `06f19bb21a8a24e5ed66496c9ad3657763e2b4f3`.
 
 The maintained CPU runner (`QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh`)
 uses Python 3.12.3, Torch 2.13.0, Triton 3.7.1, FlashInfer 0.6.18,

@@ -1,13 +1,13 @@
 {
   "schema": "qsa-hisparse-source-v1",
-  "updated_at": "2026-09-16",
+  "updated_at": "2026-09-23",
   "layout": "self-contained-sglang-source-fork",
   "upstream": {
     "repository": "https://github.com/sgl-project/sglang",
     "branch": "main",
-    "merged_commit": "76e06febab732d28a61b75a61b7835284568cdfb",
-    "merge_commit": "59ad842ebc36a49f16e7040782b08ae2d3e221da",
-    "commits_since_previous_base": 226
+    "merged_commit": "172b1b4825ac9865076b78ef2c0daa66c7cc39dd",
+    "merge_commit": "06f19bb21a8a24e5ed66496c9ad3657763e2b4f3",
+    "commits_since_previous_base": 421
   },
   "imported_qsa_source": {
     "commit": "5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0",
@@ -19,25 +19,25 @@
     "status": "CPU_VALIDATED_GPU_NOT_RUN",
     "report": "VALIDATION.md",
     "cpu_command": "QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh",
-    "cpu_passed": 102,
-    "cpu_skipped": 3,
-    "subtests_passed": 9,
+    "cpu_passed": 187,
+    "cpu_skipped": 7,
+    "subtests_passed": 20,
     "test_environment": {
       "python": "3.12.3",
       "torch": "2.13.0",
       "triton": "3.7.1",
       "flashinfer_python": "0.6.18",
       "transformers": "5.12.1",
-      "sglang_kernel": "0.4.6.post1"
+      "sglang_kernel": "0.4.6.post1",
+      "xgrammar": "0.2.1"
     },
     "source_requires_sglang_kernel": "0.4.7",
+    "source_requires_xgrammar": "0.2.7",
     "gpu_service_validation": "not_run",
     "performance_claim": null,
-    "source_commit": "2da3ca5a09b422a17643f8755854a04d2aaf663c",
+    "source_commit": "06f19bb21a8a24e5ed66496c9ad3657763e2b4f3",
     "python_wheel": {
-      "status": "PASS",
-      "rust_extensions": "disabled",
-      "isolated_install_and_import": "PASS",
+      "status": "NOT_RUN_FOR_THIS_REVISION",
       "published": false
     }
   },
