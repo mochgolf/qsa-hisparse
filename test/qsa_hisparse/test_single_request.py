@@ -48,7 +48,7 @@ class TestQSAHiSparseSingleRequest(unittest.TestCase):
             token_to_kv_pool=pool,
             server_args=None,
             token_to_kv_pool_allocator=allocator,
-            ps=SimpleNamespace(tp_rank=0),
+            tp_rank=0,
             req_to_token_pool=SimpleNamespace(
                 req_to_token=torch.arange(262144)[None], mamba_pool=mamba
             ),

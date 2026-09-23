@@ -1,4 +1,60 @@
-# Validation of the source-fork migration
+# Validation of the SGLang fork
+
+## Upstream update, 2026-09-23
+
+Status: **GPU_SERVICE_VALIDATED_DEPLOYED**. This update merges SGLang main at
+`172b1b4825ac9865076b78ef2c0daa66c7cc39dd`, 421 commits after the
+previous upstream revision. The merge was based on QSA HiSparse remote main
+`83bee0adf5`, which already includes the prefix-cache service branch. The
+integration merge is `06f19bb21a8a24e5ed66496c9ad3657763e2b4f3`.
+The GPU-tested runtime commit is `f8a69629b09a403ed8375703d96440f66013a6ba`.
+
+The maintained CPU runner (`QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh`)
+uses Python 3.12.3, Torch 2.13.0, Triton 3.7.1, FlashInfer 0.6.18,
+Transformers 5.12.1 and Triton's interpreter with CUDA hidden. It passed:
+**187 passed, 7 skipped, 20 subtests passed**. The new release test
+checks that the QSA host-prefix adapter accepts `owned_kv_len` and frees the
+owned pages. The existing suite covers INT8-row PLE construction and prefix
+checkpoint boundaries without changing their numerical expectations.
+
+The source still requires `sglang-kernel==0.4.7`; the local CPU test
+environment has `0.4.6.post1`. Upstream also raises `xgrammar` from 0.2.1 to
+0.2.7, `cache-dit` from 1.3.0 to 1.5.1, and `sgl-eval` from 0.1.0 to 0.1.2.
+The CPU environment still has xgrammar 0.2.1. The isolated GPU service
+environment has `sglang-kernel 0.4.7` and `xgrammar 0.2.7`.
+
+The first TP2 startup exposed the removed `ModelRunner.ps` field. Both QSA
+adapters now read `runner.tp_rank`; the complete CPU runner passed again with
+**187 passed, 7 skipped, 20 subtests passed**. The next startup exposed a local
+CUDA compiler/header mismatch during first-time TileLang compilation. The
+isolated service profile now selects the installed CUDA 12.8 compiler and
+headers; this is a deployment setting, not a change to the model or QSA
+numeric contract.
+
+With two RTX 4090s, the candidate service reached ready on port 8082 using
+TP2, PP1, 262144 context, eight running slots, full decode CUDA graphs for
+batch sizes 1–8, FP8 KV, pinned INT8-row PLE offload and the QSA P2 host
+prefix cache. The frozen seven-case qualification passed **7/7**, including
+the exact 262016-token input, code, reasoning, tool call and image request.
+A cold seed followed by a warm request and eight concurrent 128-token requests
+passed **10/10**; the warm requests each reported 2048 cached prefix tokens.
+Both TP ranks recorded actual B8 graph replay. After the requests, running and
+queued counts were zero, with zero active QSA leases, eight free leases and 40
+available Mamba slots on each rank. The successful log window had no scheduler
+traceback or compilation failure.
+
+The same tested source and environment then reached ready on production port
+8081. `/health`, model alias, TP2/B8/256K server configuration and a real
+generation request passed; the default service profile now points to this
+deployment. The exact previous production profile is preserved locally for
+rollback. Per-request JSONL, graph events, log windows and the promotion
+decision are recorded in the local lab results. These checks establish service
+function and resource release for this configuration. They do not establish a
+throughput improvement, long soak stability, or complete token-for-token
+equivalence with the previous source. No Python wheel was built or published
+for this update.
+
+## Previous source-fork migration, 2026-09-16
 
 Date: 2026-09-16. Status: **CPU_VALIDATED_GPU_NOT_RUN**.
 
@@ -7,7 +63,7 @@ The tested runtime and packaging sources are committed as
 `76e06febab732d28a61b75a61b7835284568cdfb` through merge commit `59ad842ebc`.
 The original QSA runtime was `5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0`.
 
-## Executed checks
+### Executed checks
 
 | Check | Result |
 | --- | --- |
@@ -33,7 +89,7 @@ generations, short prompts, request routing, graph failure cleanup, copy/event
 ordering, and logical free-group completion with CPU substitutes. No numerical
 tolerance or supported model geometry was relaxed.
 
-## Reproduce
+### Reproduce
 
 In an environment with the runtime dependencies and pytest:
 
@@ -55,7 +111,7 @@ extensions. The wheel was built from the staged sources subsequently committed
 as `2da3ca5a09`; its development-version suffix names the pre-commit base
 `59ad842ebc`. It is a local validation artifact, not a published release.
 
-## Environment and remaining scope
+### Environment and remaining scope
 
 CPU/interpreter tests used Python 3.12.3, Torch 2.13.0, Triton 3.7.1,
 FlashInfer 0.6.18, Transformers 5.12.1, and the existing `sglang-kernel 0.4.6.post1`.

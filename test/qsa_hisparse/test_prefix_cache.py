@@ -276,8 +276,11 @@ class TestHostPrefixOwnership(unittest.TestCase):
 
 class TestRuntimeHostPrefixes(unittest.TestCase):
     def setUp(self):
+        from sglang.srt.runtime_context import get_context
+
         self.patches = ExitStack()
         self.addCleanup(self.patches.close)
+        self.patches.enter_context(get_context().override_server_args())
         self.patches.enter_context(patch.object(torch.cuda, "Event", Event))
         self.patches.enter_context(
             patch.object(torch.cuda, "current_stream", return_value=Mock())
@@ -349,6 +352,19 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         a.prefix_namespace = ("fixture-model", "normal-text-position=0", "TP2")
         params = CacheInitParams(True, rp, a.runner.token_to_kv_pool_allocator, 64)
         self.cache = QSAHostPrefixCache(ChunkCache(params), a, None)
+
+    def test_finished_request_releases_owned_pages(self):
+        req = self.req("finished", range(64))
+        self.a.req_pool.alloc([req])
+        allocator = self.a.runner.token_to_kv_pool_allocator
+        indices = allocator.alloc(64)
+        self.a.req_table[req.kv.req_pool_idx, :64] = indices.int()
+        req.kv.kv_allocated_len = req.kv.kv_committed_len = 64
+        available_before = allocator.available_size()
+
+        self.cache.cache_finished_req(req, is_insert=False, owned_kv_len=64)
+
+        self.assertEqual(allocator.available_size(), available_before + 64)
 
     def req(self, name, tokens):
         return SimpleNamespace(

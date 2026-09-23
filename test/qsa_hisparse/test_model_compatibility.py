@@ -38,6 +38,11 @@ def test_offloaded_ple_preserves_storage_dtype_on_meta(
             )
 
     monkeypatch.setattr(qwen4_exp, "VocabParallelEmbedding", FakeEmbedding)
+    # This case checks the construction dtype and device; the real offload
+    # wrapper's storage and gather behavior has separate tests.
+    monkeypatch.setattr(
+        qwen4_exp, "Qwen4ExpPinnedHostEmbedding", lambda embedding, **_: embedding
+    )
     config = SimpleNamespace(
         ngram_size=2,
         heads_per_ngram=1,
