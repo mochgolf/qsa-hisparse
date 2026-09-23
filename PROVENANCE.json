@@ -16,7 +16,7 @@
     "historical_provenance": "archive/PROVENANCE.json"
   },
   "validation": {
-    "status": "CPU_VALIDATED_GPU_NOT_RUN",
+    "status": "GPU_SERVICE_VALIDATED_DEPLOYED",
     "report": "VALIDATION.md",
     "cpu_command": "QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh",
     "cpu_passed": 187,
@@ -33,9 +33,29 @@
     },
     "source_requires_sglang_kernel": "0.4.7",
     "source_requires_xgrammar": "0.2.7",
-    "gpu_service_validation": "not_run",
+    "gpu_service_validation": {
+      "status": "passed",
+      "runtime_commit": "f8a69629b09a403ed8375703d96440f66013a6ba",
+      "candidate_port": 8082,
+      "production_port": 8081,
+      "tp_size": 2,
+      "pp_size": 1,
+      "context_length": 262144,
+      "max_running_requests": 8,
+      "full_decode_graph_batch_sizes": [1, 2, 3, 4, 5, 6, 7, 8],
+      "frozen_cases_passed": 7,
+      "frozen_cases_total": 7,
+      "prefix_graph_requests_passed": 10,
+      "prefix_graph_requests_total": 10,
+      "actual_b8_graph_replay_tp_ranks": 2,
+      "production_smoke_passed": true,
+      "sglang_kernel": "0.4.7",
+      "xgrammar": "0.2.7",
+      "cuda_compiler": "12.8",
+      "evidence": "VALIDATION.md"
+    },
     "performance_claim": null,
-    "source_commit": "06f19bb21a8a24e5ed66496c9ad3657763e2b4f3",
+    "source_commit": "f8a69629b09a403ed8375703d96440f66013a6ba",
     "python_wheel": {
       "status": "NOT_RUN_FOR_THIS_REVISION",
       "published": false
