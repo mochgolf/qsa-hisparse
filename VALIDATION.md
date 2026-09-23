@@ -51,8 +51,12 @@ user greeting during a longer conversation. The session export shows no new
 greeting at those later steps. The first-token outlier appears in the
 prefill-forward stage. FlashInfer's local `sampling` CUDA extension was built
 over the same 59-second window, strongly implicating first-use compilation;
-the request that triggered it is not logged. The content error's cause is
-still not established.
+the request that triggered it is not logged. The preserved baseline later
+showed another approximately 59-second build on its first real long request,
+so this cold-start latency is shared by both versions. The user did not
+reproduce the greeting misinterpretation on the restored baseline with more
+than 53K cached prefix tokens, but no exact request-body replay is available;
+the content error's cause is still not established.
 The service was rolled back to the preserved prior source and environment after
 the required idle gate. The default profile again points to that baseline;
 `/health`, model listing and an exact short generation check passed after the
