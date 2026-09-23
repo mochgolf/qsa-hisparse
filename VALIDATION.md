@@ -49,7 +49,10 @@ request passed. Real traffic then exposed a long first-token outlier on an
 approximately 28K-token prompt and repeated misinterpretation of an earlier
 user greeting during a longer conversation. The session export shows no new
 greeting at those later steps. The first-token outlier appears in the
-prefill-forward stage, but the exact cause of either issue is not established.
+prefill-forward stage. FlashInfer's local `sampling` CUDA extension was built
+over the same 59-second window, strongly implicating first-use compilation;
+the request that triggered it is not logged. The content error's cause is
+still not established.
 The service was rolled back to the preserved prior source and environment after
 the required idle gate. The default profile again points to that baseline;
 `/health`, model listing and an exact short generation check passed after the
