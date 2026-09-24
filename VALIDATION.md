@@ -2,7 +2,7 @@
 
 ## Upstream update, 2026-09-23
 
-Status: **GPU_FUNCTIONAL_TESTS_PASSED_PRODUCTION_ROLLED_BACK**. This update merges SGLang main at
+Status: **TTFT_FIX_GPU_VERIFIED_PRODUCTION_ROLLED_BACK**. This update merges SGLang main at
 `172b1b4825ac9865076b78ef2c0daa66c7cc39dd`, 421 commits after the
 previous upstream revision. The merge was based on QSA HiSparse remote main
 `83bee0adf5`, which already includes the prefix-cache service branch. The
@@ -61,6 +61,31 @@ establish service function and resource release for this configuration; they
 do not establish production latency, long-conversation correctness, long soak
 stability, or complete token-for-token equivalence with the previous source.
 No Python wheel was built or published for this update.
+
+### FlashInfer first-token latency fix, 2026-09-23
+
+Commit `85f80e50779371ae38640039ece146e75a67a50c` adds an opt-in
+non-greedy sampling request before the Python HTTP server reports ready. The
+candidate test and prospective production profiles set
+`SGLANG_QSA_HISPARSE_WARMUP_SAMPLING=1` and use the same literal
+`/usr/local/cuda` compiler path as the preserved baseline. The original
+profiles remain as historical evidence; the new profiles are named
+`candidate-8082-ttft-fixed.json` and `production-8081-ttft-fixed.json` in the
+local lab results.
+
+The three targeted CPU tests passed. With the production baseline stopped
+after its idle gate, the candidate reached ready on 8082 only after the
+non-greedy warmup returned HTTP 200 and one output token. The FlashInfer
+sampling Ninja record count stayed at 25 through startup and all following
+requests. The first 76-token non-greedy request had 0.711-second TTFT, the
+second 0.308 seconds, and a 32,780-token request 5.259 seconds. The earlier
+unfixed candidate had spent 59.910 seconds on its first 76-token request
+while adding four Ninja build records. The exact tested profile, per-request
+JSONL, logs, source binding, and restoration checks are in
+`lab/results/sglang-main-merge-20260923/rootcause-20260923/window-20260923T205011-0700/`.
+The baseline was restored to 8081 and passed health/model checks. This is a
+candidate TTFT fix, not a finding that the separate long-context greeting
+error is fixed; production remains on the previous source.
 
 ## Previous source-fork migration, 2026-09-16
 
