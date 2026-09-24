@@ -328,8 +328,6 @@ class Envs:
     # In seconds. If a warmup forward batch takes longer than this, the server will crash to prevent hanging.
     # Recommend to increase warmup timeout to 1800 to accommodate some kernel JIT precache e.g. deep gemm
     SGLANG_WARMUP_TIMEOUT = EnvFloat(-1)
-    # QSA deployments can precompile FlashInfer's non-greedy sampler before readiness.
-    SGLANG_QSA_HISPARSE_WARMUP_SAMPLING = EnvBool(False)
     SGLANG_EXTERNAL_MODEL_PACKAGE = EnvStr("")
     SGLANG_EXTERNAL_MM_MODEL_ARCH = EnvStr("")
     SGLANG_EXTERNAL_MM_PROCESSOR_PACKAGE = EnvStr("")

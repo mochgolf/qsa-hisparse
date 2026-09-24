@@ -2388,25 +2388,6 @@ def _wait_and_warmup(
             get_exec().moe.ep_join_mode,
         )
 
-    if envs.SGLANG_QSA_HISPARSE_WARMUP_SAMPLING.get():
-        from sglang.srt.mem_cache.qsa_hisparse.startup_warmup import (
-            warmup_non_greedy_sampling,
-        )
-
-        try:
-            timeout = envs.SGLANG_WARMUP_TIMEOUT.get()
-            warmup_non_greedy_sampling(
-                url=server_args.url(),
-                api_key=get_serving().api_key,
-                verify=ssl_verify_of(server_args),
-                timeout=timeout if timeout > 0 else 600,
-            )
-        except Exception:
-            logger.exception("QSA non-greedy sampling warmup failed")
-            kill_process_tree(os.getpid())
-            return
-        logger.info("QSA non-greedy sampling warmup completed before readiness")
-
     if not get_serving().skip_server_warmup and not skip_elastic_joiner_warmup:
         if not execute_warmup_func(server_args):
             return
