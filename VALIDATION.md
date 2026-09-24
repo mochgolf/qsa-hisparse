@@ -2,7 +2,7 @@
 
 ## Upstream update, 2026-09-23
 
-Status: **GPU_SERVICE_VALIDATED_DEPLOYED**. This update merges SGLang main at
+Status: **GPU_FUNCTIONAL_TESTS_PASSED_PRODUCTION_ROLLED_BACK**. This update merges SGLang main at
 `172b1b4825ac9865076b78ef2c0daa66c7cc39dd`, 421 commits after the
 previous upstream revision. The merge was based on QSA HiSparse remote main
 `83bee0adf5`, which already includes the prefix-cache service branch. The
@@ -43,16 +43,31 @@ queued counts were zero, with zero active QSA leases, eight free leases and 40
 available Mamba slots on each rank. The successful log window had no scheduler
 traceback or compilation failure.
 
-The same tested source and environment then reached ready on production port
-8081. `/health`, model alias, TP2/B8/256K server configuration and a real
-generation request passed; the default service profile now points to this
-deployment. The exact previous production profile is preserved locally for
-rollback. Per-request JSONL, graph events, log windows and the promotion
-decision are recorded in the local lab results. These checks establish service
-function and resource release for this configuration. They do not establish a
-throughput improvement, long soak stability, or complete token-for-token
-equivalence with the previous source. No Python wheel was built or published
-for this update.
+The same tested source and environment reached ready on production port 8081.
+`/health`, model alias, TP2/B8/256K server configuration and a short generation
+request passed. Real traffic then exposed a long first-token outlier on an
+approximately 28K-token prompt and repeated misinterpretation of an earlier
+user greeting during a longer conversation. The session export shows no new
+greeting at those later steps. The first-token outlier appears in the
+prefill-forward stage. FlashInfer's local `sampling` CUDA extension was built
+over the same 59-second window, strongly implicating first-use compilation;
+the request that triggered it is not logged. The preserved baseline later
+showed another approximately 59-second build on its first real long request,
+so this cold-start latency is shared by both versions. The user did not
+reproduce the greeting misinterpretation on the restored baseline with more
+than 53K cached prefix tokens, but no exact request-body replay is available;
+the content error's cause is still not established.
+The service was rolled back to the preserved prior source and environment after
+the required idle gate. The default profile again points to that baseline;
+`/health`, model listing and an exact short generation check passed after the
+rollback. Treat this branch as a candidate requiring long-conversation and
+cold long-prefill diagnosis before another production promotion. Per-request
+JSONL, graph events, log windows, the original promotion decision and the
+rollback analysis are recorded in the local lab results. The earlier checks
+establish service function and resource release for this configuration; they
+do not establish production latency, long-conversation correctness, long soak
+stability, or complete token-for-token equivalence with the previous source.
+No Python wheel was built or published for this update.
 
 ## Previous source-fork migration, 2026-09-16
 
