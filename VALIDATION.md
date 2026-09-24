@@ -1,5 +1,41 @@
 # Validation of the SGLang fork
 
+## Upstream follow-up, 2026-09-23
+
+Status: **GPU_FUNCTIONAL_TESTS_PASSED_BASELINE_RESTORED**. Merge commit
+`2f06478454256c2f6e3666858d00b37c5ae9132e` integrates upstream main at
+`32290dda2cea4bb95274b3d08e43d4dad74e9676` (52 new upstream commits).
+The QSA conflict resolution retains local CUDA/HiSparse FP8 descale, graph and
+capture paths while including upstream's ROCm packed decode. A companion fix
+passes the existing K/V scales and FP8 dtype flag through the new packed
+wrapper to its Triton kernel. AMD execution and numerical agreement were not
+tested because no AMD GPU was available.
+
+The maintained CPU runner passed **191 tests, 7 skipped and 20 subtests**;
+three upstream communicator test files passed **14 tests and 42 subtests**.
+On isolated TP2 port 8082 with the same model and precision profile, the
+frozen seven cases passed **7/7**, including 262016 input tokens. Two short
+non-greedy streams returned native output IDs matching usage; both reached
+their intentional eight-token length limit, so they validate sampling/SSE
+transport, not final-answer quality. The first generated delta took 59.17 s
+on the initial FlashInfer JIT path, versus 0.132 s on the next request; this
+does not establish a TTFT improvement. A separate prefix-only window completed
+**10/10** requests after a test-wrapper fixture path error prevented these
+requests in the first window. The warm and eight burst requests each reused
+2048 tokens; both TP ranks recorded actual B8 graph replay. At final idle,
+running/queued/used-token/Mamba-used gauges were zero, and each rank had zero
+active QSA leases, eight free leases, 40 available Mamba slots and no pending
+release.
+
+Both 8082 startups logged a non-blocking `/freeze_gc` loopback connection
+refusal during readiness; health and all subsequently sent requests passed.
+The original baseline service was restored on 8081 after each window, with
+health/model checks and the original profile bytes verified. No candidate
+was promoted to production. These functional checks do not show that the
+previous long-conversation “你好” user-event hallucination is fixed; its
+quality cause remains unresolved. Raw service profiles, request outputs and
+event logs remain in the private local lab records, outside this repository.
+
 ## Upstream update, 2026-09-23
 
 Status: **GPU_FUNCTIONAL_TESTS_PASSED_PRODUCTION_ROLLED_BACK**. This update merges SGLang main at
@@ -49,14 +85,7 @@ request passed. Real traffic then exposed a long first-token outlier on an
 approximately 28K-token prompt and repeated misinterpretation of an earlier
 user greeting during a longer conversation. The session export shows no new
 greeting at those later steps. The first-token outlier appears in the
-prefill-forward stage. FlashInfer's local `sampling` CUDA extension was built
-over the same 59-second window, strongly implicating first-use compilation;
-the request that triggered it is not logged. The preserved baseline later
-showed another approximately 59-second build on its first real long request,
-so this cold-start latency is shared by both versions. The user did not
-reproduce the greeting misinterpretation on the restored baseline with more
-than 53K cached prefix tokens, but no exact request-body replay is available;
-the content error's cause is still not established.
+
 The service was rolled back to the preserved prior source and environment after
 the required idle gate. The default profile again points to that baseline;
 `/health`, model listing and an exact short generation check passed after the
