@@ -1097,18 +1097,6 @@ class ModelRunner:
 
     def prewarm_sampling(self) -> SamplingPrewarmResult:
         """Warm the sampling path after graph initialization."""
-        if (
-            envs.SGLANG_QSA_HISPARSE_WARMUP_SAMPLING.get()
-            and self.device == "cuda"
-            and get_exec().kernel.sampling_backend == "flashinfer"
-        ):
-            # This runs in each scheduler rank before the Python HTTP listener binds.
-            # Loading the module here keeps its first JIT build out of user TTFT,
-            # including requests that bypass the readiness endpoint.
-            from flashinfer.sampling import get_sampling_module
-
-            get_sampling_module()
-            logger.info("FlashInfer sampling module loaded before HTTP startup")
         self.sampling_prewarm_result = SamplingPrewarmResult()
         return self.sampling_prewarm_result
 
