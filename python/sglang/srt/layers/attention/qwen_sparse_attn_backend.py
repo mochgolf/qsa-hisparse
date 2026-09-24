@@ -37,8 +37,10 @@ from sglang.srt.layers.attention.qsa.sparse_attn import (
     qwen_sparse_valid_counts_triton,
     sparse_gqa_fwd_interface_triton,
     sparse_gqa_fwd_interface_triton_ck,
+    sparse_gqa_packed_decode_triton,
 )
 from sglang.srt.model_executor.forward_batch_info import ForwardMode
+from sglang.srt.utils import is_hip
 from sglang.srt.utils.nvtx_utils import operations_nvtx_range
 
 logger = logging.getLogger(__name__)
@@ -1764,7 +1766,6 @@ class QwenSparseAttnBackend(AttentionBackend):
             )
 
         with operations_nvtx_range("qsa.fa2_metadata_scratch"):
-            flash_attn_varlen_func = _resolve_flash_attn_varlen_func()
             batch, topk = topk_indices.shape
             sequence_lens = metadata.sequence_lengths
             if metadata.is_cuda_graph:
@@ -1816,7 +1817,24 @@ class QwenSparseAttnBackend(AttentionBackend):
                 v_scale=v_scale,
             )
         with operations_nvtx_range("qsa.fa2_attention"):
-            if self._can_run_fa2_graph(
+            if is_hip():
+                relative_indices = torch.arange(
+                    topk, dtype=torch.int32, device=q.device
+                ).expand(batch, -1)
+                relative_indices = relative_indices.masked_fill(
+                    relative_indices >= valid_counts[:, None], -1
+                ).contiguous()
+                output = sparse_gqa_packed_decode_triton(
+                    q.contiguous(),
+                    packed_k,
+                    packed_v,
+                    relative_indices,
+                    cu_seqlens_q,
+                    cu_seqlens_k,
+                    valid_counts,
+                    layer.scaling,
+                )
+            elif self._can_run_fa2_graph(
                 q, k_buffer, layer, forward_batch, metadata, topk
             ):
                 batch = q.shape[0]
@@ -1827,6 +1845,7 @@ class QwenSparseAttnBackend(AttentionBackend):
                     q.contiguous(), packed_k[: batch * topk], packed_v[: batch * topk]
                 )
             else:
+                flash_attn_varlen_func = _resolve_flash_attn_varlen_func()
                 output = flash_attn_varlen_func(
                     q=q,
                     k=packed_k,
@@ -1843,6 +1862,7 @@ class QwenSparseAttnBackend(AttentionBackend):
                 layer, q, packed_k, packed_v, topk_indices, output, k_scale, v_scale,
                 valid_counts, cu_seqlens_q, cu_seqlens_k,
             )
+
         return output.reshape(q.shape[0], -1)
 
 
