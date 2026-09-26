@@ -214,25 +214,33 @@ def _node_cpus(node: int) -> set:
 
 
 def _numactl_cpu_mem_args(node: int, gpu_id: int) -> Optional[str]:
+    memory_arg = (
+        "--interleave=all"
+        if envs.SGLANG_NUMA_INTERLEAVE.get()
+        else f"--membind={node}"
+    )
     node_cpus = _node_cpus(node)
     if not node_cpus:
-        return f"--cpunodebind={node} --membind={node}"
+        return f"--cpunodebind={node} {memory_arg}"
     allowed_cpus = os.sched_getaffinity(0)
     target_cpus = node_cpus & allowed_cpus
     if not target_cpus:
         _handle_numa_bind_failure(node, allowed_cpus, gpu_id)
         return None
     if target_cpus == node_cpus:
-        return f"--cpunodebind={node} --membind={node}"
-    cpu_list = ",".join(str(c) for c in sorted(target_cpus))
-    return f"--physcpubind={cpu_list} --membind={node}"
+        cpu_arg = f"--cpunodebind={node}"
+    else:
+        cpu_list = ",".join(str(c) for c in sorted(target_cpus))
+        cpu_arg = f"--physcpubind={cpu_list}"
+    return f"{cpu_arg} {memory_arg}"
 
 
 def _strip_memory_args(numactl_args: str) -> str:
-    """Return ``numactl_args`` with the ``--membind`` segment removed, keeping
-    only the CPU binding (``--cpunodebind`` / ``--physcpubind``)."""
+    """Return ``numactl_args`` without its memory policy, keeping CPU binding."""
     return " ".join(
-        token for token in numactl_args.split() if not token.startswith("--membind")
+        token
+        for token in numactl_args.split()
+        if not token.startswith(("--membind", "--interleave"))
     )
 
 
@@ -251,6 +259,7 @@ def _probe_numactl_args(numactl_args: str) -> tuple[Optional[str], str]:
     the *memory* policy while keeping the CPU binding intact::
 
         --membind=N  ->  --preferred=N  ->  drop the memory segment
+        --interleave=all  ->  drop the memory segment
 
     Returns ``(args, last_stderr)``: ``args`` is the strongest binding that
     actually runs, or ``None`` if even CPU-only fails (or ``numactl`` is missing /
@@ -299,7 +308,8 @@ def _probe_numactl_args(numactl_args: str) -> tuple[Optional[str], str]:
             )
             return preferred_args, ""
 
-    # 3. Drop the memory segment entirely, keep only the CPU binding.
+    # 3. Drop the memory segment entirely, keep only the CPU binding. Interleave
+    #    has no equivalent single-node preferred policy, so it comes here directly.
     cpu_only_args = _strip_memory_args(numactl_args)
     if cpu_only_args and cpu_only_args != numactl_args:
         ok, cpu_err = _probe(cpu_only_args)
