@@ -333,6 +333,29 @@ class TestNumaBindIntersection(unittest.TestCase):
     def test_node_cpus_no_libnuma_returns_empty(self, _mock_lib):
         self.assertEqual(_node_cpus(0), set())
 
+    def test_numactl_args_preserve_single_node_memory_policy_by_default(self):
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch(
+                "sglang.srt.utils.numa_utils._node_cpus", return_value=set(range(72))
+            ),
+            patch("os.sched_getaffinity", return_value=set(range(72))),
+        ):
+            self.assertFalse(envs.SGLANG_NUMA_INTERLEAVE.get())
+            self.assertEqual(
+                _numactl_cpu_mem_args(0, 0), "--cpunodebind=0 --membind=0"
+            )
+
+    @patch.dict(
+        os.environ, {"SGLANG_NUMA_BIND_V2": "1", "SGLANG_NUMA_INTERLEAVE": "1"}
+    )
+    @patch("os.sched_getaffinity", return_value=set(range(72)))
+    @patch("sglang.srt.utils.numa_utils._node_cpus", return_value=set(range(72)))
+    def test_numactl_interleave_keeps_full_local_cpu_node(self, _cpus, _aff):
+        self.assertEqual(
+            _numactl_cpu_mem_args(0, 0), "--cpunodebind=0 --interleave=all"
+        )
+
     @patch("os.sched_getaffinity", return_value=set(range(72)))
     @patch("sglang.srt.utils.numa_utils._node_cpus", return_value=set(range(72)))
     def test_numactl_args_unconstrained_uses_cpunodebind(self, _cpus, _aff):
@@ -347,18 +370,41 @@ class TestNumaBindIntersection(unittest.TestCase):
             f"--physcpubind={expected_cpus} --membind=0",
         )
 
+    @patch.dict(
+        os.environ, {"SGLANG_NUMA_BIND_V2": "1", "SGLANG_NUMA_INTERLEAVE": "1"}
+    )
+    @patch("os.sched_getaffinity", return_value={0} | set(range(21, 144)))
+    @patch("sglang.srt.utils.numa_utils._node_cpus", return_value=set(range(72)))
+    def test_numactl_interleave_keeps_allowed_cpu_intersection(self, _cpus, _aff):
+        expected_cpus = ",".join(str(c) for c in [0] + list(range(21, 72)))
+        self.assertEqual(
+            _numactl_cpu_mem_args(0, 0),
+            f"--physcpubind={expected_cpus} --interleave=all",
+        )
+
+    @patch.dict(
+        os.environ, {"SGLANG_NUMA_BIND_V2": "1", "SGLANG_NUMA_INTERLEAVE": "1"}
+    )
+    @patch("sglang.srt.utils.numa_utils._node_cpus", return_value=set())
+    def test_numactl_interleave_without_cpu_mapping_uses_node_fallback(self, _cpus):
+        self.assertEqual(
+            _numactl_cpu_mem_args(0, 0), "--cpunodebind=0 --interleave=all"
+        )
+
     @patch.dict(os.environ, {"SGLANG_CRASH_ON_NUMA_BIND_FAILURE": "0"})
     @patch("os.sched_getaffinity", return_value=set(range(72, 144)))
     @patch("sglang.srt.utils.numa_utils._node_cpus", return_value=set(range(72)))
     def test_numactl_args_empty_intersection_returns_none(self, _cpus, _aff):
-        self.assertIsNone(_numactl_cpu_mem_args(0, 0))
+        with envs.SGLANG_NUMA_INTERLEAVE.override(True):
+            self.assertIsNone(_numactl_cpu_mem_args(0, 0))
 
     @patch.dict(os.environ, {"SGLANG_CRASH_ON_NUMA_BIND_FAILURE": "1"})
     @patch("os.sched_getaffinity", return_value=set(range(72, 144)))
     @patch("sglang.srt.utils.numa_utils._node_cpus", return_value=set(range(72)))
     def test_numactl_args_empty_intersection_crashes_when_enabled(self, _cpus, _aff):
-        with self.assertRaises(RuntimeError):
-            _numactl_cpu_mem_args(0, 0)
+        with envs.SGLANG_NUMA_INTERLEAVE.override(True):
+            with self.assertRaises(RuntimeError):
+                _numactl_cpu_mem_args(0, 0)
 
     @patch("os.sched_setaffinity")
     @patch("os.sched_getaffinity", return_value={0} | set(range(21, 144)))
@@ -455,6 +501,26 @@ class TestProbeNumactlArgs(unittest.TestCase):
         self.assertNotIn("--preferred=0", third_call_argv)
 
     @patch("sglang.srt.utils.numa_utils.subprocess.run")
+    def test_interleave_rejection_falls_back_to_cpu_only(self, mock_run):
+        mock_run.side_effect = [
+            _run_result(
+                1,
+                stderr=b"numactl: setting interleave: Operation not permitted",
+            ),
+            _run_result(0),
+        ]
+        args = "--physcpubind=0,21,22 --interleave=all"
+        with self.assertLogs("sglang.srt.utils.numa_utils", level="WARNING") as cm:
+            result = _probe_numactl_args(args)
+        self.assertEqual(result, ("--physcpubind=0,21,22", ""))
+        self.assertEqual(mock_run.call_count, 2)
+        self.assertTrue(any("CPU-only" in msg for msg in cm.output))
+        self.assertTrue(any("Operation not permitted" in msg for msg in cm.output))
+        fallback_argv = mock_run.call_args_list[1].args[0]
+        self.assertNotIn("--interleave=all", fallback_argv)
+        self.assertFalse(any("--preferred" in arg for arg in fallback_argv))
+
+    @patch("sglang.srt.utils.numa_utils.subprocess.run")
     def test_all_probes_fail_returns_none_with_last_stderr(self, mock_run):
         # Every binding, down to CPU-only, is rejected; the returned stderr is the
         # CPU-only (last / strongest-attempted) rejection reason.
@@ -506,7 +572,7 @@ class TestProbeNumactlArgs(unittest.TestCase):
 
 
 class TestStripMemoryArgs(unittest.TestCase):
-    """Direct tests for _strip_memory_args: drop --membind, keep CPU binding."""
+    """Direct tests for _strip_memory_args: drop memory policy, keep CPU binding."""
 
     def test_strips_membind_keeps_cpu(self):
         self.assertEqual(
@@ -515,6 +581,10 @@ class TestStripMemoryArgs(unittest.TestCase):
         )
         self.assertEqual(
             _strip_memory_args("--physcpubind=0,21,22 --membind=0"),
+            "--physcpubind=0,21,22",
+        )
+        self.assertEqual(
+            _strip_memory_args("--physcpubind=0,21,22 --interleave=all"),
             "--physcpubind=0,21,22",
         )
 

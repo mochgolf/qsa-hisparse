@@ -47,6 +47,8 @@ for memory ownership, mode selection, optional INT8-row PLE offload, and limits.
 The [service controller](examples/qsa_hisparse/SERVICE.md) provides start, stop,
 restart, status, and logs. [Host prefix reuse](PREFIX_CACHE.md) keeps reusable
 state in CPU memory while preserving the existing GPU staging and decode pools.
+See [NUMA memory placement](NUMA_MEMORY.md) for optional worker CPU and memory
+binding configuration.
 
 ## Read and develop
 

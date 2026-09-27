@@ -1479,6 +1479,9 @@ class Envs:
     # ===================================================================
     SGLANG_SET_CPU_AFFINITY = EnvBool(False)
     SGLANG_NUMA_BIND_V2 = EnvBool(True)
+    # Interleave worker memory across the NUMA nodes allowed by its cpuset.
+    # This only affects subprocess binding in the NUMA V2 path.
+    SGLANG_NUMA_INTERLEAVE = EnvBool(False)
     SGLANG_AUTO_NUMA_BIND = EnvBool(True)
     SGLANG_CRASH_ON_NUMA_BIND_FAILURE = EnvBool(False)
 
