@@ -45,11 +45,26 @@ No bitwise numerical equivalence and no performance improvement are claimed.
 
 The two real startup failures on the merged tree are retained as history: the
 removed `ModelRunner.tp_rank` (fixed in `0c0e30dcdd`) and the removed
-`ModelRunner.tp_group` (fixed in `0ffe23cc63`). Two further failures came from
-the review harness rather than the source — 33 tests executed with the
-production `SGLANG_QSA_HISPARSE_V3` inherited, and one upstream fused test whose
-`__new__` fixture lacked `req_to_token_pool` (fixed in `2fe0731e03`). The final
-240-pass result does not erase those windows.
+`ModelRunner.tp_group` (fixed in `0ffe23cc63`). The GPU review also had two
+earlier windows whose failures must not be conflated:
+
+- the first window (`results/dsh-maintenance-20261004/phase2-final-gpu-tests.txt`)
+  reported **68 failed, 172 passed, 1 skipped** because the PATH lacked `ninja`,
+  the running production service left insufficient free GPU memory, and one
+  upstream fused test's `__new__` fixture was not initialized;
+- the second window
+  (`lab/results/dsh-qsa-production-20261004/phase2-group/gpu-preflight.stdout`
+  and `.xml`) reported **34 failed, 206 passed, 1 skipped**: 33 of those
+  failures came from the harness inheriting the production
+  `SGLANG_QSA_HISPARSE_V3=p2-offload` mode, plus the same single fixture gap.
+  This was a corrected environment run of the same window, not a second
+  independent environment.
+
+The fixture gap is a test-fixture migration gap, not a product runtime API bug:
+the fixture built the backend with `__new__` and never set
+`req_to_token_pool`. It was fixed in `2fe0731e03`. Only the final window, with
+the correct environment and that fix, produced **240 passed, 1 skipped and 0
+failures**; the earlier windows are not erased by it.
 
 Latest upstream main re-check: `affa261e3d289fe4f907c9b2e8d773fef0d36dba` is
 four commits ahead of the tested `35f3c96ff4`. They touch
@@ -76,7 +91,10 @@ Raw evidence: `lab/results/dsh-qsa-production-20261004/phase2-final/`
 `baseline-comparison.json`, `service-test-window.log`, `production-*.json`),
 plus `phase2-service-state/` and `phase2-fixed-service-state/` for the startup
 failures, and `results/upstream-qsa-analysis-20261004/latest-main-delta.json`
-with `latest-amd-qsa-details.json`. `phase2-final/run-summary.json` records
+with `latest-amd-qsa-details.json`. All of these evidence paths are relative to
+the maintenance workspace root `/home/zyk/projects/interests/ai-video/qwen`, not
+to this checkout, and the raw artifacts themselves are not committed
+(`raw_artifacts_included: false`). `phase2-final/run-summary.json` records
 `candidate_passed=true` and `production_restored=true` for the frozen source,
 with the `production-restore` and `production-after-status` commands both
 exiting 0; the candidate was stopped and the original 8081 service was restored

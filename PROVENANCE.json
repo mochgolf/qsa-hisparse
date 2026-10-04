@@ -93,6 +93,7 @@
       ]
     },
     "test_environment": {
+      "scope": "legacy/historical pre-merge CPU environment recorded for the 2026-09-23 section; not the current environment and not the GPU environment used for the 2026-10-04 frozen-source review (see phase2_cpu and phase2_independent_review)",
       "python": "3.12.3",
       "torch": "2.13.0",
       "triton": "3.7.1",
@@ -197,8 +198,10 @@
       ],
       "history_retained": [
         "Two real startup failures on the merged tree: removed ModelRunner.tp_rank (fixed in 0c0e30dcdd) and removed ModelRunner.tp_group (fixed in 0ffe23cc63).",
-        "Two review-harness failures: 33 tests run with the production SGLANG_QSA_HISPARSE_V3 inherited, and one upstream fused test whose __new__ fixture lacked req_to_token_pool (fixed in 2fe0731e03).",
-        "The final 240-pass GPU result does not erase these windows."
+        "GPU review window 1 (results/dsh-maintenance-20261004/phase2-final-gpu-tests.txt): 68 failed, 172 passed, 1 skipped; PATH lacked ninja, the running production service left insufficient free GPU memory, and one upstream fused test fixture was uninitialized.",
+        "GPU review window 2 (lab/results/dsh-qsa-production-20261004/phase2-group/gpu-preflight.stdout and .xml): 34 failed, 206 passed, 1 skipped; 33 failures came from the harness inheriting the production SGLANG_QSA_HISPARSE_V3=p2-offload mode plus the same single fixture, so this is a corrected environment run of the same window, not a second independent environment.",
+        "The remaining fixture gap is a test-fixture migration gap, not a product runtime API bug: the fixture built the backend with __new__ and never set req_to_token_pool (fixed in 2fe0731e03).",
+        "Only the final window with the correct environment and that fix reached 240 passed, 1 skipped, 0 failures; it does not erase the earlier windows."
       ]
     },
     "latest_main_recheck": {
@@ -215,5 +218,6 @@
     },
     "phase2_cpu_only_note": "superseded by phase2_independent_review for the frozen source; retained here for the CPU-only phase before the independent GPU/service window"
   },
-  "raw_artifacts_included": false
+  "raw_artifacts_included": false,
+  "raw_artifacts_note": "Evidence paths in this file and in VALIDATION.md are relative to the maintenance workspace root /home/zyk/projects/interests/ai-video/qwen, not to this checkout; the raw artifacts are not committed (raw_artifacts_included=false)."
 }

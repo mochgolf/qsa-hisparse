@@ -89,8 +89,11 @@ the `172b1b4825` record therefore overstate what was missing. This update:
 - follows upstream's dependency declarations (Torch 2.14.1, FlashInfer
   0.7.0.post1, sglang-kernel 0.4.9, Transformers 5.17.0, CUTLASS DSL 4.8.0).
 
-The CPU suite was re-run in an isolated environment carrying those versions;
-GPU/kernel and service validation for this revision is still with the reviewer.
+The CPU suite was re-run in an isolated environment carrying those versions.
+The independent GPU/kernel and service review for the frozen revision is now
+complete; see the 2026-10-04 frozen-source section of
+[validation](VALIDATION.md). The integrated upstream commit is still
+`35f3c96ff4`; the validated source is `2fe0731e03` plus later doc-only commits.
 
 A re-check on 2026-10-04 found upstream main at `affa261e3d289fe4f907c9b2e8d773fef0d36dba`,
 four commits ahead of the integrated `35f3c96ff4`. They touch
