@@ -1,13 +1,21 @@
 {
   "schema": "qsa-hisparse-source-v1",
-  "updated_at": "2026-09-23",
+  "updated_at": "2026-10-04",
   "layout": "self-contained-sglang-source-fork",
   "upstream": {
     "repository": "https://github.com/sgl-project/sglang",
     "branch": "main",
-    "merged_commit": "172b1b4825ac9865076b78ef2c0daa66c7cc39dd",
-    "merge_commit": "06f19bb21a8a24e5ed66496c9ad3657763e2b4f3",
-    "commits_since_previous_base": 421
+    "merged_commit": "35f3c96ff4794a4de15daf12caad371084a037ee",
+    "merge_commit": "80dc48ddfc10162f9735f65b6c8f6238267b4eb0",
+    "merge_base": "32290dda2cea4bb95274b3d08e43d4dad74e9676",
+    "commits_since_merge_base": 561,
+    "previous_record": {
+      "merged_commit": "172b1b4825ac9865076b78ef2c0daa66c7cc39dd",
+      "merge_commit": "06f19bb21a8a24e5ed66496c9ad3657763e2b4f3",
+      "merged_at": "2026-09-23",
+      "status": "superseded",
+      "note": "Rebase-era baseline record. 52 of the commits it appeared to be missing were already integrated through 2f064784, so missing-work counts taken from it were overstated. The 2026-10-04 entry uses the real common ancestor and a normal two-parent merge."
+    }
   },
   "imported_qsa_source": {
     "commit": "5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0",
@@ -15,13 +23,69 @@
     "original_artifact_commit": "e1ac504a5e281af5423c6d59c5eeb402c1dbcd9a",
     "historical_provenance": "archive/PROVENANCE.json"
   },
+  "merge_scope": {
+    "conflicts_resolved": [
+      "README.md",
+      "python/pyproject.toml",
+      "python/sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+      "python/sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
+      "python/sglang/srt/managers/scheduler_components/batch_result_processor.py",
+      "python/sglang/srt/mem_cache/common.py",
+      "python/sglang/srt/mem_cache/qsa_kv_pool.py",
+      "python/sglang/srt/model_executor/pool_configurator.py",
+      "python/sglang/srt/models/qwen4_exp.py",
+      "test/registered/unit/managers/test_batch_result_processor_hidden_states.py"
+    ],
+    "kept_downstream": [
+      "raw KV offload with logical page indirection (write_locations)",
+      "private host-prefix CPU snapshots, reservations and DMA leases",
+      "pending rope / Mamba / PLE snapshot capture and restore",
+      "NUMA interleave placement",
+      "W4A16 Marlin alignment plus INT8-row PLE routing",
+      "PR #6 fast_topk JIT overflow refinement and its regressions",
+      "Phase-1 non-unit FP8 KV descales on prefill and reference reads"
+    ],
+    "not_enabled": [
+      "generic GPU radix sharing for the QSA offload pool",
+      "fused #40972 KV fast path on the offload pool",
+      "FP8 compressed index-K (stays bf16 by default)",
+      "PD, speculation, overlap scheduling and prefill CUDA graphs in the QSA contract"
+    ]
+  },
   "validation": {
-    "status": "GPU_SERVICE_VALIDATED_DEPLOYED",
+    "status": "PHASE2_CPU_ONLY_PENDING_REVIEW",
     "report": "VALIDATION.md",
     "cpu_command": "QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh",
-    "cpu_passed": 187,
+    "cpu_passed": 213,
     "cpu_skipped": 7,
-    "subtests_passed": 20,
+    "subtests_passed": 24,
+    "phase2_cpu": {
+      "command": "CUDA_VISIBLE_DEVICES= QSA_PYTHON=<env>/bin/python bash scripts/test_qsa_hisparse_cpu.sh -p no:cacheprovider --junitxml=<file>",
+      "gpu_or_service": "NOT_RUN_FOR_THIS_REVISION",
+      "environments": [
+        {
+          "name": "isolated upstream dependency env",
+          "torch": "2.14.1+cu130",
+          "triton": "3.8.0",
+          "flashinfer_python": "0.7.0.post1",
+          "transformers": "5.17.0",
+          "sglang_kernel": "0.4.9",
+          "nvidia_cutlass_dsl": "4.8.0",
+          "tokenizers": "0.23.2",
+          "result": "213 passed, 7 skipped, 24 subtests; junitxml 244 cases, 0 failures, 0 errors"
+        },
+        {
+          "name": "existing flash-next-env",
+          "torch": "2.13.0+cu130",
+          "triton": "3.7.1",
+          "flashinfer_python": "0.6.18",
+          "sglang_kernel": "0.4.6.post1",
+          "transformers": "5.12.1",
+          "result": "213 passed, 7 skipped, 24 subtests; junitxml 244 cases, 0 failures, 0 errors",
+          "note": "The declared dependencies have moved to the upstream set above; this environment is older than the declaration and does not validate the declared combination."
+        }
+      ]
+    },
     "test_environment": {
       "python": "3.12.3",
       "torch": "2.13.0",
@@ -31,10 +95,11 @@
       "sglang_kernel": "0.4.6.post1",
       "xgrammar": "0.2.1"
     },
-    "source_requires_sglang_kernel": "0.4.7",
+    "source_requires_sglang_kernel": "0.4.9",
     "source_requires_xgrammar": "0.2.7",
     "gpu_service_validation": {
       "status": "passed",
+      "scope": "previous revision f8a69629 / Phase-1 commit bdb935d7, not the 2026-10-04 merge",
       "runtime_commit": "f8a69629b09a403ed8375703d96440f66013a6ba",
       "candidate_port": 8082,
       "production_port": 8081,
@@ -55,7 +120,7 @@
       "evidence": "VALIDATION.md"
     },
     "performance_claim": null,
-    "source_commit": "f8a69629b09a403ed8375703d96440f66013a6ba",
+    "source_commit": "80dc48ddfc10162f9735f65b6c8f6238267b4eb0",
     "python_wheel": {
       "status": "NOT_RUN_FOR_THIS_REVISION",
       "published": false
