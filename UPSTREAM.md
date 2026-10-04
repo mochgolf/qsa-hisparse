@@ -69,9 +69,10 @@ revision. See [validation](VALIDATION.md) for checks and remaining GPU scope.
 
 The 2026-10-04 update merges upstream `35f3c96ff4` (561 commits after the real
 common ancestor `32290dda2c`) with a normal two-parent merge commit. The
-`172b1b4825` baseline above was a rebase-era record: 52 of those commits were
-already integrated, so counts taken from it overstate what was missing. This
-update:
+`172b1b4825` record above is outdated: the fork's actual common ancestor with
+upstream main is `32290dda2c`, and the 52 upstream commits between `172b1b4825`
+and `32290dda2c` were already integrated through `2f06478454`. Counts taken from
+the `172b1b4825` record therefore overstate what was missing. This update:
 
 - keeps the private QSA host-prefix adapter on its own `ChunkCache` base
   (`registry.qsa_private_host_prefix_active`), with an explicit Mamba

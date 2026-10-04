@@ -13,8 +13,13 @@
       "merged_commit": "172b1b4825ac9865076b78ef2c0daa66c7cc39dd",
       "merge_commit": "06f19bb21a8a24e5ed66496c9ad3657763e2b4f3",
       "merged_at": "2026-09-23",
-      "status": "superseded",
-      "note": "Rebase-era baseline record. 52 of the commits it appeared to be missing were already integrated through 2f064784, so missing-work counts taken from it were overstated. The 2026-10-04 entry uses the real common ancestor and a normal two-parent merge."
+      "status": "outdated",
+      "verified_facts": [
+        "The fork's actual common ancestor with upstream main is 32290dda2cea4bb95274b3d08e43d4dad74e9676.",
+        "172b1b4825ac9865076b78ef2c0daa66c7cc39dd is an ancestor of this branch and is 52 upstream commits behind 32290dda2cea4bb95274b3d08e43d4dad74e9676.",
+        "Those 52 commits were already integrated through 2f06478454256c2f6e3666858d00b37c5ae9132e.",
+        "Counts of missing upstream work taken from the 172b1b4825 record therefore overstate the missing work."
+      ]
     }
   },
   "imported_qsa_source": {
@@ -99,7 +104,7 @@
     "source_requires_xgrammar": "0.2.7",
     "gpu_service_validation": {
       "status": "passed",
-      "scope": "previous revision f8a69629 / Phase-1 commit bdb935d7, not the 2026-10-04 merge",
+      "scope": "HISTORICAL f8a69629 RESULT ONLY — the numbers below were produced for runtime commit f8a69629b09a403ed8375703d96440f66013a6ba and are not evidence for the Phase-1 commit bdb935d70f, the 2026-10-04 merge, or any later revision",
       "runtime_commit": "f8a69629b09a403ed8375703d96440f66013a6ba",
       "candidate_port": 8082,
       "production_port": 8081,
@@ -118,6 +123,22 @@
       "xgrammar": "0.2.7",
       "cuda_compiler": "12.8",
       "evidence": "VALIDATION.md"
+    },
+    "phase1_service_validation": {
+      "scope": "Phase-1 commit bdb935d70fe40bd0153354527b010ad28b148cce on 2026-10-04, separate from the historical f8a69629 block above and from the 2026-10-04 merge",
+      "source_commit": "bdb935d70fe40bd0153354527b010ad28b148cce",
+      "status": "passed",
+      "frozen_cases_passed": 7,
+      "frozen_cases_total": 7,
+      "b1_to_b8_graph_requests": 36,
+      "request_tokens": 128,
+      "cached_prefix_tokens": 65536,
+      "abort_flush_reseed": true,
+      "all_b1_to_b8_cuda_graph": true,
+      "cuda_errors": 0,
+      "production_port_restored": 8081,
+      "evidence": "lab/results/dsh-qsa-production-20261004/phase1-retry (includes graph-log-evidence)",
+      "reported_by": "reviewer channel; not independently re-run by the phase-2 worker"
     },
     "performance_claim": null,
     "source_commit": "80dc48ddfc10162f9735f65b6c8f6238267b4eb0",
