@@ -994,9 +994,7 @@ class Qwen4ExpPinnedHostEmbedding(VocabParallelEmbedding):
         # The scale is tiny; keep it with the model instead of offloading it
         # with the table.
         self.register_buffer("weight_scale", embedding.weight_scale, persistent=True)
-        self.ple_row_scale_mode = bool(
-            getattr(embedding, "ple_row_scale_mode", False)
-        )
+        self.ple_row_scale_mode = bool(getattr(embedding, "ple_row_scale_mode", False))
         if self.ple_row_scale_mode:
             self.register_buffer(
                 "row_scale",
@@ -2540,10 +2538,7 @@ class Qwen4ExpForConditionalGeneration(Qwen3VLForConditionalGeneration):
 
         for mod_prefix, ple_mod in ple_modules.items():
             emb = ple_mod.ngram_embedding
-            if (
-                isinstance(emb, Qwen4ExpPinnedHostEmbedding)
-                and emb.ple_row_scale_mode
-            ):
+            if isinstance(emb, Qwen4ExpPinnedHostEmbedding) and emb.ple_row_scale_mode:
                 n_rows = emb.num_org_embeddings_per_partition
                 missing = int(torch.isnan(emb.row_scale.data[:n_rows]).sum())
                 if missing:
