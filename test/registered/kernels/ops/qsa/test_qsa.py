@@ -98,6 +98,99 @@ def test_qsa_chunk_prefill_accepts_fp8_cached_prefix():
     torch.testing.assert_close(actual, expected, rtol=2e-2, atol=2e-2)
 
 
+def test_qsa_cached_prefix_extend_applies_non_unit_fp8_descales():
+    """GPU-only regression for the cached-prefix chunk-prefill descale routing.
+
+    The phase-1 CPU runner cannot execute the FP8 Triton kernel; this case is
+    written for the CUDA runner and compares against a FP32 attention oracle
+    over the dequantized pool.
+    """
+
+    if not torch.cuda.is_available() or torch.cuda.get_device_capability() < (8, 9):
+        pytest.skip("FP8-capable CUDA GPU required")
+
+    torch.manual_seed(20261004)
+    device = torch.device("cuda")
+    total, prefix, num_q_heads, head_dim, topk = 16, 12, 4, 128, 16
+    k_scale, v_scale = 2.0, 0.5
+    k = torch.randn(total, 1, head_dim, device=device)
+    v = torch.randn(total, 1, head_dim, device=device)
+
+    class Pool:
+        dtype = torch.float8_e4m3fn
+
+        def __init__(self):
+            self.k = (k / k_scale).to(self.dtype)
+            self.v = (v / v_scale).to(self.dtype)
+
+        def get_key_buffer(self, layer_id):
+            return self.k
+
+        def get_value_buffer(self, layer_id):
+            return self.v
+
+        def set_kv_buffer(
+            self, layer, loc, cache_k, cache_v, k_scale=None, v_scale=None
+        ):
+            self.k[loc] = (cache_k.float() / k_scale).to(self.dtype)
+            self.v[loc] = (cache_v.float() / v_scale).to(self.dtype)
+
+    pool = Pool()
+    backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
+    backend.qsa_hisparse = None
+    backend.token_to_kv_pool = pool
+    backend.req_to_token_pool = SimpleNamespace(
+        req_to_token=torch.arange(total, dtype=torch.int32, device=device).unsqueeze(0)
+    )
+    layer = SimpleNamespace(
+        layer_id=0,
+        tp_q_head_num=num_q_heads,
+        head_dim=head_dim,
+        scaling=head_dim**-0.5,
+        k_scale_float=k_scale,
+        v_scale_float=v_scale,
+    )
+    q = torch.randn(
+        total - prefix, num_q_heads, head_dim, dtype=torch.bfloat16, device=device
+    )
+    # The chunk kernel only reads the causal window ``prefix + row + 1``; pad the
+    # rest with -1 so kernel and oracle select the same slots.
+    indices = torch.full((total - prefix, topk), -1, dtype=torch.int32, device=device)
+    for row in range(total - prefix):
+        visible = prefix + row + 1
+        indices[row, :visible] = torch.arange(visible, dtype=torch.int32, device=device)
+    batch = SimpleNamespace(
+        out_cache_loc=torch.arange(prefix, total, device=device),
+        forward_mode=ForwardMode.EXTEND,
+        extend_seq_lens_cpu=[total - prefix],
+        seq_lens_cpu=[total],
+        extend_seq_lens=torch.tensor(
+            [total - prefix], dtype=torch.int32, device=device
+        ),
+        req_pool_indices=torch.tensor([0], device=device),
+    )
+
+    actual = backend.forward_extend(
+        q,
+        k[prefix:].to(torch.bfloat16),
+        v[prefix:].to(torch.bfloat16),
+        layer,
+        batch,
+        topk_indices=indices,
+    ).reshape_as(q)
+
+    # One KV head: the oracle squeezes it and broadcasts the shared scores.
+    keys = (pool.k.float() * k_scale).squeeze(1)
+    values = (pool.v.float() * v_scale).squeeze(1)
+    expected = torch.empty_like(q)
+    for row in range(total - prefix):
+        selected = indices[row][indices[row] >= 0].long()
+        scores = q[row].float() @ keys[selected].T * layer.scaling
+        probabilities = torch.softmax(scores, dim=-1)
+        expected[row] = (probabilities @ values[selected]).to(q.dtype)
+    torch.testing.assert_close(actual, expected, rtol=2e-2, atol=2e-2)
+
+
 @pytest.mark.parametrize(
     ("capability", "expected"),
     [((12, 0), True), ((12, 1), False), ((10, 0), False)],

@@ -109,6 +109,10 @@ def test_paged_backend_passes_fp8_scales_to_gather():
         assert torch.count_nonzero(packed_k[0, 0, 2:]) == 0
         assert torch.count_nonzero(packed_v[0, 0, 2:]) == 0
         assert kwargs["seq_lens"].tolist() == [2]
+        # The gather already dequantized into bf16, so the paged kernel must not
+        # apply the FP8 descales a second time.
+        assert kwargs["bmm1_scale"] == layer.scaling
+        assert kwargs["bmm2_scale"] == 1.0
         return q
 
     actual = backend._forward_trtllm_sparse(

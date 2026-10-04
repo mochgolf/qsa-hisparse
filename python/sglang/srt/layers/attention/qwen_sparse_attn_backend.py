@@ -274,6 +274,14 @@ class QwenSparseAttnBackend(AttentionBackend):
             v_scale if v_scale > 0.0 else 1.0,
         )
 
+    def _kv_descale_kwargs(self, layer, buffer: torch.Tensor) -> Dict[str, float]:
+        """Descales every reader of a quantized pool must apply in-kernel."""
+
+        if not is_fp8_kv_dtype(buffer.dtype):
+            return {}
+        k_scale, v_scale = self._kv_descales(layer, buffer.dtype)
+        return {"k_scale": k_scale, "v_scale": v_scale}
+
     def _store_kv(self, layer, loc, k: torch.Tensor, v: torch.Tensor) -> None:
         if self.qsa_hisparse is not None:
             loc = self.qsa_hisparse.write_locations(loc)
@@ -1390,12 +1398,15 @@ class QwenSparseAttnBackend(AttentionBackend):
             metadata = self._resolve_metadata(forward_batch)
             slots = self._logical_to_physical(topk_indices, metadata)
             pool = self.token_to_kv_pool
+            k_buffer = pool.get_key_buffer(layer.layer_id)
+            v_buffer = pool.get_value_buffer(layer.layer_id)
             output = qsa_sparse_attention(
                 q,
-                pool.get_key_buffer(layer.layer_id),
-                pool.get_value_buffer(layer.layer_id),
+                k_buffer,
+                v_buffer,
                 slots,
                 layer.scaling,
+                **self._kv_descale_kwargs(layer, k_buffer),
             )
             return self._pad_extend_output(output, num_output_rows)
 
@@ -1455,6 +1466,7 @@ class QwenSparseAttnBackend(AttentionBackend):
             cu_seqlens_k,
             sequence_lens_tensor,
             layer.scaling,
+            **self._kv_descale_kwargs(layer, k_buffer),
         )
         return self._pad_extend_output(output, num_output_rows)
 
@@ -1735,7 +1747,14 @@ class QwenSparseAttnBackend(AttentionBackend):
         if not q.is_cuda:
             metadata = self._resolve_metadata(forward_batch)
             slots = self._logical_to_physical(topk_indices, metadata)
-            output = qsa_sparse_attention(q, k_buffer, v_buffer, slots, layer.scaling)
+            output = qsa_sparse_attention(
+                q,
+                k_buffer,
+                v_buffer,
+                slots,
+                layer.scaling,
+                **self._kv_descale_kwargs(layer, k_buffer),
+            )
             return output.reshape(q.shape[0], -1)
 
         metadata = self._resolve_metadata(forward_batch)
