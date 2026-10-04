@@ -182,7 +182,7 @@ def test_fast_topk_overflow_graph_replay(topk):
     for replay in range(3):
         if replay:
             score.neg_()
-            lengths[3] = 4097 if replay == 1 else 16384
+            lengths[3] = 4096 if replay == 1 else 16384
             lengths[7] = 17 if replay == 1 else 0
         graph.replay()
         _check_topk_values(score, lengths, indices, topk, starts)
