@@ -92,6 +92,14 @@ the `172b1b4825` record therefore overstate what was missing. This update:
 The CPU suite was re-run in an isolated environment carrying those versions;
 GPU/kernel and service validation for this revision is still with the reviewer.
 
+A re-check on 2026-10-04 found upstream main at `affa261e3d289fe4f907c9b2e8d773fef0d36dba`,
+four commits ahead of the integrated `35f3c96ff4`. They touch
+`multimodal_gen`/diffusion documentation and tests plus AMD CI, with no QSA
+runtime or dependency overlap, so they are deliberately not merged: the frozen
+validation stays on `35f3c96ff4`. See
+`results/upstream-qsa-analysis-20261004/latest-main-delta.json` and
+`latest-amd-qsa-details.json`.
+
 CPU tests and packaging checks do not qualify a CUDA deployment. Before
 replacing a serving process, run applicable GPU/kernel and service checks with
 the new dependencies in an available test window. Historical acceptance

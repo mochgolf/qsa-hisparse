@@ -58,15 +58,16 @@
     ]
   },
   "validation": {
-    "status": "PHASE2_CPU_ONLY_PENDING_REVIEW",
+    "status": "FROZEN_SOURCE_REVIEWED_PRODUCTION_RESTORED",
     "report": "VALIDATION.md",
     "cpu_command": "QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh",
-    "cpu_passed": 213,
+    "cpu_passed": 221,
     "cpu_skipped": 7,
     "subtests_passed": 24,
     "phase2_cpu": {
       "command": "CUDA_VISIBLE_DEVICES= QSA_PYTHON=<env>/bin/python bash scripts/test_qsa_hisparse_cpu.sh -p no:cacheprovider --junitxml=<file>",
-      "gpu_or_service": "NOT_RUN_FOR_THIS_REVISION",
+      "tested_source_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+      "result": "221 passed, 7 skipped, 24 subtests passed; junitxml 252 cases, 0 failures, 0 errors",
       "environments": [
         {
           "name": "isolated upstream dependency env",
@@ -77,7 +78,7 @@
           "sglang_kernel": "0.4.9",
           "nvidia_cutlass_dsl": "4.8.0",
           "tokenizers": "0.23.2",
-          "result": "213 passed, 7 skipped, 24 subtests; junitxml 244 cases, 0 failures, 0 errors"
+          "xgrammar": "0.2.7"
         },
         {
           "name": "existing flash-next-env",
@@ -86,8 +87,8 @@
           "flashinfer_python": "0.6.18",
           "sglang_kernel": "0.4.6.post1",
           "transformers": "5.12.1",
-          "result": "213 passed, 7 skipped, 24 subtests; junitxml 244 cases, 0 failures, 0 errors",
-          "note": "The declared dependencies have moved to the upstream set above; this environment is older than the declaration and does not validate the declared combination."
+          "xgrammar": "0.2.1",
+          "note": "Older than the declared dependency set; its pass does not validate the declared combination on GPU."
         }
       ]
     },
@@ -104,7 +105,7 @@
     "source_requires_xgrammar": "0.2.7",
     "gpu_service_validation": {
       "status": "passed",
-      "scope": "HISTORICAL f8a69629 RESULT ONLY — the numbers below were produced for runtime commit f8a69629b09a403ed8375703d96440f66013a6ba and are not evidence for the Phase-1 commit bdb935d70f, the 2026-10-04 merge, or any later revision",
+      "scope": "HISTORICAL f8a69629 RESULT ONLY \u2014 the numbers below were produced for runtime commit f8a69629b09a403ed8375703d96440f66013a6ba and are not evidence for the Phase-1 commit bdb935d70f, the 2026-10-04 merge, or any later revision",
       "runtime_commit": "f8a69629b09a403ed8375703d96440f66013a6ba",
       "candidate_port": 8082,
       "production_port": 8081,
@@ -112,7 +113,16 @@
       "pp_size": 1,
       "context_length": 262144,
       "max_running_requests": 8,
-      "full_decode_graph_batch_sizes": [1, 2, 3, 4, 5, 6, 7, 8],
+      "full_decode_graph_batch_sizes": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
       "frozen_cases_passed": 7,
       "frozen_cases_total": 7,
       "prefix_graph_requests_passed": 10,
@@ -141,11 +151,69 @@
       "reported_by": "reviewer channel; not independently re-run by the phase-2 worker"
     },
     "performance_claim": null,
-    "source_commit": "80dc48ddfc10162f9735f65b6c8f6238267b4eb0",
+    "source_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
     "python_wheel": {
       "status": "NOT_RUN_FOR_THIS_REVISION",
       "published": false
-    }
+    },
+    "integration_merge_commit": "80dc48ddfc10162f9735f65b6c8f6238267b4eb0",
+    "phase2_independent_review": {
+      "reviewer": "Codex (independent of the implementation worker)",
+      "tested_source_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+      "gpu_kernel_suite": {
+        "hardware": "RTX 4090, SM89",
+        "environment": "isolated upstream dependency env",
+        "files": [
+          "test/registered/kernels/ops/attention/qsa/test_qsa.py",
+          "test/registered/kernels/ops/attention/test_fast_topk.py",
+          "test/registered/kernels/ops/attention/qsa/test_qsa_fused_kv_prepare.py",
+          "test/registered/kernels/ops/attention/qsa/test_qsa_strided_zero_fill.py"
+        ],
+        "result": "240 passed, 1 skipped (SM121-only kernel), 0 failures",
+        "evidence": "lab/results/dsh-qsa-production-20261004/phase2-final/gpu-preflight.xml and gpu-preflight.stdout"
+      },
+      "service_window": {
+        "frozen_cases": "7/7 passed, including the 262016-token input and English/Chinese/code/reasoning/tool/image requests",
+        "lifecycle": "B1..8 = 36 requests, 128 output tokens each, 65536 cached tokens each; OpenAI cached 0 cold / 2112 warm; explicit abort returned finish_reason=abort; after-abort recovery, idle flush, reseed native 0 -> 65536 and final health passed",
+        "graph_evidence": "CUDA graph replay observed for every B1..8 batch, no non-graph decode batches, no error lines",
+        "baseline_comparison": "recorded request previews, image bytes and prompt token counts equal for every case; the reasoning case differs in wording/length (125 vs 126 output tokens) while both sources pass the frozen oracle",
+        "observed_configuration": "production profile SGLANG_QSA_HISPARSE_V3_OBSERVE=light (no full-model strict bitwise/determinism validation)",
+        "evidence": "lab/results/dsh-qsa-production-20261004/phase2-final/ (seven-cases.jsonl, lifecycle-summary.json, lifecycle-requests.jsonl, graph-log-evidence.json, baseline-comparison.json, service-test-window.log)"
+      },
+      "production_restore": {
+        "status": "confirmed",
+        "candidate_passed": true,
+        "production_restored": true,
+        "candidate_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+        "evidence": "lab/results/dsh-qsa-production-20261004/phase2-final/run-summary.json",
+        "detail": "Candidate stopped; the original 8081 service was restored from its preserved profile with the production-restore and production-after-status commands exiting 0."
+      },
+      "not_covered": [
+        "full-model strict bitwise/determinism under OBSERVE=light",
+        "service execution of the no-host-prefix configuration (SGLANG_QSA_HISPARSE_PREFIX_CACHE_MB=0 -> disabled-radix UnifiedRadixCache); CPU factory/registry tests only",
+        "SM121 kernel (skipped) and any AMD or other-GPU execution",
+        "Python wheel build, packaging, push or deployment",
+        "performance certification"
+      ],
+      "history_retained": [
+        "Two real startup failures on the merged tree: removed ModelRunner.tp_rank (fixed in 0c0e30dcdd) and removed ModelRunner.tp_group (fixed in 0ffe23cc63).",
+        "Two review-harness failures: 33 tests run with the production SGLANG_QSA_HISPARSE_V3 inherited, and one upstream fused test whose __new__ fixture lacked req_to_token_pool (fixed in 2fe0731e03).",
+        "The final 240-pass GPU result does not erase these windows."
+      ]
+    },
+    "latest_main_recheck": {
+      "recorded_at": "2026-10-04T15:00:53Z",
+      "tested_upstream": "35f3c96ff4794a4de15daf12caad371084a037ee",
+      "latest_main": "affa261e3d289fe4f907c9b2e8d773fef0d36dba",
+      "ahead_by": 4,
+      "scope": "multimodal_gen/diffusion documentation and tests plus AMD CI; no QSA runtime or dependency file overlap",
+      "decision": "not merged and not covered by the frozen tests; the integration and validation stay on 35f3c96ff4",
+      "evidence": [
+        "results/upstream-qsa-analysis-20261004/latest-main-delta.json",
+        "results/upstream-qsa-analysis-20261004/latest-amd-qsa-details.json"
+      ]
+    },
+    "phase2_cpu_only_note": "superseded by phase2_independent_review for the frozen source; retained here for the CPU-only phase before the independent GPU/service window"
   },
   "raw_artifacts_included": false
 }

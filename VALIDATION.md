@@ -1,5 +1,87 @@
 # Validation of the SGLang fork
 
+## Upstream update, 2026-10-04
+
+Status: **FROZEN_SOURCE_INDEPENDENTLY_REVIEWED_CPU_GPU_SERVICE; PRODUCTION RESTORED**.
+Frozen tested source: `2fe0731e03c42f79092aa6894b7d81674c7a6fdd`.
+
+Integration: upstream main `35f3c96ff4794a4de15daf12caad371084a037ee` is merged
+over the real common ancestor `32290dda2cea4bb95274b3d08e43d4dad74e9676`
+(561 commits) by the two-parent merge commit
+`80dc48ddfc10162f9735f65b6c8f6238267b4eb0`. Follow-ups are `2d66964226`
+(docs), `00fe7d9c49` (style), `857aee8910` (doc scoping), `0c0e30dcdd`
+(TP-rank migration), `0ffe23cc63` (TP CPU-group migration) and `2fe0731e03`
+(fused-fallback fixture completion). The stale `172b1b4825` record is outdated;
+[PROVENANCE.json](PROVENANCE.json) lists the verified ancestry facts.
+
+CPU, worker-run with CUDA hidden in two environments — the isolated upstream
+dependency environment (Torch 2.14.1+cu130, Triton 3.8.0, FlashInfer
+0.7.0.post1, Transformers 5.17.0, sglang-kernel 0.4.9, CUTLASS DSL 4.8.0,
+tokenizers 0.23.2, xgrammar 0.2.7) and the existing `flash-next-env`
+(Torch 2.13.0, FlashInfer 0.6.18, sglang-kernel 0.4.6.post1, xgrammar 0.2.1):
+both passed **221 tests, 7 skipped and 24 subtests**; the JUnit reports record
+252 cases with 0 failures and 0 errors.
+
+GPU kernel suite, independent reviewer, RTX 4090 (SM89) with the isolated
+upstream dependency environment:
+`test_qsa`, `test_fast_topk`, `test_qsa_fused_kv_prepare` and
+`test_qsa_strided_zero_fill` passed **240 tests, 1 skipped** (the skip is the
+SM121-only kernel) with **0 failures**.
+
+Service window, independent reviewer, TP2/PP1, 262144 context, eight running
+slots, full decode CUDA graphs B1–8, FP8 KV and the QSA P2 host-prefix cache:
+the frozen seven cases passed **7/7**, including the exact 262016-token input
+and English, Chinese, code, reasoning, tool-call and image requests. The
+lifecycle window completed B1–8 with **36 requests of 128 output tokens each
+and 65536 cached tokens each**; OpenAI usage reported 0 cached tokens on the
+cold request and 2112 on the warm one; an explicit abort returned
+`finish_reason=abort`; after-abort recovery, idle flush, reseed from native 0 to
+65536 and the final health check passed. Graph evidence shows CUDA graph replay
+for every B1–8 batch, no non-graph decode batches and no error lines. The
+baseline comparison matched recorded request previews, image bytes and prompt
+token counts for every case; the reasoning case differs only in wording and
+length (125 versus 126 output tokens) while both sources pass the frozen oracle.
+No bitwise numerical equivalence and no performance improvement are claimed.
+
+The two real startup failures on the merged tree are retained as history: the
+removed `ModelRunner.tp_rank` (fixed in `0c0e30dcdd`) and the removed
+`ModelRunner.tp_group` (fixed in `0ffe23cc63`). Two further failures came from
+the review harness rather than the source — 33 tests executed with the
+production `SGLANG_QSA_HISPARSE_V3` inherited, and one upstream fused test whose
+`__new__` fixture lacked `req_to_token_pool` (fixed in `2fe0731e03`). The final
+240-pass result does not erase those windows.
+
+Latest upstream main re-check: `affa261e3d289fe4f907c9b2e8d773fef0d36dba` is
+four commits ahead of the tested `35f3c96ff4`. They touch
+`multimodal_gen`/diffusion documentation and tests plus AMD CI, with no QSA
+runtime or dependency overlap. They are **not** merged and **not** covered by
+the frozen tests; the integration remains on `35f3c96ff4`.
+
+Limitations of this record:
+
+- the production profile runs `SGLANG_QSA_HISPARSE_V3_OBSERVE=light`, so no
+  full-model strict bitwise/determinism validation exists for this revision;
+- the no-host-prefix configuration (`SGLANG_QSA_HISPARSE_PREFIX_CACHE_MB=0`,
+  which selects the disabled-radix `UnifiedRadixCache`) is covered only by CPU
+  factory/registry tests and was never exercised as a service;
+- the SM121 kernel was skipped and no AMD or other-GPU execution was performed;
+  the open HIP RoPE follow-ups (#42483, #42494) are not incorporated;
+- no wheel was built, packaged, pushed or deployed, and no performance
+  certification was produced;
+- the production profile and environment were not modified.
+
+Raw evidence: `lab/results/dsh-qsa-production-20261004/phase2-final/`
+(`gpu-preflight.xml`, `gpu-preflight.stdout`, `seven-cases.jsonl`,
+`lifecycle-summary.json`, `lifecycle-requests.jsonl`, `graph-log-evidence.json`,
+`baseline-comparison.json`, `service-test-window.log`, `production-*.json`),
+plus `phase2-service-state/` and `phase2-fixed-service-state/` for the startup
+failures, and `results/upstream-qsa-analysis-20261004/latest-main-delta.json`
+with `latest-amd-qsa-details.json`. `phase2-final/run-summary.json` records
+`candidate_passed=true` and `production_restored=true` for the frozen source,
+with the `production-restore` and `production-after-status` commands both
+exiting 0; the candidate was stopped and the original 8081 service was restored
+from its preserved profile.
+
 ## Upstream follow-up, 2026-09-23
 
 Status: **GPU_FUNCTIONAL_TESTS_PASSED_BASELINE_RESTORED**. Merge commit
