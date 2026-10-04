@@ -242,19 +242,25 @@ def test_block_indices_expand_on_attention_fallback(monkeypatch):
     from sglang.srt.layers.attention import qwen_sparse_attn_backend as module
     from sglang.srt.layers.attention.qsa.kernel import expand_qsa_block_indices
 
-    backend = module.QwenSparseAttnBackend.__new__(module.QwenSparseAttnBackend)
+    # Full construction so every attribute the decode path reads exists
+    # (qsa_hisparse, _fused_kv_pool_eligible, ...), then the pool/mocks below.
+    backend = module.QwenSparseAttnBackend()
     backend.qsa_profile = SimpleNamespace(block_topk=512, budget=2048)
     backend.compress_ratio = 4
     cache = torch.zeros(16, 1, 256, device="cuda", dtype=torch.bfloat16)
     backend.token_to_kv_pool = SimpleNamespace(
         get_key_buffer=lambda _: cache, get_value_buffer=lambda _: cache
     )
+    backend.req_to_token_pool = SimpleNamespace(
+        req_to_token=torch.arange(16, device="cuda", dtype=torch.int32)[None]
+    )
     lengths = torch.tensor([11], device="cuda", dtype=torch.int32)
     positions = lengths - 1
     metadata = SimpleNamespace(
         indexer_metadata=SimpleNamespace(
             decode_logical_positions=positions, get_seqlens_int32=lambda: lengths
-        )
+        ),
+        row_req_pool_indices=torch.zeros(1, device="cuda", dtype=torch.int32),
     )
     backend._resolve_metadata = lambda _: metadata
     blocks = torch.full((1, 512), -1, device="cuda", dtype=torch.int32)
