@@ -83,7 +83,9 @@ def _oracle(q, k_dequant, v_dequant, slots, softmax_scale):
 
 
 def _backend(pool):
-    backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
+    # Full construction (no runner) so every attribute the backend reads is
+    # initialized; the pool is then swapped for the FP8 test double.
+    backend = QwenSparseAttnBackend()
     backend.qsa_hisparse = None
     backend.token_to_kv_pool = pool
     backend.req_to_token_pool = SimpleNamespace(
@@ -316,8 +318,10 @@ def test_store_kv_keeps_live_kv_and_forwards_positive_scales():
     total, heads, head_dim = 4, 2, 8
     k_scale, v_scale = 2.0, 0.5
     pool = _Fp8Pool(
-        torch.zeros(total, 1, head_dim), torch.zeros(total, 1, head_dim),
-        k_scale, v_scale,
+        torch.zeros(total, 1, head_dim),
+        torch.zeros(total, 1, head_dim),
+        k_scale,
+        v_scale,
     )
     backend = _backend(pool)
     layer = _layer(heads, head_dim, k_scale, v_scale)
@@ -355,7 +359,5 @@ def test_store_kv_keeps_live_kv_and_forwards_positive_scales():
 )
 def test_kv_descales_accepts_only_positive_scales(k_scale, v_scale, expected):
     layer = SimpleNamespace(k_scale_float=k_scale, v_scale_float=v_scale)
-    assert (
-        QwenSparseAttnBackend._kv_descales(layer, torch.float8_e4m3fn) == expected
-    )
+    assert QwenSparseAttnBackend._kv_descales(layer, torch.float8_e4m3fn) == expected
     assert QwenSparseAttnBackend._kv_descales(layer, torch.bfloat16) == (1.0, 1.0)

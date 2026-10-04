@@ -80,14 +80,22 @@ def test_gather_preserves_scales_and_padding(dtype, strided):
         assert torch.isnan(packed_v[int(offsets[-1]) :]).all()
 
 
-def test_paged_backend_passes_fp8_scales_to_gather():
+def test_paged_backend_passes_fp8_scales_to_gather(monkeypatch):
     from sglang.srt.layers.attention.qwen_sparse_attn_backend import (
         QwenSparseAttnBackend,
     )
 
-    backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
-    backend._fa2_scratch = {}
-    backend._trtllm_sparse_tables = {}
+    # The multi-CTA counter sizing reads the device's SM count; there is no GPU
+    # in the CPU interpreter suite, so pin a fixed count.
+    monkeypatch.setattr(
+        torch.cuda,
+        "get_device_properties",
+        lambda _: SimpleNamespace(multi_processor_count=132),
+    )
+
+    # Full construction (no runner): the direct _forward_trtllm_sparse call
+    # still needs every attribute the backend reads to be initialized.
+    backend = QwenSparseAttnBackend()
     backend._trtllm_workspace = torch.zeros(1, dtype=torch.uint8)
     backend.req_to_token_pool = SimpleNamespace(
         req_to_token=torch.tensor([[2, 1, 0]], dtype=torch.int32)

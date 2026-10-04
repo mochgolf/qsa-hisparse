@@ -4,23 +4,22 @@ The real adapter, coordinator, backend addressing, pools and postflush hooks run
 this is neither a DMA/kernel check nor live TP2/service acceptance.
 """
 
-from contextlib import nullcontext
-from dataclasses import replace
 import json
 import os
-from pathlib import Path
 import tempfile
+import unittest
+from contextlib import nullcontext
+from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
-import unittest
 
 import torch
-
-from sglang.srt.mem_cache.qsa_hisparse.coordinator import QSAHiSparseCoordinator
 
 from sglang.srt.layers.attention.qwen_sparse_attn_backend import QwenSparseAttnBackend
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.memory_pool import MHATokenToKVPool, ReqToTokenPool
+from sglang.srt.mem_cache.qsa_hisparse.coordinator import QSAHiSparseCoordinator
 from sglang.srt.mem_cache.qsa_hisparse.runtime import QSAHiSparseRuntime, _RequestCache
 from sglang.srt.mem_cache.qsa_hisparse.slots import QSAHiSparseSlots
 from sglang.srt.mem_cache.qsa_kv_pool import QSATokenToKVPool
@@ -45,7 +44,8 @@ class Event:
 
 class TestQSAHiSparseRuntime(unittest.TestCase):
     def test_extend_uses_hisparse_writer(self):
-        backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
+        # Full construction (no runner) so the merged fast-path guards are initialized.
+        backend = QwenSparseAttnBackend()
         backend._store_kv = Mock()
         backend._is_speculative_paged_mode = Mock(return_value=True)
         backend._forward_paged_attention = Mock(return_value=torch.ones((1, 1)))
@@ -60,7 +60,8 @@ class TestQSAHiSparseRuntime(unittest.TestCase):
         backend._store_kv.assert_called_once_with(layer, loc, k, v)
 
     def test_ragged_fa2_fast_path_is_p2_offload_graph_only(self):
-        backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
+        # Full construction (no runner) so the merged fast-path guards are initialized.
+        backend = QwenSparseAttnBackend()
         backend._fa2_graph_wrappers = {1: object(), 8: object()}
         backend._fa2_graph_shape = (torch.bfloat16, 1, 256)
         backend.token_to_kv_pool = SimpleNamespace(
@@ -762,7 +763,8 @@ class TestQSAHiSparseRuntime(unittest.TestCase):
         a._allocate_decode_workspace()
         backing = a.workspace + [s["hot"] for s in a.layer_states]
         backing_ptrs = [t.data_ptr() for t in backing]
-        backend = QwenSparseAttnBackend.__new__(QwenSparseAttnBackend)
+        # Full construction (no runner) so the merged fast-path guards are initialized.
+        backend = QwenSparseAttnBackend()
         backend.qsa_hisparse, backend.token_to_kv_pool = a, a.pool
         layer = SimpleNamespace(layer_id=3)
 
