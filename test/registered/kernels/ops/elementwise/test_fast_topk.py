@@ -23,6 +23,8 @@ def _check_topk_values(score, lengths, indices, topk, row_starts):
             assert (row[length:] == -1).all()
             continue
         assert (row >= 0).all(), "long rows must fill every slot"
+        assert (row < length).all(), "indices must be relative to the valid row"
+        assert row.unique().numel() == topk, "duplicate selected indices"
         picked = section[row.long()]
         expected = torch.topk(section, topk).values
         assert torch.equal(
@@ -128,6 +130,61 @@ def test_fast_topk_negative_and_zero(topk):
     _check_topk_values(score, lengths, indices, topk, None)
 
 
+def _overflow_fixture(topk, sign):
+    # Distinct fp32 scores share their fp16 coarse bin and first two exact-key
+    # bytes, so refinement must retain >4096 candidates across several rounds.
+    lens = [4095, 4096, 4097, 16384, topk + 1, topk, 17, 0]
+    starts = [17, 31, 5, 63, 7, 23, 11, 19]
+    width = max(lens) + max(starts) + 32
+    base = torch.full((len(lens), width + 37), 99.0, device="cuda")
+    score = base[:, :width]  # padded row stride; sentinels must not be selected
+    for b, (length, start) in enumerate(zip(lens, starts)):
+        values = sign * (1.0 + torch.arange(length, device="cuda") / 2**23)
+        # A fixed permutation, with maxima spread beyond the candidate cache.
+        order = (torch.arange(length, device="cuda") * 4051) % max(length, 1)
+        score[b, start : start + length] = values[order]
+    lengths = torch.tensor(lens, dtype=torch.int32, device="cuda")
+    row_starts = torch.tensor(starts, dtype=torch.int32, device="cuda")
+    for b in range(4):
+        section = score[b, starts[b] : starts[b] + lens[b]]
+        assert section.unique().numel() == lens[b]
+        assert section.half().view(torch.int16).bitwise_right_shift(8).unique().numel() == 1
+        assert section.view(torch.int32).bitwise_right_shift(16).unique().numel() == 1
+    return score, lengths, row_starts
+
+
+@pytest.mark.parametrize("topk", [512, 2048])
+@pytest.mark.parametrize("sign", [1.0, -1.0])
+def test_fast_topk_candidate_overflow(topk, sign):
+    """Discarding same-bin candidates silently loses larger distinct scores."""
+    score, lengths, starts = _overflow_fixture(topk, sign)
+    indices = fast_topk(score, lengths, topk, row_starts=starts)
+    _check_topk_values(score, lengths, indices, topk, starts)
+
+
+@pytest.mark.parametrize("topk", [512, 2048])
+def test_fast_topk_overflow_graph_replay(topk):
+    """Replay must use current scores and lengths, including overflow changes."""
+    score, lengths, starts = _overflow_fixture(topk, 1.0)
+    # Compile outside capture, then warm up on a separate stream.
+    fast_topk(score, lengths, topk, row_starts=starts)
+    stream = torch.cuda.Stream()
+    stream.wait_stream(torch.cuda.current_stream())
+    with torch.cuda.stream(stream):
+        fast_topk(score, lengths, topk, row_starts=starts)
+    torch.cuda.current_stream().wait_stream(stream)
+    graph = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(graph):
+        indices = fast_topk(score, lengths, topk, row_starts=starts)
+    for replay in range(3):
+        if replay:
+            score.neg_()
+            lengths[3] = 4097 if replay == 1 else 16384
+            lengths[7] = 17 if replay == 1 else 0
+        graph.replay()
+        _check_topk_values(score, lengths, indices, topk, starts)
+
+
 def test_fast_topk_unsupported_k():
     score = torch.randn(2, 4096, dtype=torch.float32, device="cuda")
     lengths = torch.full((2,), 4096, dtype=torch.int32, device="cuda")
@@ -139,3 +196,4 @@ if __name__ == "__main__":
     import sys
 
     sys.exit(pytest.main([__file__, "-v", "-s"]))
+
