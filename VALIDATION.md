@@ -9,11 +9,17 @@ Promoted source `897286b12a128d4bcb8229a5dadedc1ea49fcc16` runs on
 `.worktrees/sglang-dsh-production-20261004`. Its runtime source is **identical**
 to the frozen tested runtime `2fe0731e03c42f79092aa6894b7d81674c7a6fdd` of the
 window below; the only differences are the documentation files
-`PROVENANCE.json`, `UPSTREAM.md` and `VALIDATION.md`. No source, test,
-dependency, environment or model change was made for this promotion, so the
-frozen CPU, GPU and service results below remain the runtime record, and this
-window adds the deployment fact plus the real-DSH result. The two windows share
-no snapshot: the earlier window ended with production restored to its previous
+`PROVENANCE.json`, `UPSTREAM.md` and `VALIDATION.md`. The promotion introduced
+no source, test, dependency or model change, and it did not upgrade the previous
+production environment in place: the service was switched to the
+already-validated `results/dsh-maintenance-20261004/upstream-runtime-env`
+runtime path — the same environment used for the frozen review below — while
+model weights and serving configuration stayed as validated. The frozen CPU, GPU
+and service results below therefore remain the runtime record for this revision,
+and this window adds the deployment fact plus the real-DSH result. The two
+windows tested different Git revisions, `2fe0731e03` and its documentation-only
+successor `897286b12a` whose runtime source is identical, and they are separated
+in time: the earlier window ended with production restored to its previous
 service, while this one keeps `897286b12a` running.
 
 Deployment facts (`final-production-state.json`, `promotion-decision.json`):
@@ -35,7 +41,7 @@ reasoning tier**, not a strict mathematical kernel or a special math mode. A
 transparent relay forwarded only to `127.0.0.1:8081` and neither rewrote
 requests nor responses. The three sessions recorded **13 primary model
 requests, all HTTP 200, all `xhigh`, all with real reasoning output, output cap
-65536, and no relay error`**; every turn ended `completed`.
+65536, and no relay error**; every turn ended `completed`.
 
 | Case | Requests | Result | Detail |
 | --- | --- | --- | --- |
@@ -47,8 +53,10 @@ Retained non-pass records, kept separate from the three results above:
 
 - The first isolated session failed **before any model call** with
   `MISSING_CREDENTIAL` (an isolated `DSH_HOME` inherits no credential store).
-  It was resolved with a temporary placeholder key for that test process only;
-  no global credential file was read, copied or modified, and no credential
+  It was resolved with a temporary placeholder key for that test process only:
+  the isolated test instance neither copied nor modified the global DSH
+  credential store, and MCP control authentication was loaded through the
+  standard wrapper/environment mechanism without being disclosed. No credential
   value is recorded here. Receipts:
   `lab/results/dsh-local-promotion-20261004/harness/run/pelican-route-failure.jsonl`.
 - DSH also issued **3 automatic session-title requests with a 64-token cap**:
@@ -82,7 +90,9 @@ Limitations specific to this window:
   and generated files; no file hash was computed as evidence.
 
 Evidence for this window, all paths relative to the maintenance workspace root
-`/home/zyk/projects/interests/ai-video/qwen` and none of it committed:
+`/home/zyk/projects/interests/ai-video/qwen` and none of it included in or
+committed to this qsa-hisparse fork (the separate lab keeps its own local
+evidence Git commit `aa33f74`, and its raw artifacts are not published):
 
 - `lab/results/dsh-local-promotion-20261004/qualification-summary.json` (the
   three case reviews, model sources, reasoning effort and token usage),

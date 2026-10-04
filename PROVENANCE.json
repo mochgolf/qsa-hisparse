@@ -300,7 +300,7 @@
         },
         "pre_model_route_failure": {
           "reason": "MISSING_CREDENTIAL in an isolated DSH home, before any model call",
-          "resolution": "temporary placeholder key for the isolated test process only; no global credential file read, copied or modified",
+          "resolution": "temporary placeholder key for the isolated test process only; the test instance neither copied nor modified the global DSH credential store, and MCP control authentication was loaded by the standard wrapper/environment mechanism without being disclosed. No credential value is recorded",
           "retained_receipts": "lab/results/dsh-local-promotion-20261004/harness/run/pelican-route-failure.jsonl"
         },
         "service_window": {
@@ -335,13 +335,22 @@
           "lab/results/dsh-local-promotion-20261004/review/"
         ],
         "raw_artifacts_committed": false,
-        "secrets_committed": false
-      }
+        "secrets_committed": false,
+        "evidence_git_commit": "aa33f74",
+        "evidence_note": "none of this evidence is included in or committed to this qsa-hisparse fork; the separate lab keeps it under its own local evidence Git commit aa33f74 and the raw artifacts are not published"
+      },
+      "environment_transition": "no in-place upgrade of the previous production environment: the service was switched to the already-validated results/dsh-maintenance-20261004/upstream-runtime-env runtime path, the same environment used for the frozen review, while model weights and serving configuration stayed as validated",
+      "runtime_python": "results/dsh-maintenance-20261004/upstream-runtime-env",
+      "tested_git_revisions": {
+        "earlier_frozen_source_window": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+        "later_local_promotion_window": "897286b12a128d4bcb8229a5dadedc1ea49fcc16"
+      },
+      "window_relationship": "different Git revisions separated in time: 897286b12a is the documentation-only successor of 2fe0731e03 with an identical runtime source. The earlier window ended with production restored to its previous service; this window keeps 897286b12a running"
     },
     "phase2_cpu_only_note": "superseded by phase2_independent_review for the frozen source; retained here for the CPU-only phase before the independent GPU/service window",
     "latest_validation_window": "local_production_promotion",
     "window_scoping_note": "The frozen-source window (source_commit 2fe0731e03) ended with production restored to its previous service and with no wheel or release. The later local_production_promotion window promoted the documentation-only successor 897286b12a to the local 8081 service and kept it running; it neither republishes nor supersedes the frozen CPU/GPU/service numbers."
   },
   "raw_artifacts_included": false,
-  "raw_artifacts_note": "Evidence paths in this file and in VALIDATION.md are relative to the maintenance workspace root /home/zyk/projects/interests/ai-video/qwen, not to this checkout; the raw artifacts are not committed (raw_artifacts_included=false)."
+  "raw_artifacts_note": "Evidence paths in this file and in VALIDATION.md are relative to the maintenance workspace root /home/zyk/projects/interests/ai-video/qwen, not to this checkout; the raw artifacts are not included in or committed to this qsa-hisparse fork (raw_artifacts_included=false) and are kept by the separate lab under its own local evidence Git commit aa33f74."
 }
