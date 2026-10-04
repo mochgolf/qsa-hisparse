@@ -148,7 +148,10 @@ def _overflow_fixture(topk, sign):
     for b in range(4):
         section = score[b, starts[b] : starts[b] + lens[b]]
         assert section.unique().numel() == lens[b]
-        assert section.half().view(torch.int16).bitwise_right_shift(8).unique().numel() == 1
+        assert (
+            section.half().view(torch.int16).bitwise_right_shift(8).unique().numel()
+            == 1
+        )
         assert section.view(torch.int32).bitwise_right_shift(16).unique().numel() == 1
     return score, lengths, row_starts
 
@@ -196,4 +199,3 @@ if __name__ == "__main__":
     import sys
 
     sys.exit(pytest.main([__file__, "-v", "-s"]))
-
