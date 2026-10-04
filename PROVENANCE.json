@@ -155,7 +155,8 @@
     "source_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
     "python_wheel": {
       "status": "NOT_RUN_FOR_THIS_REVISION",
-      "published": false
+      "published": false,
+      "note": "no wheel exists for the frozen revision, and the documentation-only successor 897286b12a promoted in the later window shipped no packaging either"
     },
     "integration_merge_commit": "80dc48ddfc10162f9735f65b6c8f6238267b4eb0",
     "phase2_independent_review": {
@@ -216,7 +217,130 @@
         "results/upstream-qsa-analysis-20261004/latest-amd-qsa-details.json"
       ]
     },
-    "phase2_cpu_only_note": "superseded by phase2_independent_review for the frozen source; retained here for the CPU-only phase before the independent GPU/service window"
+    "local_production_promotion": {
+      "scope": "later window on 2026-10-04, after the frozen-source window above; it records the local deployment and the real-DSH result and does not re-claim the frozen CPU/GPU/service numbers",
+      "status": "PROMOTED_AND_KEEP_ON_8081",
+      "promoted_source_commit": "897286b12a128d4bcb8229a5dadedc1ea49fcc16",
+      "tested_runtime_source": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+      "delta_from_tested_runtime_source": [
+        "PROVENANCE.json",
+        "UPSTREAM.md",
+        "VALIDATION.md"
+      ],
+      "runtime_source_changed": false,
+      "production_snapshot": ".worktrees/sglang-dsh-production-20261004",
+      "profile": "service/current.json",
+      "launch_snapshot": "service/state/launch-2f9610488a6847429a2fec67aab3c806.json",
+      "profile_and_snapshot_match": true,
+      "health": 200,
+      "served_models": [
+        "local-qwen3.8-flash-next-v1"
+      ],
+      "test_listeners_closed": [
+        8089,
+        8931
+      ],
+      "rollback_profile_preserved": "lab/results/dsh-local-promotion-20261004/rollback-8081-profile.json",
+      "real_dsh_window": {
+        "client": "DSH 0.1.7-rc.2, isolated home, sessions created through MCP",
+        "agent_preset": "standard-local",
+        "sessions": 3,
+        "selected_config": {
+          "provider": "local-qwen",
+          "model": "local-qwen3.8-flash-next-v1",
+          "reasoningEffort": "max"
+        },
+        "wire_reasoning_effort": "xhigh",
+        "max_semantics": "max is the session's model reasoning-effort tier, dispatched on the wire as reasoning_effort=xhigh; it is not a strict mathematical kernel or a dedicated math mode",
+        "template_declared_levels": [
+          "xhigh",
+          "medium",
+          "low"
+        ],
+        "fallback_routes": "none; the overlay route contained only local-qwen",
+        "output_cap": 65536,
+        "turn_end": "completed for all three sessions",
+        "primary_requests": 13,
+        "primary_http_200": 13,
+        "primary_relay_errors": 0,
+        "all_primary_xhigh_with_reasoning": true,
+        "cases": {
+          "pelican": {
+            "requests": 10,
+            "result": "PASS",
+            "reasoning_tokens": 11275,
+            "completion_tokens": 16088,
+            "note": "single self-contained SVG, independently XML-parsed and rendered with librsvg; the model made two self-directed edit steps in the same first turn after its own screenshots (not a resample, no human feedback); first and final artifacts retained and the recorded changes replay to the final file byte-for-byte"
+          },
+          "image": {
+            "requests": 2,
+            "result": "PASS 5/5",
+            "reasoning_tokens": 371,
+            "completion_tokens": 667,
+            "image_tokens": 660,
+            "image_bytes_equal_fixture": true,
+            "note": "native read_image only; the real request carried an image_url part whose decoded bytes equal the fixture PNG; no OCR or terminal reads"
+          },
+          "math": {
+            "requests": 1,
+            "result": "PASS",
+            "reasoning_tokens": 10141,
+            "completion_tokens": 12515,
+            "problem": "IMO 1988 Problem 6",
+            "note": "Codex predeclared the proof criteria and reviewed the actual answer line by line; a known competition problem, not claimed unseen"
+          }
+        },
+        "auxiliary_title_requests": {
+          "count": 3,
+          "output_cap": 64,
+          "length_limited": 2,
+          "client_cancelled": 1,
+          "client_cancellation_symptom": "relay BrokenPipeError",
+          "counted_as_task_pass": false
+        },
+        "pre_model_route_failure": {
+          "reason": "MISSING_CREDENTIAL in an isolated DSH home, before any model call",
+          "resolution": "temporary placeholder key for the isolated test process only; no global credential file read, copied or modified",
+          "retained_receipts": "lab/results/dsh-local-promotion-20261004/harness/run/pelican-route-failure.jsonl"
+        },
+        "service_window": {
+          "decode_log_lines": 412,
+          "decode_batch_histogram": {
+            "1": 108,
+            "2": 287,
+            "3": 15,
+            "5": 2
+          },
+          "non_graph_decode_lines": 0,
+          "error_lines": []
+        },
+        "limits": [
+          "three first attempts with autonomous tool steps; no statistical capability or performance certification",
+          "pelican contains two model-authored refinements inside one turn; initial and final artifacts both retained",
+          "the mathematics problem is known, so this reviews the produced proof rather than evaluating an unseen problem",
+          "auxiliary title length limits and the client cancellation are retained separately and not counted as passes",
+          "local promotion only: no wheel built, packaged, published or pushed, and no other host or GPU vendor exercised",
+          "SGLANG_QSA_HISPARSE_V3_OBSERVE=light remains, so no full-model strict bitwise/determinism validation exists for this revision",
+          "identity uses Git commits and direct byte comparison of images and generated files; no file hash was computed as evidence"
+        ],
+        "evidence": [
+          "lab/results/dsh-local-promotion-20261004/qualification-summary.json",
+          "lab/results/dsh-local-promotion-20261004/promotion-decision.json",
+          "lab/results/dsh-local-promotion-20261004/final-production-state.json",
+          "lab/results/dsh-local-promotion-20261004/requests.jsonl",
+          "lab/results/dsh-local-promotion-20261004/report.txt",
+          "lab/results/dsh-local-promotion-20261004/production-test-service-window.log",
+          "lab/results/dsh-local-promotion-20261004/worker-harness-audit.json",
+          "lab/results/dsh-local-promotion-20261004/harness/run/",
+          "lab/results/dsh-local-promotion-20261004/review/"
+        ],
+        "raw_artifacts_committed": false,
+        "secrets_committed": false
+      }
+    },
+    "phase2_cpu_only_note": "superseded by phase2_independent_review for the frozen source; retained here for the CPU-only phase before the independent GPU/service window",
+    "latest_validation_window": "local_production_promotion",
+    "window_scoping_note": "The frozen-source window (source_commit 2fe0731e03) ended with production restored to its previous service and with no wheel or release. The later local_production_promotion window promoted the documentation-only successor 897286b12a to the local 8081 service and kept it running; it neither republishes nor supersedes the frozen CPU/GPU/service numbers."
   },
   "raw_artifacts_included": false,
   "raw_artifacts_note": "Evidence paths in this file and in VALIDATION.md are relative to the maintenance workspace root /home/zyk/projects/interests/ai-video/qwen, not to this checkout; the raw artifacts are not committed (raw_artifacts_included=false)."

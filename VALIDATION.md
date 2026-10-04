@@ -1,6 +1,117 @@
 # Validation of the SGLang fork
 
-## Upstream update, 2026-10-04
+## Local production promotion and real DSH window, 2026-10-04 (later window)
+
+Status: **LOCAL_PRODUCTION_PROMOTED_AND_KEPT_RUNNING; REAL_DSH_MAX_EFFORT_CASES_PASSED**.
+
+Promoted source `897286b12a128d4bcb8229a5dadedc1ea49fcc16` runs on
+`127.0.0.1:8081` from the independent production snapshot
+`.worktrees/sglang-dsh-production-20261004`. Its runtime source is **identical**
+to the frozen tested runtime `2fe0731e03c42f79092aa6894b7d81674c7a6fdd` of the
+window below; the only differences are the documentation files
+`PROVENANCE.json`, `UPSTREAM.md` and `VALIDATION.md`. No source, test,
+dependency, environment or model change was made for this promotion, so the
+frozen CPU, GPU and service results below remain the runtime record, and this
+window adds the deployment fact plus the real-DSH result. The two windows share
+no snapshot: the earlier window ended with production restored to its previous
+service, while this one keeps `897286b12a` running.
+
+Deployment facts (`final-production-state.json`, `promotion-decision.json`):
+profile `service/current.json` matches the launch snapshot
+`service/state/launch-2f9610488a6847429a2fec67aab3c806.json`, source tree clean,
+`/health` **200**, served model `local-qwen3.8-flash-next-v1`, runtime Python
+from the verified `results/dsh-maintenance-20261004/upstream-runtime-env`, test
+listeners 8089 and 8931 closed, and the previous profile preserved at
+`rollback-8081-profile.json` for rollback. Model weights, TP2, FP8 KV, QSA
+configuration and NUMA placement are unchanged from the validated profile.
+
+Real DSH window. Three `standard-local` sessions were created through MCP on an
+isolated DSH `0.1.7-rc.2` instance whose route contained only
+`local-qwen`/`local-qwen3.8-flash-next-v1` with no remote fallback. Session
+level `reasoningEffort=max` was dispatched on the wire as
+`reasoning_effort=xhigh`, the highest spelling this checkpoint's chat template
+declares (`xhigh`, `medium`, `low`); `max` here names a **model inference
+reasoning tier**, not a strict mathematical kernel or a special math mode. A
+transparent relay forwarded only to `127.0.0.1:8081` and neither rewrote
+requests nor responses. The three sessions recorded **13 primary model
+requests, all HTTP 200, all `xhigh`, all with real reasoning output, output cap
+65536, and no relay error`**; every turn ended `completed`.
+
+| Case | Requests | Result | Detail |
+| --- | --- | --- | --- |
+| Pelican (SVG) | 10 | **PASS** | 11275 reasoning tokens, 16088 completion tokens including reasoning. One self-contained SVG, independently XML-parsed, checked for external references and rendered with librsvg/cairo. Visible pelican bill and throat pouch, white body and curved neck, two-wheel bicycle with frame, handlebars, chainring and pedals, feet on the pedals. The model took **two `edit` steps by itself inside the same first turn** after reading its own browser screenshots (not a resample and not human-directed); the first `write` and the final SVG are both retained, and replaying the recorded changes reproduces the final file byte-for-byte. |
+| Image read | 2 | **PASS 5/5** | Native `read_image` only, no OCR or terminal reads. The real request carried an `image_url` part and 660 image tokens, and the decoded payload was byte-equal to the fixture PNG. All five facts matched: `SEP`, `JUL-JUN=27`, three blue circles, red triangle at `bottom_right`, verification code `R4V8`. 371 reasoning tokens, 667 completion tokens. |
+| Hard mathematics | 1 | **PASS** | IMO 1988 Problem 6, no tools. 10141 reasoning tokens, 12515 completion tokens. Codex predeclared the proof criteria and then checked the actual answer line by line: the minimal positive solution at fixed `k`, the integer-other-root identity, the strictly smaller positive root contradicting minimality, the negative root contradicting positivity, and the zero root giving `k=y^2` all hold, including the boundary discussion. This is a **known competition problem**; nothing is claimed about the model not having seen it before. |
+
+Retained non-pass records, kept separate from the three results above:
+
+- The first isolated session failed **before any model call** with
+  `MISSING_CREDENTIAL` (an isolated `DSH_HOME` inherits no credential store).
+  It was resolved with a temporary placeholder key for that test process only;
+  no global credential file was read, copied or modified, and no credential
+  value is recorded here. Receipts:
+  `lab/results/dsh-local-promotion-20261004/harness/run/pelican-route-failure.jsonl`.
+- DSH also issued **3 automatic session-title requests with a 64-token cap**:
+  2 stopped at `length` and 1 was cancelled by the client, which surfaced as a
+  relay `BrokenPipeError`. They used the same local model and `xhigh`, they are
+  listed separately in `requests.jsonl`, and they are **not** counted as task
+  passes; no title-generation success is claimed.
+
+Service window for this promotion: 412 decode log lines with batch histogram
+`{1: 108, 2: 287, 3: 15, 5: 2}`, zero non-graph decode lines and no error
+lines. This is a functional observation, not a performance or statistical
+quality certification.
+
+Limitations specific to this window:
+
+- three first attempts with autonomous tool steps; no statistical capability or
+  performance evaluation, and no throughput or latency claim;
+- the pelican case contains two model-authored refinements inside one turn; both
+  the initial and final artifacts are retained rather than only the final one;
+- the mathematics problem is known, so this is a correctness review of the
+  produced proof, not an unseen-problem evaluation;
+- the auxiliary title requests and the pre-model credential failure are retained
+  as failures/limits and are not folded into the pass count;
+- **local** promotion only: no wheel was built, packaged, published or pushed,
+  no package index or GitHub release was used, and no other host, GPU vendor or
+  cluster was exercised;
+- the production profile still runs `SGLANG_QSA_HISPARSE_V3_OBSERVE=light`, so no
+  full-model strict bitwise/determinism validation exists for this revision
+  either, and
+- version identity here uses Git commits and direct byte comparison of images
+  and generated files; no file hash was computed as evidence.
+
+Evidence for this window, all paths relative to the maintenance workspace root
+`/home/zyk/projects/interests/ai-video/qwen` and none of it committed:
+
+- `lab/results/dsh-local-promotion-20261004/qualification-summary.json` (the
+  three case reviews, model sources, reasoning effort and token usage),
+- `lab/results/dsh-local-promotion-20261004/promotion-decision.json`,
+  `lab/results/dsh-local-promotion-20261004/final-production-state.json` and
+  `lab/results/dsh-local-promotion-20261004/rollback-8081-profile.json` (the
+  promotion, the final service state and the preserved rollback profile),
+- `lab/results/dsh-local-promotion-20261004/requests.jsonl` (per-request
+  classification, wire effort, image evidence and finish reasons),
+- `lab/results/dsh-local-promotion-20261004/report.txt` and
+  `lab/results/dsh-local-promotion-20261004/worker-harness-audit.json`,
+- `lab/results/dsh-local-promotion-20261004/production-test-service-window.log`
+  (the service log window),
+- `lab/results/dsh-local-promotion-20261004/harness/run/` (MCP receipts and
+  durable events, including `pelican-route-failure.jsonl`) with raw
+  request/response bodies under
+  `lab/results/dsh-local-promotion-20261004/harness/logs/raw/`, and
+- `lab/results/dsh-local-promotion-20261004/review/pelican-first.svg`,
+  `lab/results/dsh-local-promotion-20261004/review/pelican-final.svg`,
+  `lab/results/dsh-local-promotion-20261004/review/pelican-final.png`,
+  `lab/results/dsh-local-promotion-20261004/review/math-answer.txt` with
+  `lab/results/dsh-local-promotion-20261004/review/math-oracle.txt`, and
+  `lab/results/dsh-local-promotion-20261004/review/image-answer.txt` with
+  `lab/results/dsh-local-promotion-20261004/review/image-expected.json`.
+
+No DSH session log, user configuration, environment file or credential was
+copied into this repository.
+
+## Upstream update, 2026-10-04 (earlier frozen-source window)
 
 Status: **FROZEN_SOURCE_INDEPENDENTLY_REVIEWED_CPU_GPU_SERVICE; PRODUCTION RESTORED**.
 Frozen tested source: `2fe0731e03c42f79092aa6894b7d81674c7a6fdd`.
@@ -79,9 +190,13 @@ Limitations of this record:
   factory/registry tests and was never exercised as a service;
 - the SM121 kernel was skipped and no AMD or other-GPU execution was performed;
   the open HIP RoPE follow-ups (#42483, #42494) are not incorporated;
-- no wheel was built, packaged, pushed or deployed, and no performance
-  certification was produced;
-- the production profile and environment were not modified.
+- in that window no wheel was built, packaged, pushed or deployed, and no
+  performance certification was produced; the later window above then promoted
+  the documentation-only successor `897286b12a` to the local service without any
+  packaging or publication;
+- the production profile and environment were not modified during that window:
+  the candidate was stopped and the original 8081 profile restored. The later
+  window above is the one that switched production to `897286b12a`.
 
 Raw evidence: `lab/results/dsh-qsa-production-20261004/phase2-final/`
 (`gpu-preflight.xml`, `gpu-preflight.stdout`, `seven-cases.jsonl`,
