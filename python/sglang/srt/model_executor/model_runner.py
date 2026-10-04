@@ -1043,10 +1043,12 @@ class ModelRunner:
         )
         qsa = getattr(self.token_to_kv_pool, "qsa_hisparse", None)
         if getattr(qsa, "uses_qsa_hisparse_leases", False):
-            from sglang.srt.mem_cache.qsa_hisparse.coordinator import QSAHiSparseCoordinator
+            from sglang.srt.mem_cache.qsa_hisparse.coordinator import (
+                QSAHiSparseCoordinator,
+            )
 
             self.hisparse_coordinator = QSAHiSparseCoordinator(
-                qsa, self.tp_group.cpu_group
+                qsa, get_parallel().tp_group.cpu_group
             )
 
         if get_parallel().dcp_enabled and get_parallel().dcp_replicate_q_proj:
