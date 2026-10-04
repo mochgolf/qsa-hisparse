@@ -199,7 +199,7 @@
       "history_retained": [
         "Two real startup failures on the merged tree: removed ModelRunner.tp_rank (fixed in 0c0e30dcdd) and removed ModelRunner.tp_group (fixed in 0ffe23cc63).",
         "GPU review window 1 (results/dsh-maintenance-20261004/phase2-final-gpu-tests.txt): 68 failed, 172 passed, 1 skipped; PATH lacked ninja, the running production service left insufficient free GPU memory, and one upstream fused test fixture was uninitialized.",
-        "GPU review window 2 (lab/results/dsh-qsa-production-20261004/phase2-group/gpu-preflight.stdout and .xml): 34 failed, 206 passed, 1 skipped; 33 failures came from the harness inheriting the production SGLANG_QSA_HISPARSE_V3=p2-offload mode plus the same single fixture, so this is a corrected environment run of the same window, not a second independent environment.",
+        "GPU review window 2 (lab/results/dsh-qsa-production-20261004/phase2-group/gpu-preflight.stdout and .xml): 34 failed, 206 passed, 1 skipped; 33 failures came from the harness inheriting the production SGLANG_QSA_HISPARSE_V3=p2-offload mode plus the same single fixture.",
         "The remaining fixture gap is a test-fixture migration gap, not a product runtime API bug: the fixture built the backend with __new__ and never set req_to_token_pool (fixed in 2fe0731e03).",
         "Only the final window with the correct environment and that fix reached 240 passed, 1 skipped, 0 failures; it does not erase the earlier windows."
       ]

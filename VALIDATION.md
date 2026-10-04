@@ -57,8 +57,6 @@ earlier windows whose failures must not be conflated:
   and `.xml`) reported **34 failed, 206 passed, 1 skipped**: 33 of those
   failures came from the harness inheriting the production
   `SGLANG_QSA_HISPARSE_V3=p2-offload` mode, plus the same single fixture gap.
-  This was a corrected environment run of the same window, not a second
-  independent environment.
 
 The fixture gap is a test-fixture migration gap, not a product runtime API bug:
 the fixture built the backend with `__new__` and never set
