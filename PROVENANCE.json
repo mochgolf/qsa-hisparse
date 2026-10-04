@@ -1,13 +1,26 @@
 {
   "schema": "qsa-hisparse-source-v1",
-  "updated_at": "2026-09-23",
+  "updated_at": "2026-10-04",
   "layout": "self-contained-sglang-source-fork",
   "upstream": {
     "repository": "https://github.com/sgl-project/sglang",
     "branch": "main",
-    "merged_commit": "172b1b4825ac9865076b78ef2c0daa66c7cc39dd",
-    "merge_commit": "06f19bb21a8a24e5ed66496c9ad3657763e2b4f3",
-    "commits_since_previous_base": 421
+    "merged_commit": "35f3c96ff4794a4de15daf12caad371084a037ee",
+    "merge_commit": "80dc48ddfc10162f9735f65b6c8f6238267b4eb0",
+    "merge_base": "32290dda2cea4bb95274b3d08e43d4dad74e9676",
+    "commits_since_merge_base": 561,
+    "previous_record": {
+      "merged_commit": "172b1b4825ac9865076b78ef2c0daa66c7cc39dd",
+      "merge_commit": "06f19bb21a8a24e5ed66496c9ad3657763e2b4f3",
+      "merged_at": "2026-09-23",
+      "status": "outdated",
+      "verified_facts": [
+        "The fork's actual common ancestor with upstream main is 32290dda2cea4bb95274b3d08e43d4dad74e9676.",
+        "172b1b4825ac9865076b78ef2c0daa66c7cc39dd is an ancestor of this branch and is 52 upstream commits behind 32290dda2cea4bb95274b3d08e43d4dad74e9676.",
+        "Those 52 commits were already integrated through 2f06478454256c2f6e3666858d00b37c5ae9132e.",
+        "Counts of missing upstream work taken from the 172b1b4825 record therefore overstate the missing work."
+      ]
+    }
   },
   "imported_qsa_source": {
     "commit": "5f8ae43640404eaee4c645d8cad2d0ef6e7dc6b0",
@@ -15,14 +28,72 @@
     "original_artifact_commit": "e1ac504a5e281af5423c6d59c5eeb402c1dbcd9a",
     "historical_provenance": "archive/PROVENANCE.json"
   },
+  "merge_scope": {
+    "conflicts_resolved": [
+      "README.md",
+      "python/pyproject.toml",
+      "python/sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+      "python/sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
+      "python/sglang/srt/managers/scheduler_components/batch_result_processor.py",
+      "python/sglang/srt/mem_cache/common.py",
+      "python/sglang/srt/mem_cache/qsa_kv_pool.py",
+      "python/sglang/srt/model_executor/pool_configurator.py",
+      "python/sglang/srt/models/qwen4_exp.py",
+      "test/registered/unit/managers/test_batch_result_processor_hidden_states.py"
+    ],
+    "kept_downstream": [
+      "raw KV offload with logical page indirection (write_locations)",
+      "private host-prefix CPU snapshots, reservations and DMA leases",
+      "pending rope / Mamba / PLE snapshot capture and restore",
+      "NUMA interleave placement",
+      "W4A16 Marlin alignment plus INT8-row PLE routing",
+      "PR #6 fast_topk JIT overflow refinement and its regressions",
+      "Phase-1 non-unit FP8 KV descales on prefill and reference reads"
+    ],
+    "not_enabled": [
+      "generic GPU radix sharing for the QSA offload pool",
+      "fused #40972 KV fast path on the offload pool",
+      "FP8 compressed index-K (stays bf16 by default)",
+      "PD, speculation, overlap scheduling and prefill CUDA graphs in the QSA contract"
+    ]
+  },
   "validation": {
-    "status": "GPU_SERVICE_VALIDATED_DEPLOYED",
+    "status": "FROZEN_SOURCE_REVIEWED_PRODUCTION_RESTORED",
     "report": "VALIDATION.md",
     "cpu_command": "QSA_PYTHON=python bash scripts/test_qsa_hisparse_cpu.sh",
-    "cpu_passed": 187,
+    "cpu_passed": 221,
     "cpu_skipped": 7,
-    "subtests_passed": 20,
+    "subtests_passed": 24,
+    "phase2_cpu": {
+      "command": "CUDA_VISIBLE_DEVICES= QSA_PYTHON=<env>/bin/python bash scripts/test_qsa_hisparse_cpu.sh -p no:cacheprovider --junitxml=<file>",
+      "tested_source_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+      "result": "221 passed, 7 skipped, 24 subtests passed; junitxml 252 cases, 0 failures, 0 errors",
+      "environments": [
+        {
+          "name": "isolated upstream dependency env",
+          "torch": "2.14.1+cu130",
+          "triton": "3.8.0",
+          "flashinfer_python": "0.7.0.post1",
+          "transformers": "5.17.0",
+          "sglang_kernel": "0.4.9",
+          "nvidia_cutlass_dsl": "4.8.0",
+          "tokenizers": "0.23.2",
+          "xgrammar": "0.2.7"
+        },
+        {
+          "name": "existing flash-next-env",
+          "torch": "2.13.0+cu130",
+          "triton": "3.7.1",
+          "flashinfer_python": "0.6.18",
+          "sglang_kernel": "0.4.6.post1",
+          "transformers": "5.12.1",
+          "xgrammar": "0.2.1",
+          "note": "Older than the declared dependency set; its pass does not validate the declared combination on GPU."
+        }
+      ]
+    },
     "test_environment": {
+      "scope": "legacy/historical pre-merge CPU environment recorded for the 2026-09-23 section; not the current environment and not the GPU environment used for the 2026-10-04 frozen-source review (see phase2_cpu and phase2_independent_review)",
       "python": "3.12.3",
       "torch": "2.13.0",
       "triton": "3.7.1",
@@ -31,10 +102,11 @@
       "sglang_kernel": "0.4.6.post1",
       "xgrammar": "0.2.1"
     },
-    "source_requires_sglang_kernel": "0.4.7",
+    "source_requires_sglang_kernel": "0.4.9",
     "source_requires_xgrammar": "0.2.7",
     "gpu_service_validation": {
       "status": "passed",
+      "scope": "HISTORICAL f8a69629 RESULT ONLY \u2014 the numbers below were produced for runtime commit f8a69629b09a403ed8375703d96440f66013a6ba and are not evidence for the Phase-1 commit bdb935d70f, the 2026-10-04 merge, or any later revision",
       "runtime_commit": "f8a69629b09a403ed8375703d96440f66013a6ba",
       "candidate_port": 8082,
       "production_port": 8081,
@@ -42,7 +114,16 @@
       "pp_size": 1,
       "context_length": 262144,
       "max_running_requests": 8,
-      "full_decode_graph_batch_sizes": [1, 2, 3, 4, 5, 6, 7, 8],
+      "full_decode_graph_batch_sizes": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
       "frozen_cases_passed": 7,
       "frozen_cases_total": 7,
       "prefix_graph_requests_passed": 10,
@@ -54,12 +135,222 @@
       "cuda_compiler": "12.8",
       "evidence": "VALIDATION.md"
     },
+    "phase1_service_validation": {
+      "scope": "Phase-1 commit bdb935d70fe40bd0153354527b010ad28b148cce on 2026-10-04, separate from the historical f8a69629 block above and from the 2026-10-04 merge",
+      "source_commit": "bdb935d70fe40bd0153354527b010ad28b148cce",
+      "status": "passed",
+      "frozen_cases_passed": 7,
+      "frozen_cases_total": 7,
+      "b1_to_b8_graph_requests": 36,
+      "request_tokens": 128,
+      "cached_prefix_tokens": 65536,
+      "abort_flush_reseed": true,
+      "all_b1_to_b8_cuda_graph": true,
+      "cuda_errors": 0,
+      "production_port_restored": 8081,
+      "evidence": "lab/results/dsh-qsa-production-20261004/phase1-retry (includes graph-log-evidence)",
+      "reported_by": "reviewer channel; not independently re-run by the phase-2 worker"
+    },
     "performance_claim": null,
-    "source_commit": "f8a69629b09a403ed8375703d96440f66013a6ba",
+    "source_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
     "python_wheel": {
       "status": "NOT_RUN_FOR_THIS_REVISION",
-      "published": false
-    }
+      "published": false,
+      "note": "no wheel exists for the frozen revision, and the documentation-only successor 897286b12a promoted in the later window shipped no packaging either"
+    },
+    "integration_merge_commit": "80dc48ddfc10162f9735f65b6c8f6238267b4eb0",
+    "phase2_independent_review": {
+      "reviewer": "Codex (independent of the implementation worker)",
+      "tested_source_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+      "gpu_kernel_suite": {
+        "hardware": "RTX 4090, SM89",
+        "environment": "isolated upstream dependency env",
+        "files": [
+          "test/registered/kernels/ops/attention/qsa/test_qsa.py",
+          "test/registered/kernels/ops/attention/test_fast_topk.py",
+          "test/registered/kernels/ops/attention/qsa/test_qsa_fused_kv_prepare.py",
+          "test/registered/kernels/ops/attention/qsa/test_qsa_strided_zero_fill.py"
+        ],
+        "result": "240 passed, 1 skipped (SM121-only kernel), 0 failures",
+        "evidence": "lab/results/dsh-qsa-production-20261004/phase2-final/gpu-preflight.xml and gpu-preflight.stdout"
+      },
+      "service_window": {
+        "frozen_cases": "7/7 passed, including the 262016-token input and English/Chinese/code/reasoning/tool/image requests",
+        "lifecycle": "B1..8 = 36 requests, 128 output tokens each, 65536 cached tokens each; OpenAI cached 0 cold / 2112 warm; explicit abort returned finish_reason=abort; after-abort recovery, idle flush, reseed native 0 -> 65536 and final health passed",
+        "graph_evidence": "CUDA graph replay observed for every B1..8 batch, no non-graph decode batches, no error lines",
+        "baseline_comparison": "recorded request previews, image bytes and prompt token counts equal for every case; the reasoning case differs in wording/length (125 vs 126 output tokens) while both sources pass the frozen oracle",
+        "observed_configuration": "production profile SGLANG_QSA_HISPARSE_V3_OBSERVE=light (no full-model strict bitwise/determinism validation)",
+        "evidence": "lab/results/dsh-qsa-production-20261004/phase2-final/ (seven-cases.jsonl, lifecycle-summary.json, lifecycle-requests.jsonl, graph-log-evidence.json, baseline-comparison.json, service-test-window.log)"
+      },
+      "production_restore": {
+        "status": "confirmed",
+        "candidate_passed": true,
+        "production_restored": true,
+        "candidate_commit": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+        "evidence": "lab/results/dsh-qsa-production-20261004/phase2-final/run-summary.json",
+        "detail": "Candidate stopped; the original 8081 service was restored from its preserved profile with the production-restore and production-after-status commands exiting 0."
+      },
+      "not_covered": [
+        "full-model strict bitwise/determinism under OBSERVE=light",
+        "service execution of the no-host-prefix configuration (SGLANG_QSA_HISPARSE_PREFIX_CACHE_MB=0 -> disabled-radix UnifiedRadixCache); CPU factory/registry tests only",
+        "SM121 kernel (skipped) and any AMD or other-GPU execution",
+        "Python wheel build, packaging, push or deployment",
+        "performance certification"
+      ],
+      "history_retained": [
+        "Two real startup failures on the merged tree: removed ModelRunner.tp_rank (fixed in 0c0e30dcdd) and removed ModelRunner.tp_group (fixed in 0ffe23cc63).",
+        "GPU review window 1 (results/dsh-maintenance-20261004/phase2-final-gpu-tests.txt): 68 failed, 172 passed, 1 skipped; PATH lacked ninja, the running production service left insufficient free GPU memory, and one upstream fused test fixture was uninitialized.",
+        "GPU review window 2 (lab/results/dsh-qsa-production-20261004/phase2-group/gpu-preflight.stdout and .xml): 34 failed, 206 passed, 1 skipped; 33 failures came from the harness inheriting the production SGLANG_QSA_HISPARSE_V3=p2-offload mode plus the same single fixture.",
+        "The remaining fixture gap is a test-fixture migration gap, not a product runtime API bug: the fixture built the backend with __new__ and never set req_to_token_pool (fixed in 2fe0731e03).",
+        "Only the final window with the correct environment and that fix reached 240 passed, 1 skipped, 0 failures; it does not erase the earlier windows."
+      ]
+    },
+    "latest_main_recheck": {
+      "recorded_at": "2026-10-04T15:00:53Z",
+      "tested_upstream": "35f3c96ff4794a4de15daf12caad371084a037ee",
+      "latest_main": "affa261e3d289fe4f907c9b2e8d773fef0d36dba",
+      "ahead_by": 4,
+      "scope": "multimodal_gen/diffusion documentation and tests plus AMD CI; no QSA runtime or dependency file overlap",
+      "decision": "not merged and not covered by the frozen tests; the integration and validation stay on 35f3c96ff4",
+      "evidence": [
+        "results/upstream-qsa-analysis-20261004/latest-main-delta.json",
+        "results/upstream-qsa-analysis-20261004/latest-amd-qsa-details.json"
+      ]
+    },
+    "local_production_promotion": {
+      "scope": "later window on 2026-10-04, after the frozen-source window above; it records the local deployment and the real-DSH result and does not re-claim the frozen CPU/GPU/service numbers",
+      "status": "PROMOTED_AND_KEEP_ON_8081",
+      "promoted_source_commit": "897286b12a128d4bcb8229a5dadedc1ea49fcc16",
+      "tested_runtime_source": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+      "delta_from_tested_runtime_source": [
+        "PROVENANCE.json",
+        "UPSTREAM.md",
+        "VALIDATION.md"
+      ],
+      "runtime_source_changed": false,
+      "production_snapshot": ".worktrees/sglang-dsh-production-20261004",
+      "profile": "service/current.json",
+      "launch_snapshot": "service/state/launch-2f9610488a6847429a2fec67aab3c806.json",
+      "profile_and_snapshot_match": true,
+      "health": 200,
+      "served_models": [
+        "local-qwen3.8-flash-next-v1"
+      ],
+      "test_listeners_closed": [
+        8089,
+        8931
+      ],
+      "rollback_profile_preserved": "lab/results/dsh-local-promotion-20261004/rollback-8081-profile.json",
+      "real_dsh_window": {
+        "client": "DSH 0.1.7-rc.2, isolated home, sessions created through MCP",
+        "agent_preset": "standard-local",
+        "sessions": 3,
+        "selected_config": {
+          "provider": "local-qwen",
+          "model": "local-qwen3.8-flash-next-v1",
+          "reasoningEffort": "max"
+        },
+        "wire_reasoning_effort": "xhigh",
+        "max_semantics": "max is the session's model reasoning-effort tier, dispatched on the wire as reasoning_effort=xhigh; it is not a strict mathematical kernel or a dedicated math mode",
+        "template_declared_levels": [
+          "xhigh",
+          "medium",
+          "low"
+        ],
+        "fallback_routes": "none; the overlay route contained only local-qwen",
+        "output_cap": 65536,
+        "turn_end": "completed for all three sessions",
+        "primary_requests": 13,
+        "primary_http_200": 13,
+        "primary_relay_errors": 0,
+        "all_primary_xhigh_with_reasoning": true,
+        "cases": {
+          "pelican": {
+            "requests": 10,
+            "result": "PASS",
+            "reasoning_tokens": 11275,
+            "completion_tokens": 16088,
+            "note": "single self-contained SVG, independently XML-parsed and rendered with librsvg; the model made two self-directed edit steps in the same first turn after its own screenshots (not a resample, no human feedback); first and final artifacts retained and the recorded changes replay to the final file byte-for-byte"
+          },
+          "image": {
+            "requests": 2,
+            "result": "PASS 5/5",
+            "reasoning_tokens": 371,
+            "completion_tokens": 667,
+            "image_tokens": 660,
+            "image_bytes_equal_fixture": true,
+            "note": "native read_image only; the real request carried an image_url part whose decoded bytes equal the fixture PNG; no OCR or terminal reads"
+          },
+          "math": {
+            "requests": 1,
+            "result": "PASS",
+            "reasoning_tokens": 10141,
+            "completion_tokens": 12515,
+            "problem": "IMO 1988 Problem 6",
+            "note": "Codex predeclared the proof criteria and reviewed the actual answer line by line; a known competition problem, not claimed unseen"
+          }
+        },
+        "auxiliary_title_requests": {
+          "count": 3,
+          "output_cap": 64,
+          "length_limited": 2,
+          "client_cancelled": 1,
+          "client_cancellation_symptom": "relay BrokenPipeError",
+          "counted_as_task_pass": false
+        },
+        "pre_model_route_failure": {
+          "reason": "MISSING_CREDENTIAL in an isolated DSH home, before any model call",
+          "resolution": "temporary placeholder key for the isolated test process only; the test instance neither copied nor modified the global DSH credential store, and MCP control authentication was loaded by the standard wrapper/environment mechanism without being disclosed. No credential value is recorded",
+          "retained_receipts": "lab/results/dsh-local-promotion-20261004/harness/run/pelican-route-failure.jsonl"
+        },
+        "service_window": {
+          "decode_log_lines": 412,
+          "decode_batch_histogram": {
+            "1": 108,
+            "2": 287,
+            "3": 15,
+            "5": 2
+          },
+          "non_graph_decode_lines": 0,
+          "error_lines": []
+        },
+        "limits": [
+          "three first attempts with autonomous tool steps; no statistical capability or performance certification",
+          "pelican contains two model-authored refinements inside one turn; initial and final artifacts both retained",
+          "the mathematics problem is known, so this reviews the produced proof rather than evaluating an unseen problem",
+          "auxiliary title length limits and the client cancellation are retained separately and not counted as passes",
+          "local promotion only: no wheel built, packaged, published or pushed, and no other host or GPU vendor exercised",
+          "SGLANG_QSA_HISPARSE_V3_OBSERVE=light remains, so no full-model strict bitwise/determinism validation exists for this revision",
+          "identity uses Git commits and direct byte comparison of images and generated files; no file hash was computed as evidence"
+        ],
+        "evidence": [
+          "lab/results/dsh-local-promotion-20261004/qualification-summary.json",
+          "lab/results/dsh-local-promotion-20261004/promotion-decision.json",
+          "lab/results/dsh-local-promotion-20261004/final-production-state.json",
+          "lab/results/dsh-local-promotion-20261004/requests.jsonl",
+          "lab/results/dsh-local-promotion-20261004/report.txt",
+          "lab/results/dsh-local-promotion-20261004/production-test-service-window.log",
+          "lab/results/dsh-local-promotion-20261004/worker-harness-audit.json",
+          "lab/results/dsh-local-promotion-20261004/harness/run/",
+          "lab/results/dsh-local-promotion-20261004/review/"
+        ],
+        "raw_artifacts_committed": false,
+        "secrets_committed": false,
+        "evidence_git_commit": "aa33f74",
+        "evidence_note": "none of this evidence is included in or committed to this qsa-hisparse fork; the separate lab keeps it under its own local evidence Git commit aa33f74 and the raw artifacts are not published"
+      },
+      "environment_transition": "no in-place upgrade of the previous production environment: the service was switched to the already-validated results/dsh-maintenance-20261004/upstream-runtime-env runtime path, the same environment used for the frozen review, while model weights and serving configuration stayed as validated",
+      "runtime_python": "results/dsh-maintenance-20261004/upstream-runtime-env",
+      "tested_git_revisions": {
+        "earlier_frozen_source_window": "2fe0731e03c42f79092aa6894b7d81674c7a6fdd",
+        "later_local_promotion_window": "897286b12a128d4bcb8229a5dadedc1ea49fcc16"
+      },
+      "window_relationship": "different Git revisions separated in time: 897286b12a is the documentation-only successor of 2fe0731e03 with an identical runtime source. The earlier window ended with production restored to its previous service; this window keeps 897286b12a running"
+    },
+    "phase2_cpu_only_note": "superseded by phase2_independent_review for the frozen source; retained here for the CPU-only phase before the independent GPU/service window",
+    "latest_validation_window": "local_production_promotion",
+    "window_scoping_note": "The frozen-source window (source_commit 2fe0731e03) ended with production restored to its previous service and with no wheel or release. The later local_production_promotion window promoted the documentation-only successor 897286b12a to the local 8081 service and kept it running; it neither republishes nor supersedes the frozen CPU/GPU/service numbers."
   },
-  "raw_artifacts_included": false
+  "raw_artifacts_included": false,
+  "raw_artifacts_note": "Evidence paths in this file and in VALIDATION.md are relative to the maintenance workspace root /home/zyk/projects/interests/ai-video/qwen, not to this checkout; the raw artifacts are not included in or committed to this qsa-hisparse fork (raw_artifacts_included=false) and are kept by the separate lab under its own local evidence Git commit aa33f74."
 }

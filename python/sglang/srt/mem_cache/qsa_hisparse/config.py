@@ -22,6 +22,19 @@ def prefix_cache_options():
     return mb * 1024 * 1024, entries
 
 
+def parallel_tp_rank() -> int:
+    """Tensor-parallel rank of this process.
+
+    ``ModelRunner`` no longer carries a ``tp_rank`` attribute; the parallel
+    bundle published at startup is the only source (``model_runner.py`` reads
+    ``get_parallel().tp_rank`` the same way). Reading the runner attribute
+    raised ``AttributeError`` during QSA runtime construction.
+    """
+    from sglang.srt.runtime_context import get_parallel
+
+    return get_parallel().tp_rank
+
+
 def validate_configuration(args, pool, *, p2=False, graph=False, strict=True):
     budget, _ = prefix_cache_options()
     if budget and not p2:

@@ -303,21 +303,25 @@ class QSAHostPrefixCache(ChunkCache):
             if reservation is not None:
                 reservation.close()
 
-    def before_release(self, req, is_insert):
+    def claim_kv_row(self, req):
+        # First hook of every release path, before any row or lease teardown:
+        # a pending host restore must drain through rollback, not be released.
         if req.cache_request_handle in self.restoring:
             raise RuntimeError(
                 "QSA prefix restore must drain through rollback before release"
             )
-        if is_insert:
-            self._capture(req)
+        return super().claim_kv_row(req)
 
-    def cache_unfinished_req(self, req, chunked=False):
+    def checkpoint(self, req, *, up_to, **kwargs):
+        # Upstream replaced cache_unfinished_req/cache_finished_req with
+        # checkpoint/on_release (#42354); a finished request reaches this hook
+        # from release_kv_cache with the prefix it owns.
         self._capture(req)
-        super().cache_unfinished_req(req, chunked=chunked)
+        return super().checkpoint(req, up_to=up_to, **kwargs)
 
-    def cache_finished_req(self, req, is_insert=True, *, owned_kv_len):
+    def on_release(self, req, *, inserted):
         self.release_aborted_request(req.cache_request_handle)
-        super().cache_finished_req(req, is_insert, owned_kv_len=owned_kv_len)
+        return super().on_release(req, inserted=inserted)
 
     def release_aborted_request(self, handle):
         # Failed restore submission can retain an undrained stream and its

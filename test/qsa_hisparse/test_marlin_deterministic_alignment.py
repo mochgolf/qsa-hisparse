@@ -157,6 +157,7 @@ def test_server_flag_and_unpublished_standalone_policy(
         get_context=lambda: SimpleNamespace(
             is_config_namespace_published=lambda _: published
         ),
+        get_platform=lambda: SimpleNamespace(is_sm90=capability == 9),
     )
     stub("sglang.srt.utils", is_cuda=lambda: True)
     stub(
@@ -167,6 +168,11 @@ def test_server_flag_and_unpublished_standalone_policy(
     stub(
         "sglang.kernels.ops.activation.activation",
         silu_and_mul=lambda inp, out: out.fill_(1),
+        # Reached only for contiguous CUDA inputs on SM90; the CPU stubs here
+        # must never take that branch.
+        silu_and_mul_with_activation_rounding=lambda inp, out, **kw: pytest.fail(
+            "SM90 fused activation reached from the CPU stub test"
+        ),
     )
     stub("sglang.kernels.ops.moe.moe_wna16_marlin", moe_wna16_marlin_gemm=gemm)
     monkeypatch.setattr(torch.cuda, "get_device_capability", lambda _: (capability, 0))

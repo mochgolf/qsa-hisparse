@@ -5,8 +5,12 @@ CPU KV offload. The runtime, kernels, scheduler integration, tests, and build
 files are all in this repository. Clone it and install the source directly.
 
 The fork retains SGLang's Git ancestry and the original QSA commits. The latest
-integrated upstream revision is `172b1b4825` (2026-09-23); see
-[provenance](PROVENANCE.json) and the [upstream maintenance guide](UPSTREAM.md).
+integrated upstream revision is `35f3c96ff4` (2026-10-04), merged over the fork's
+actual common ancestor `32290dda2c` with a normal two-parent merge. The older
+`172b1b4825` record is outdated: the 52 upstream commits between it and
+`32290dda2c` were already integrated through `2f06478454`, so counts taken from
+that record overstate the missing work. See [provenance](PROVENANCE.json) and
+the [upstream maintenance guide](UPSTREAM.md).
 
 ## Install
 

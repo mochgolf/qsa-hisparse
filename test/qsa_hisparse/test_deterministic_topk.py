@@ -136,7 +136,7 @@ class TestDeterministicQSATopK(unittest.TestCase):
         expected = torch.arange(512, dtype=torch.int32).flip(0).reshape(1, 512)
         with (
             patch(
-                "sglang.kernels.ops.elementwise.fast_topk.fast_topk",
+                "sglang.kernels.ops.attention.fast_topk.fast_topk",
                 return_value=expected,
             ) as native,
             patch.object(
@@ -174,7 +174,7 @@ class TestDeterministicQSATopK(unittest.TestCase):
                 return_value=torch.full((1, 2051), -1, dtype=torch.int32),
             ),
             patch(
-                "sglang.kernels.ops.elementwise.fast_topk.fast_topk",
+                "sglang.kernels.ops.attention.fast_topk.fast_topk",
                 side_effect=AssertionError(
                     "native collector reached during deterministic decode"
                 ),
