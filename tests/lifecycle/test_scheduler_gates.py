@@ -1,15 +1,16 @@
 """Scheduler gates under W2's hooks: host-prefix wrap (S01) and coordinator
-adoption (S02), multimodal decode batches (S03), lease admission (S05),
-idleness (S08), abort of staging requests (S09) and weight-load
-invalidation (B06). Expected values follow the fork's code at ee8fe158d6."""
+adoption (S02), multimodal decode batches (S03), the staging-to-decode
+transition (S04), lease admission (S05), idle leak checks (S07), idleness (S08), abort of staging requests (S09) and
+weight-load invalidation (B06). Expected values follow the fork's code at
+ee8fe158d6."""
 
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from sglang.srt.disaggregation.utils import DisaggregationMode
-from sglang.srt.managers.schedule_batch import FINISH_ABORT, ScheduleBatch
+from sglang.srt.managers.schedule_batch import FINISH_ABORT, NextBatchPlan, ScheduleBatch
 from sglang.srt.managers.scheduler import Scheduler
 from sglang.srt.managers.scheduler_components.weight_updater import (
     SchedulerWeightUpdaterManager,
@@ -152,6 +153,49 @@ def test_rebuilt_decode_batch_carries_multimodal_inputs_for_the_target_model(
     assert batch.multimodal_inputs == (["image-inputs", None] if target else None)
 
 
+# S04 ------------------------------------------------------------------------
+
+
+def test_a_qsa_coordinator_owns_the_prefill_to_decode_transition():
+    # Upstream gates this on enable_hisparse, which QSA leaves unset.
+    coordinator = Mock()
+    coordinator.collect_ready_reqs.return_value = []
+    running = MagicMock(is_prefill_only=False, batch_is_full=True)
+    running.is_empty.return_value = True
+    last_batch = MagicMock()
+    last_batch.forward_mode.is_extend.return_value = True
+    passthrough = MagicMock(side_effect=lambda batch, **_: batch)
+    s = scheduler(
+        scheduler_stage_metrics=None,
+        dllm_config=None,
+        enable_hisparse=False,
+        hisparse_coordinator=coordinator,
+        enable_fpm=False,
+        enable_hierarchical_cache=True,
+        enable_hicache_storage=False,
+        tree_cache=SimpleNamespace(check_hicache_events=Mock()),
+        chunked_req=None,
+        _pending_chunked_abort_req=None,
+        require_mlp_sync=False,
+        prefill_decode_interval=0,
+        _prefill_decode_interval_remaining=0,
+        get_new_batch_prefill=Mock(
+            return_value=NextBatchPlan(batch_to_run=None, running_batch=running)
+        ),
+        dp_attn_adapter=SimpleNamespace(
+            maybe_prepare_mlp_sync_batch=passthrough,
+            maybe_convert_decode_to_extend=passthrough,
+        ),
+        ngram_embedding_manager=SimpleNamespace(prepare_for_forward=passthrough),
+    )
+
+    s.get_next_batch_to_run(running_batch=running, last_batch=last_batch)
+
+    coordinator.collect_ready_reqs.assert_called_once_with()
+    assert running.batch_is_full is False
+    last_batch.filter_batch.assert_not_called()
+
+
 # S05 ------------------------------------------------------------------------
 
 
@@ -180,6 +224,45 @@ def test_lease_admission_is_one_request_per_free_slot_and_none_during_prefill():
         assert s.get_num_allocatable_reqs(0) == 0  # No free slot.
         coordinator.uses_qsa_hisparse_leases = False
         assert s.get_num_allocatable_reqs(0) == 6
+
+
+# S07 ------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("coordinator", [None, "qsa-coordinator"])
+def test_idle_pool_leak_checks_are_skipped_while_a_coordinator_exists(coordinator):
+    s = scheduler(
+        hisparse_coordinator=coordinator,
+        disaggregation_mode=DisaggregationMode.NULL,
+        enable_unified_memory=False,
+        **{
+            name: MagicMock()
+            for name in (
+                "scheduler_stage_metrics",
+                "invariant_checker",
+                "pool_stats_observer",
+                "token_to_kv_pool_allocator",
+                "metrics_reporter",
+                "kv_events_publisher",
+                "new_token_ratio_tracker",
+                "load_publisher",
+                "load_inquirer",
+                "maybe_send_health_check_signal",
+                "publish_load_snapshot",
+                "maybe_sleep_on_idle",
+            )
+        },
+    )
+    s.is_fully_idle = lambda: True
+    s.invariant_checker._check_all_pools.return_value = (False, [])
+    s.token_to_kv_pool_allocator.verify_byte_accounting.return_value = []
+
+    s.on_idle()
+
+    assert s.invariant_checker._check_all_pools.called == (coordinator is None)
+    assert s.invariant_checker._check_req_pool.called == (coordinator is None)
+    s.invariant_checker._check_tree_cache.assert_called_once_with()
+    s.maybe_sleep_on_idle.assert_called_once_with()
 
 
 # S08 ------------------------------------------------------------------------
