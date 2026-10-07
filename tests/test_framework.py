@@ -21,6 +21,8 @@ MODULE = textwrap.dedent(
     """
     import functools
 
+    import torch
+
 
     def double(x):
         return 2 * x
@@ -33,6 +35,15 @@ MODULE = textwrap.dedent(
     @functools.lru_cache(maxsize=None)
     def cached(x):
         return x
+
+
+    @torch.no_grad()
+    def guarded():
+        return torch.is_grad_enabled()
+
+
+    def helper():
+        return 1
 
 
     class Box:
@@ -65,6 +76,7 @@ def registry():
         patching._activated = None
         patching._applied.clear()
         patching._frozen_hooks.clear()
+        patching._frozen_depends.clear()
         patching._attached_live.clear()
 
     clear()
@@ -177,9 +189,11 @@ def test_record_locates_definitions(fake):
     assert record["file"] == "qsa_fake/mod.py"
     assert record["qualname"] == "Box.value"
     assert record["kind"] == "function"
-    assert record["chains"] == {
-        "cpu": [{"type": "builtins.function", "code": ["qsa_fake/mod.py", record["def_line"]]}]
-    }
+    (level,) = record["chains"]["cpu"]
+    assert level["type"] == "builtins.function"
+    assert level["code"] == ["qsa_fake/mod.py", record["def_line"]]
+    assert level["function"] == "qsa_fake.mod.Box.value"
+    assert level["file_sha256"] == record["module_sha256"]
     cached = fingerprint.record(fake.root, "qsa_fake.mod.cached")
     assert [level["type"] for level in cached["chains"]["cpu"]] == [
         "functools._lru_cache_wrapper",
@@ -224,10 +238,14 @@ def test_method_record_covers_class_header(fake):
         ("\nfor double in ():\n    pass\n", "double"),
         ("\nwith open(__file__) as double:\n    pass\n", "double"),
         ("\ndel double\n", "double"),
+        ("\ndef other(x=(double := 1)):\n    pass\n", "double"),
+        ("\nclass Other((double := object)):\n    pass\n", "double"),
+        ("\nvalue: (double := int)\n", "double"),
         ("", "Child.value"),
     ],
     ids=["conditional", "reassigned", "imported", "except-alias", "match-capture",
-         "walrus", "for-target", "with-target", "del", "inherited"],
+         "walrus", "for-target", "with-target", "del", "default-walrus",
+         "base-walrus", "annotation-walrus", "inherited"],
 )
 def test_ambiguous_or_inherited_bindings_cannot_be_pinned(fake, suffix, qualname):
     fake.path.write_text(MODULE + suffix)
@@ -249,6 +267,49 @@ def test_ambiguous_or_inherited_bindings_cannot_be_pinned(fake, suffix, qualname
 def test_non_bindings_do_not_count(fake, suffix):
     fake.path.write_text(MODULE + suffix)
     assert fingerprint.definition_record(fake.path, "double")["qualname"] == "double"
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda torch, f: (torch.no_grad()(f), torch.enable_grad()(f)),
+        lambda torch, f: (torch.ops.aten.add, torch.ops.aten.mul),
+        lambda torch, f: (
+            functools.lru_cache(maxsize=4)(f),
+            functools.lru_cache(maxsize=None)(f),
+        ),
+        lambda torch, f: (functools.partial(f, 1), functools.partial(f, 2)),
+    ],
+    ids=["grad-mode", "operator", "lru-cache", "partial"],
+)
+def test_chains_identify_behavior(build, tmp_path):
+    import torch
+
+    def f(*args):
+        return torch.is_grad_enabled()
+
+    first, second = build(torch, f)
+    assert fingerprint.live_chain(first, tmp_path) != fingerprint.live_chain(second, tmp_path)
+
+
+def test_unidentifiable_levels_are_rejected(tmp_path):
+    class Opaque:
+        def __call__(self):
+            return 1
+
+    with pytest.raises(fingerprint.Undescribable):
+        fingerprint.live_chain(Opaque(), tmp_path)
+
+    state = object()
+
+    @functools.wraps(len)
+    def wrapper(*args):
+        return state
+
+    wrapper.__module__ = "external"
+    wrapper.__code__ = wrapper.__code__.replace(co_filename="/elsewhere/lib.py")
+    with pytest.raises(fingerprint.Undescribable):
+        fingerprint.live_chain(wrapper, tmp_path)
 
 
 # Activation -----------------------------------------------------------------
@@ -361,6 +422,67 @@ def test_live_object_must_be_the_pinned_definition(registry, fake, monkeypatch, 
     assert not registry._hooks
 
 
+def test_decorator_configuration_is_part_of_the_binding(registry, fake, monkeypatch):
+    import torch
+
+    fake.pin("qsa_fake.mod.guarded")
+    mod = _mod()
+    assert mod.guarded() is False
+    monkeypatch.setattr(mod, "guarded", torch.enable_grad()(mod.guarded.__wrapped__))
+    patching.patch("qsa_fake.mod.guarded", "after", feature="model_compat", row="R1")(
+        lambda result: result
+    )
+    with pytest.raises(FingerprintMismatch, match="not the pinned definition"):
+        patching.activate(COMPAT)
+
+
+def test_duplicate_hook_declarations_fail(registry, fake):
+    fake.pin("qsa_fake.mod.double")
+    for _ in range(2):
+        patching.patch("qsa_fake.mod.double", "after", feature="model_compat", row="R1")(
+            lambda result, x: result + 1
+        )
+    with pytest.raises(PluginActivationError, match="more than once"):
+        patching.activate(COMPAT)
+    assert _mod().double(2) == 4
+
+
+def test_dependencies_are_protected(registry, fake):
+    from sglang.srt.plugins.hook_registry import HookType
+
+    fake.pin("qsa_fake.mod.double", "qsa_fake.mod.helper", "qsa_fake.mod.configure")
+    patching.patch(
+        "qsa_fake.mod.double",
+        "after",
+        feature="model_compat",
+        row="R1",
+        depends=("qsa_fake.mod.helper",),
+    )(lambda result, x: result + _mod().helper())
+
+    @patching.patch("qsa_fake.mod.configure", "before", feature="framework", row="FW")
+    def verifier(*args, **kwargs):
+        patching.verify_final("scheduler")
+
+    registry.register("qsa_fake.mod.helper", lambda: 0, HookType.REPLACE, source=_foreign())
+    with pytest.raises(PluginActivationError, match="overlapping"):
+        patching.activate(COMPAT)
+
+    registry.reset()
+    patching._activated = None
+    patching.activate(COMPAT)
+    mod = _mod()
+    assert mod.double(2) == 5
+    mod.configure()
+    registry.register("qsa_fake.mod.helper", lambda: 0, HookType.REPLACE, source=_foreign())
+    registry.apply_hooks()  # The loader's final pass after every plugin ran.
+    assert mod.double(2) == 4
+    with pytest.raises(PluginActivationError, match="overlapping"):
+        mod.configure()
+    registry._hooks.pop("qsa_fake.mod.helper")
+    with pytest.raises(PluginActivationError, match="replaced afterwards"):
+        mod.configure()
+
+
 def test_decorated_definition_passes_with_its_pinned_chain(registry, fake):
     fake.pin("qsa_fake.mod.cached")
     patching.patch("qsa_fake.mod.cached", "after", feature="model_compat", row="R1")(
@@ -392,8 +514,8 @@ def test_property_targets_are_rejected(registry, fake):
 
 def test_duplicate_replace_fails(registry, fake):
     fake.pin("qsa_fake.mod.double")
-    for _ in range(2):
-        patching.patch("qsa_fake.mod.double", "replace", feature="model_compat", row="R1")(
+    for row in ("R1", "R2"):
+        patching.patch("qsa_fake.mod.double", "replace", feature="model_compat", row=row)(
             lambda x: x
         )
     with pytest.raises(PluginActivationError, match="Two REPLACE"):
@@ -545,6 +667,34 @@ def test_attach_conflicts_fail(registry, fake):
     )
     with pytest.raises(PluginActivationError, match="Hooks on attached"):
         patching.activate(BOTH)
+
+
+# Packaging ------------------------------------------------------------------
+
+
+def test_wheel_contains_activation_data(tmp_path):
+    import glob
+    import zipfile
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[1]
+    builder = os.environ.get("QSA_WHEEL_PYTHON", "/usr/bin/python3")
+    result = subprocess.run(
+        [builder, "-m", "pip", "wheel", "--no-deps", "--no-build-isolation",
+         "--no-index", "-q", "-w", str(tmp_path), str(repo)],
+        capture_output=True, text=True,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    names = zipfile.ZipFile(glob.glob(str(tmp_path / "*.whl"))[0]).namelist()
+    package = repo / "src" / "sglang_qsa_hisparse"
+    expected = ["sglang_qsa_hisparse/manifest.json"] + [
+        f"sglang_qsa_hisparse/fingerprints/{p.name}" for p in (package / "fingerprints").glob("*.json")
+    ]
+    assert set(expected) <= set(names)
+    entry_points = [n for n in names if n.endswith("dist-info/entry_points.txt")]
+    assert len(entry_points) == 1
 
 
 # Real SGLang loader in a fresh process --------------------------------------

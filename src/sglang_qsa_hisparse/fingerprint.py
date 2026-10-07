@@ -25,6 +25,7 @@ parallel work does not share a file).
 """
 
 import ast
+import functools
 import hashlib
 import importlib
 import inspect
@@ -79,7 +80,19 @@ def _statement_bindings(statement: ast.stmt) -> list[str]:
     names: list[str] = []
     if isinstance(statement, _DEFINITIONS):
         names.append(statement.name)
-        for expression in statement.decorator_list:
+        # Expressions evaluated in the enclosing scope when the definition runs.
+        header = list(statement.decorator_list)
+        if isinstance(statement, ast.ClassDef):
+            header += statement.bases + [k.value for k in statement.keywords]
+        else:
+            arguments = statement.args
+            header += arguments.defaults + [d for d in arguments.kw_defaults if d]
+            every = arguments.posonlyargs + arguments.args + arguments.kwonlyargs
+            every += [a for a in (arguments.vararg, arguments.kwarg) if a]
+            header += [a.annotation for a in every if a.annotation is not None]
+            if statement.returns is not None:
+                header.append(statement.returns)
+        for expression in header:
             _expression_bindings(expression, names, False)
         return names
     if isinstance(statement, (ast.Import, ast.ImportFrom)):
@@ -90,7 +103,10 @@ def _statement_bindings(statement: ast.stmt) -> list[str]:
     if isinstance(statement, (ast.Global, ast.Nonlocal)):
         return names
     if isinstance(statement, ast.AnnAssign) and statement.value is None:
-        return names  # Annotation only: declares, does not bind.
+        # Annotation only: the target is declared, not bound, but the
+        # annotation expression is evaluated (and may bind via walrus).
+        _expression_bindings(statement.annotation, names, False)
+        return names
     if isinstance(statement, ast.Try) or type(statement).__name__ == "TryStar":
         for handler in statement.handlers:
             if handler.name:
@@ -181,19 +197,131 @@ def definition_record(path: str | Path, qualname: str) -> dict:
 
 
 # Live bindings ------------------------------------------------------------------
+#
+# A binding chain describes the attribute and every level beneath it
+# (descriptor ``__func__``, ``property.fget``, ``__wrapped__``). Each level must
+# be a kind whose behavior is identified by the description; anything else is
+# rejected when the record is written (patches may opt out per name with
+# ``unchecked_bindings``, keeping module bytes pinned). Functions whose code is
+# outside the pinned tree (library decorators) also describe their closure and
+# defaults, which is where decorator factories keep their configuration.
+
+_SCALARS = (type(None), bool, int, float, complex, str, bytes)
+_MAX_ITEMS = 64
+
+
+class Undescribable(LookupError):
+    """A binding level whose behavior the chain cannot identify."""
 
 
 def _type_name(value: object) -> str:
-    kind = type(value)
+    kind = value if isinstance(value, type) else type(value)
     return f"{kind.__module__}.{kind.__qualname__}"
 
 
-def _location(filename: str, root: Path) -> str:
+def _location(filename: str, root: Path) -> tuple[str, bool]:
     path = Path(filename).resolve()
     try:
-        return path.relative_to(root.resolve()).as_posix()
+        return path.relative_to(root.resolve()).as_posix(), True
     except ValueError:
-        return "<external>/" + path.name
+        return "<external>/" + path.name, False
+
+
+def _code(function, root: Path) -> dict:
+    code = function.__code__
+    location, internal = _location(code.co_filename, root)
+    entry = {
+        "code": [location, code.co_firstlineno],
+        "function": f"{function.__module__}.{function.__qualname__}",
+    }
+    if internal:
+        entry["file_sha256"] = _sha256(Path(code.co_filename).read_bytes())
+    return entry, internal
+
+
+def describe_value(value: object, root: Path, depth: int = 0) -> object:
+    """Identity of a closure cell, default or partial argument."""
+    if depth > 4:
+        raise Undescribable("nested too deeply")
+    if isinstance(value, _SCALARS):
+        return repr(value)
+    try:
+        import torch
+
+        if isinstance(value, (torch.dtype, torch.device)):
+            return repr(value)
+    except ImportError:
+        pass
+    if isinstance(value, type):
+        return {"type": _type_name(value)}
+    if inspect.ismodule(value):
+        return {"module": value.__name__}
+    if inspect.isfunction(value):
+        return _code(value, root)[0]
+    if inspect.ismethod(value):
+        return {
+            "method": f"{_type_name(value.__self__)}.{value.__func__.__qualname__}",
+            "self": describe_value(getattr(value.__self__, "__dict__", {}), root, depth + 1),
+        }
+    if inspect.isbuiltin(value):
+        return {"builtin": f"{getattr(value, '__module__', None)}.{value.__qualname__}"}
+    if isinstance(value, (tuple, list, frozenset, set)) and len(value) <= _MAX_ITEMS:
+        items = [describe_value(v, root, depth + 1) for v in value]
+        return {_type_name(value): sorted(map(repr, items)) if isinstance(value, (set, frozenset)) else items}
+    if isinstance(value, dict) and len(value) <= _MAX_ITEMS and all(isinstance(k, str) for k in value):
+        return {"dict": {k: describe_value(v, root, depth + 1) for k, v in sorted(value.items())}}
+    if isinstance(value, functools.partial):
+        return {
+            "partial": describe_value(value.func, root, depth + 1),
+            "args": describe_value(value.args, root, depth + 1),
+            "keywords": describe_value(value.keywords, root, depth + 1),
+        }
+    raise Undescribable(f"cannot identify value of type {_type_name(value)}")
+
+
+def _level(current: object, root: Path) -> tuple[dict, object]:
+    """Describe one level and return the next level beneath it (or None)."""
+    entry: dict = {"type": _type_name(current)}
+    if isinstance(current, (staticmethod, classmethod)):
+        return entry, current.__func__
+    if isinstance(current, property):
+        return entry, current.fget
+    if isinstance(current, type):
+        location = None
+        try:
+            location, internal = _location(inspect.getsourcefile(current), root)
+            if internal:
+                entry["file_sha256"] = _sha256((root / location).read_bytes())
+        except TypeError:
+            pass
+        entry.update(type_name=_type_name(current), file=location)
+        return entry, None
+    if inspect.isfunction(current):
+        code, internal = _code(current, root)
+        entry.update(code)
+        if not internal:
+            entry["closure"] = [
+                [name, describe_value(cell.cell_contents, root)]
+                for name, cell in zip(current.__code__.co_freevars, current.__closure__ or ())
+            ]
+            entry["defaults"] = describe_value(current.__defaults__, root)
+            entry["kwdefaults"] = describe_value(current.__kwdefaults__ or {}, root)
+        return entry, getattr(current, "__wrapped__", None)
+    if isinstance(current, functools.partial):
+        entry["partial"] = describe_value(current, root)
+        return entry, None
+    if type(current).__name__ == "_lru_cache_wrapper":
+        entry["cache_parameters"] = current.cache_parameters()
+        return entry, current.__wrapped__
+    if type(current).__qualname__ in ("OpOverloadPacket", "OpOverload"):
+        name = getattr(current, "_qualified_op_name", None) or getattr(current, "name", None)
+        if callable(name):
+            name = name()
+        if not name:
+            raise Undescribable("operator without a qualified name")
+        entry["op"] = str(name)
+        return entry, None
+    raise Undescribable(f"cannot identify binding level of type {_type_name(current)}")
 
 
 def raw_attribute(target: str) -> object:
@@ -205,29 +333,16 @@ def raw_attribute(target: str) -> object:
 
 
 def live_chain(value: object, root: Path) -> list[dict]:
-    """Describe ``value`` and every ``__wrapped__`` level beneath it."""
+    """Describe ``value`` and every level beneath it; raise if unidentifiable."""
     chain: list[dict] = []
     seen: set[int] = set()
     current = value
-    while current is not None and id(current) not in seen:
+    while current is not None:
+        if id(current) in seen:
+            raise Undescribable("cyclic wrapper chain")
         seen.add(id(current))
-        entry: dict = {"type": _type_name(current)}
-        if isinstance(current, type):
-            entry["class"] = current.__qualname__
-            try:
-                entry["file"] = _location(inspect.getsourcefile(current), root)
-            except TypeError:
-                entry["file"] = None
-        code = getattr(current, "__code__", None)
-        if code is not None:
-            entry["code"] = [_location(code.co_filename, root), code.co_firstlineno]
+        entry, current = _level(current, root)
         chain.append(entry)
-        if isinstance(current, (staticmethod, classmethod)):
-            current = current.__func__
-        elif isinstance(current, property):
-            current = current.fget
-        else:
-            current = getattr(current, "__wrapped__", None)
     return chain
 
 
@@ -337,7 +452,7 @@ def verify(
                 owner_path, member = name.rsplit(".", 1)
                 owner = pkgutil.resolve_name(owner_path)
                 chain = live_chain(raw_attribute(name), root)
-            except (AttributeError, ImportError, ValueError) as error:
+            except (AttributeError, ImportError, ValueError, LookupError) as error:
                 problems.append(f"{name}: cannot resolve live binding: {error!r}")
                 continue
             if isinstance(owner, type) and member not in owner.__dict__:

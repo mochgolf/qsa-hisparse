@@ -12,8 +12,8 @@ Activation, in order:
    equal ``manifest.json`` exactly (rows, targets, hook types, members);
 2. every target and ``depends`` name must match its pinned module bytes and
    pinned live binding chain; properties cannot be hook targets;
-3. no hook from another plugin may overlap a target (same path, an ancestor
-   class, or a member of a replaced class);
+3. no hook from another plugin may overlap a target, attached member or
+   declared dependency (same path, an ancestor class, or a member);
 4. only this plugin's targets are applied (other plugins' hooks are left for
    SGLang's loader), and each is checked to have been replaced;
 5. members are attached to the final (possibly replaced) owners.
@@ -21,13 +21,14 @@ Activation, in order:
 ``configure_scheduler_process`` in every scheduler/TP process, after
 ``load_plugins()`` returned: it requires the registry entries of every
 patched target to be exactly the frozen set, no late hooks from this plugin
-or overlapping hooks from others, unchanged patched attributes and
-attachments, and writes an activation record when
+or overlapping hooks from others, unchanged patched attributes, attachments
+and dependency bindings, and writes an activation record when
 ``SGLANG_QSA_ACTIVATION_DIR`` is set.
 """
 
 import importlib
 import json
+from collections import Counter
 import logging
 import os
 import pkgutil
@@ -90,6 +91,7 @@ _attached: list[AttachSpec] = []
 _activated: Features | None = None
 _applied: dict[str, object] = {}
 _frozen_hooks: dict[str, tuple] = {}
+_frozen_depends: dict[str, object] = {}
 _attached_live: list[AttachSpec] = []
 
 
@@ -198,15 +200,16 @@ def _check_manifest(
     for feature in sorted(wanted - {FRAMEWORK}):
         if not any(entry["feature"] == feature for entry in manifest.values()):
             raise PluginActivationError(f"Feature {feature} has no manifest rows")
-    expected = set()
+    expected: Counter = Counter()
     for row, entry in manifest.items():
         if entry["feature"] not in wanted:
             continue
-        expected |= {("patch", row, p["target"], p["hook_type"]) for p in entry["patches"]}
-        expected |= {("attach", row, f"{a['owner']}.{a['name']}", "") for a in entry["attach"]}
-    declared = {("patch", s.row, s.target, s.hook_type) for s in specs}
-    declared |= {("attach", a.row, a.target, "") for a in attaches}
-    missing, extra = sorted(expected - declared), sorted(declared - expected)
+        expected.update(("patch", row, p["target"], p["hook_type"]) for p in entry["patches"])
+        expected.update(("attach", row, f"{a['owner']}.{a['name']}", "") for a in entry["attach"])
+    declared: Counter = Counter(("patch", s.row, s.target, s.hook_type) for s in specs)
+    declared.update(("attach", a.row, a.target, "") for a in attaches)
+    missing = sorted((expected - declared).elements())
+    extra = sorted((declared - expected).elements())
     if missing or extra:
         raise PluginActivationError(
             f"Declarations differ from manifest.json; missing {missing}; "
@@ -222,6 +225,10 @@ def collect(features: Features) -> tuple[list[PatchSpec], list[AttachSpec]]:
     specs = [spec for spec in _declared if spec.feature in wanted]
     attaches = [spec for spec in _attached if spec.feature in wanted]
 
+    keys = [(s.feature, s.row, s.target, s.hook_type) for s in specs]
+    repeated = sorted({k for k in keys if keys.count(k) > 1})
+    if repeated:
+        raise PluginActivationError(f"Hooks declared more than once: {repeated}")
     replaced: set[str] = set()
     for spec in specs:
         if spec.hook_type != "replace":
@@ -315,7 +322,9 @@ def activate(features: Features) -> list[PatchSpec]:
     from sglang.srt.plugins.hook_registry import HookRegistry, HookSource, HookType
 
     targets = {spec.target for spec in specs}
-    overlap = _foreign_overlaps(HookRegistry, targets | {a.target for a in attaches})
+    depends = names - targets
+    protected = targets | {a.target for a in attaches} | depends
+    overlap = _foreign_overlaps(HookRegistry, protected)
     if overlap:
         raise PluginActivationError(f"Other plugins hook overlapping targets: {overlap}")
     originals = {target: _raw_attribute(target) for target in targets}
@@ -338,6 +347,7 @@ def activate(features: Features) -> list[PatchSpec]:
         raise PluginActivationError(f"Hooks were not applied to: {failed}")
     _applied.update({target: _raw_attribute(target) for target in targets})
     _frozen_hooks.update({t: tuple(HookRegistry._hooks[t]) for t in targets})
+    _frozen_depends.update({d: _raw_attribute(d) for d in depends})
     # Attach last, so owners resolve to any class we replaced.
     _attach_all(attaches)
     _attached_live[:] = attaches
@@ -357,7 +367,7 @@ def verify_final(role: str, **details: object) -> None:
         raise PluginActivationError("verify_final called before activation")
     from sglang.srt.plugins.hook_registry import HookRegistry
 
-    targets = set(_applied) | {a.target for a in _attached_live}
+    targets = set(_applied) | {a.target for a in _attached_live} | set(_frozen_depends)
     overlap = _foreign_overlaps(HookRegistry, targets)
     if overlap:
         raise PluginActivationError(
@@ -374,9 +384,12 @@ def verify_final(role: str, **details: object) -> None:
     )
     if late:
         raise PluginActivationError(f"Hooks registered after activation: {late}")
-    changed = sorted(t for t, live in _applied.items() if _raw_attribute(t) is not live)
+    frozen = {**_frozen_depends, **_applied}
+    changed = sorted(t for t, live in frozen.items() if _raw_attribute(t) is not live)
     if changed:
-        raise PluginActivationError(f"Patched targets were replaced afterwards: {changed}")
+        raise PluginActivationError(
+            f"Patched targets or dependencies were replaced afterwards: {changed}"
+        )
     _verify_attached(_attached_live)
 
     directory = os.environ.get(ACTIVATION_DIR_ENV)

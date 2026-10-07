@@ -8,7 +8,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | P0-A inventory | done | `docs/patch-inventory.md`: 196 hunks → 89 rows, 39 REPLACE (~3,900 copied lines), 63 targets resolve at the pin |
 | P0-B baseline | done | `docs/baseline.md`: fork CPU 183 passed/7 skipped; pin subset 72 passed/3 skipped |
 | P0-C upstream status | done | `docs/upstream-status.md`: main `0b635266d4`, 1201 commits after pin |
-| G0 review | round 2 fixed; round 3 running | `reviews/G0*.md` |
+| G0 review | round 3 fixed; round 4 running | `reviews/G0*.md` |
 | Phase 1 W1–W7 | not started | |
 | G1 review | pending | |
 | Phase 2 GPU | approved (runtime-env-sglang-20260923) | |
@@ -60,3 +60,10 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   All fixed (`reviews/G0r-response.md`): module-level verifier, binding
   chains per mode, own-target apply with frozen hooks, manifest from the
   inventory, property rejection, full binding analysis. 56 framework tests.
+- G0 round 3: 4 must-fix (2 blockers) fixed: dependency protection,
+  identity-complete binding chains (`Undescribable` otherwise), duplicate
+  declaration rejection, wheel manifest. 68 framework tests. CUDA chains added.
+- 2026-10-07: production QSA service observed running (scheduler TP0/TP1,
+  ~45 GB per GPU), started outside this work. A CUDA-mode fingerprint refresh
+  (imports only, no model) ran while it was up. GPU validation must wait for
+  an agreed window; never stop or reuse its GPUs without the owner.

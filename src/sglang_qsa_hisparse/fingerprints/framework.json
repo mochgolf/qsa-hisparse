@@ -7,6 +7,19 @@
             "sglang/srt/managers/scheduler.py",
             5749
           ],
+          "file_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
+          "function": "sglang.srt.managers.scheduler.configure_scheduler_process",
+          "type": "builtins.function"
+        }
+      ],
+      "cuda": [
+        {
+          "code": [
+            "sglang/srt/managers/scheduler.py",
+            5749
+          ],
+          "file_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
+          "function": "sglang.srt.managers.scheduler.configure_scheduler_process",
           "type": "builtins.function"
         }
       ]
@@ -27,6 +40,19 @@
             "sglang/srt/managers/scheduler.py",
             5817
           ],
+          "file_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
+          "function": "sglang.srt.managers.scheduler.run_scheduler_process",
+          "type": "builtins.function"
+        }
+      ],
+      "cuda": [
+        {
+          "code": [
+            "sglang/srt/managers/scheduler.py",
+            5817
+          ],
+          "file_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
+          "function": "sglang.srt.managers.scheduler.run_scheduler_process",
           "type": "builtins.function"
         }
       ]
@@ -50,6 +76,22 @@
             "sglang/srt/plugins/hook_registry.py",
             181
           ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry.HookRegistry._apply_target",
+          "type": "builtins.function"
+        }
+      ],
+      "cuda": [
+        {
+          "type": "builtins.classmethod"
+        },
+        {
+          "code": [
+            "sglang/srt/plugins/hook_registry.py",
+            181
+          ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry.HookRegistry._apply_target",
           "type": "builtins.function"
         }
       ]
@@ -73,6 +115,22 @@
             "sglang/srt/plugins/hook_registry.py",
             168
           ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry.HookRegistry._target_sort_key",
+          "type": "builtins.function"
+        }
+      ],
+      "cuda": [
+        {
+          "type": "builtins.staticmethod"
+        },
+        {
+          "code": [
+            "sglang/srt/plugins/hook_registry.py",
+            168
+          ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry.HookRegistry._target_sort_key",
           "type": "builtins.function"
         }
       ]
@@ -96,6 +154,22 @@
             "sglang/srt/plugins/hook_registry.py",
             83
           ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry.HookRegistry.register",
+          "type": "builtins.function"
+        }
+      ],
+      "cuda": [
+        {
+          "type": "builtins.classmethod"
+        },
+        {
+          "code": [
+            "sglang/srt/plugins/hook_registry.py",
+            83
+          ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry.HookRegistry.register",
           "type": "builtins.function"
         }
       ]
@@ -116,6 +190,19 @@
             "sglang/srt/plugins/hook_registry.py",
             320
           ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry._propagate_patch",
+          "type": "builtins.function"
+        }
+      ],
+      "cuda": [
+        {
+          "code": [
+            "sglang/srt/plugins/hook_registry.py",
+            320
+          ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry._propagate_patch",
           "type": "builtins.function"
         }
       ]
@@ -136,6 +223,19 @@
             "sglang/srt/plugins/hook_registry.py",
             350
           ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry._wrap_fn",
+          "type": "builtins.function"
+        }
+      ],
+      "cuda": [
+        {
+          "code": [
+            "sglang/srt/plugins/hook_registry.py",
+            350
+          ],
+          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
+          "function": "sglang.srt.plugins.hook_registry._wrap_fn",
           "type": "builtins.function"
         }
       ]
@@ -156,6 +256,19 @@
             "sglang/srt/plugins/__init__.py",
             103
           ],
+          "file_sha256": "3a975a73f1a7887e68c81ea7a2530250597ac8ae978efc0b0f70f038a99a3164",
+          "function": "sglang.srt.plugins.load_plugins",
+          "type": "builtins.function"
+        }
+      ],
+      "cuda": [
+        {
+          "code": [
+            "sglang/srt/plugins/__init__.py",
+            103
+          ],
+          "file_sha256": "3a975a73f1a7887e68c81ea7a2530250597ac8ae978efc0b0f70f038a99a3164",
+          "function": "sglang.srt.plugins.load_plugins",
           "type": "builtins.function"
         }
       ]
