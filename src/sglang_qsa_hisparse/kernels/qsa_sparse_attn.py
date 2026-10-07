@@ -1,0 +1,522 @@
+"""QSA sparse GQA kernels with FP8 K/V descales (inventory A01-A09).
+
+Moved verbatim from fork ``ee8fe158d6`` ``layers/attention/qsa/sparse_attn.py``:
+the dtype helpers (A01), both prefill kernels (A02, A04), the compaction kernel
+(A07) and their launchers (A03, A05, A09). Definitions the fork left unchanged
+(``_get_best_config`` and the valid-count kernels) are used from the pinned
+module. ``patches/model_compat/qsa_attention.py`` installs the launchers.
+"""
+
+from typing import Optional
+
+import torch
+import triton
+import triton.language as tl
+
+from sglang.srt.layers.attention.qsa.sparse_attn import _get_best_config
+
+_FP8_DTYPES = (
+    torch.float8_e4m3fn,
+    torch.float8_e4m3fnuz,
+    torch.float8_e5m2,
+)
+
+
+def is_fp8_kv_dtype(dtype: torch.dtype) -> bool:
+    return dtype in _FP8_DTYPES
+
+
+def _validate_sparse_gqa_dtypes(
+    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor
+) -> bool:
+    """Return whether K/V are FP8 after validating the QSA compute contract."""
+
+    if k.dtype != v.dtype:
+        raise ValueError(f"QSA K/V dtypes must match, got {k.dtype} and {v.dtype}")
+    is_fp8 = is_fp8_kv_dtype(k.dtype)
+    if q.dtype not in (torch.bfloat16, torch.float16):
+        raise ValueError(f"QSA expects BF16/FP16 queries, got {q.dtype}")
+    if not is_fp8 and k.dtype != q.dtype:
+        raise ValueError(
+            f"QSA K/V must match query dtype {q.dtype} or use FP8, got {k.dtype}"
+        )
+    return is_fp8
+
+
+def _unit_scale(scale: Optional[float]) -> float:
+    return 1.0 if scale is None else float(scale)
+
+
+@triton.jit
+def _sparse_gqa_prefill(
+    q,
+    k,
+    v,
+    out,
+    indices,
+    cu_seqlens,
+    scale,
+    k_scale,
+    v_scale,
+    topk,
+    sq_m: tl.constexpr,
+    sq_h: tl.constexpr,
+    sq_d: tl.constexpr,
+    sk_n: tl.constexpr,
+    sk_h: tl.constexpr,
+    sk_d: tl.constexpr,
+    sv_n: tl.constexpr,
+    sv_h: tl.constexpr,
+    sv_d: tl.constexpr,
+    so_m: tl.constexpr,
+    so_h: tl.constexpr,
+    so_d: tl.constexpr,
+    si_m: tl.constexpr,
+    si_g: tl.constexpr,
+    si_n: tl.constexpr,
+    NUM_KV_HEADS: tl.constexpr,
+    GROUP_SIZE: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    KV_IS_FP8: tl.constexpr,
+):
+    batch_group = tl.program_id(1)
+    group = batch_group % NUM_KV_HEADS
+    batch = batch_group // NUM_KV_HEADS
+    seq_start = tl.load(cu_seqlens + batch).to(tl.int64)
+    seq_end = tl.load(cu_seqlens + batch + 1).to(tl.int64)
+    query_relative = tl.program_id(0).to(tl.int64)
+    query = seq_start + query_relative
+    if query >= seq_end:
+        return
+
+    row_topk = tl.minimum(topk, query_relative + 1)
+    row_limit = tl.minimum(topk, ((row_topk + BLOCK_N - 1) // BLOCK_N) * BLOCK_N)
+    offs_h = tl.arange(0, BLOCK_M)
+    offs_d = tl.arange(0, HEAD_DIM)
+    head_start = group * GROUP_SIZE
+    q_values = tl.load(
+        q
+        + query * sq_m
+        + (head_start + offs_h[:, None]) * sq_h
+        + offs_d[None, :] * sq_d,
+        mask=(offs_h < GROUP_SIZE)[:, None],
+        other=0.0,
+    )
+    q_values = (q_values * scale * 1.4426950408).to(q_values.dtype)
+    k_base = k + seq_start * sk_n + group * sk_h
+    v_base = v + seq_start * sv_n + group * sv_h
+    idx_row = indices + query * si_m + group * si_g
+    max_value = tl.full([BLOCK_M], -float("inf"), tl.float32)
+    normalizer = tl.zeros([BLOCK_M], tl.float32)
+    accumulator = tl.zeros([BLOCK_M, HEAD_DIM], tl.float32)
+    offs_n = tl.arange(0, BLOCK_N)
+    for start in range(0, row_limit, BLOCK_N):
+        current = start + offs_n
+        token = tl.load(idx_row + current * si_n, mask=current < topk, other=-1)
+        valid = token >= 0
+        keys = tl.load(
+            k_base + token[None, :] * sk_n + offs_d[:, None] * sk_d,
+            mask=valid[None, :],
+            other=0.0,
+        )
+        if KV_IS_FP8:
+            # Triton cannot dot BF16/FP16 queries with FP8 cache values.
+            keys = keys.to(q_values.dtype)
+        values = tl.load(
+            v_base + token[:, None] * sv_n + offs_d[None, :] * sv_d,
+            mask=valid[:, None],
+            other=0.0,
+        )
+        if KV_IS_FP8:
+            values = values.to(q_values.dtype)
+        scores = tl.dot(q_values, keys)
+        if KV_IS_FP8:
+            scores *= k_scale
+        scores = tl.where(valid[None, :], scores, -float("inf"))
+        next_max = tl.maximum(max_value, tl.max(scores, 1))
+        alpha = tl.math.exp2(max_value - next_max)
+        probabilities = tl.math.exp2(scores - next_max[:, None])
+        if KV_IS_FP8:
+            accumulator = (
+                accumulator * alpha[:, None]
+                + tl.dot(probabilities.to(values.dtype), values) * v_scale
+            )
+        else:
+            accumulator = tl.dot(
+                probabilities.to(values.dtype), values, accumulator * alpha[:, None]
+            )
+        normalizer = normalizer * alpha + tl.sum(probabilities, 1)
+        max_value = next_max
+    output = accumulator / normalizer[:, None]
+    tl.store(
+        out
+        + query * so_m
+        + (head_start + offs_h[:, None]) * so_h
+        + offs_d[None, :] * so_d,
+        output,
+        mask=(offs_h < GROUP_SIZE)[:, None],
+    )
+
+
+def sparse_gqa_fwd_interface_triton(
+    q,
+    k,
+    v,
+    max_seqlen_k,
+    indices,
+    cu_seqlens,
+    scale,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+):
+    kv_is_fp8 = _validate_sparse_gqa_dtypes(q, k, v)
+    total_q, num_q_heads, head_dim = q.shape
+    num_kv_heads = k.shape[1]
+    group_size = num_q_heads // num_kv_heads
+    block_m = max(16, triton.next_power_of_2(group_size))
+    block_n, warps, stages = _get_best_config(total_q)
+    out = torch.empty_like(q)
+    _sparse_gqa_prefill[(max_seqlen_k, (cu_seqlens.shape[0] - 1) * num_kv_heads)](
+        q,
+        k,
+        v,
+        out,
+        indices,
+        cu_seqlens,
+        scale,
+        _unit_scale(k_scale),
+        _unit_scale(v_scale),
+        indices.shape[-1],
+        q.stride(0),
+        q.stride(1),
+        q.stride(2),
+        k.stride(0),
+        k.stride(1),
+        k.stride(2),
+        v.stride(0),
+        v.stride(1),
+        v.stride(2),
+        out.stride(0),
+        out.stride(1),
+        out.stride(2),
+        indices.stride(0),
+        indices.stride(1) if indices.ndim == 3 else 0,
+        indices.stride(2) if indices.ndim == 3 else indices.stride(1),
+        NUM_KV_HEADS=num_kv_heads,
+        GROUP_SIZE=group_size,
+        BLOCK_M=block_m,
+        BLOCK_N=block_n,
+        HEAD_DIM=head_dim,
+        KV_IS_FP8=kv_is_fp8,
+        num_warps=warps,
+        num_stages=stages,
+    )
+    return out
+
+
+@triton.jit
+def _sparse_gqa_chunk_prefill(
+    q,
+    k,
+    v,
+    out,
+    indices,
+    cu_q,
+    cu_k,
+    kv_lens,
+    scale,
+    k_scale,
+    v_scale,
+    topk,
+    sq_m: tl.constexpr,
+    sq_h: tl.constexpr,
+    sq_d: tl.constexpr,
+    sk_n: tl.constexpr,
+    sk_h: tl.constexpr,
+    sk_d: tl.constexpr,
+    sv_n: tl.constexpr,
+    sv_h: tl.constexpr,
+    sv_d: tl.constexpr,
+    so_m: tl.constexpr,
+    so_h: tl.constexpr,
+    so_d: tl.constexpr,
+    si_m: tl.constexpr,
+    si_g: tl.constexpr,
+    si_n: tl.constexpr,
+    NUM_KV_HEADS: tl.constexpr,
+    GROUP_SIZE: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    KV_IS_FP8: tl.constexpr,
+):
+    query_relative = tl.program_id(0).to(tl.int64)
+    batch_group = tl.program_id(1)
+    group = batch_group % NUM_KV_HEADS
+    batch = batch_group // NUM_KV_HEADS
+    q_start = tl.load(cu_q + batch)
+    q_end = tl.load(cu_q + batch + 1)
+    query = (q_start + query_relative).to(tl.int64)
+    if query >= q_end:
+        return
+    k_start = tl.load(cu_k + batch).to(tl.int64)
+    kv_len = tl.load(kv_lens + batch).to(tl.int64)
+    visible = query_relative + kv_len - (q_end - q_start) + 1
+    row_topk = tl.minimum(topk, visible)
+    row_limit = tl.minimum(topk, ((row_topk + BLOCK_N - 1) // BLOCK_N) * BLOCK_N)
+    offs_h = tl.arange(0, BLOCK_M)
+    offs_d = tl.arange(0, HEAD_DIM)
+    q_values = tl.load(
+        q
+        + query * sq_m
+        + (group * GROUP_SIZE + offs_h[:, None]) * sq_h
+        + offs_d[None, :] * sq_d,
+        mask=(offs_h < GROUP_SIZE)[:, None],
+        other=0.0,
+    )
+    q_values = (q_values * scale * 1.4426950408).to(q_values.dtype)
+    k_base = k + k_start * sk_n + group * sk_h
+    v_base = v + k_start * sv_n + group * sv_h
+    idx_row = indices + query * si_m + group * si_g
+    max_value = tl.full([BLOCK_M], -float("inf"), tl.float32)
+    normalizer = tl.zeros([BLOCK_M], tl.float32)
+    accumulator = tl.zeros([BLOCK_M, HEAD_DIM], tl.float32)
+    offs_n = tl.arange(0, BLOCK_N)
+    for start in range(0, row_limit, BLOCK_N):
+        current = start + offs_n
+        token = tl.load(idx_row + current * si_n, mask=current < topk, other=-1)
+        valid = token >= 0
+        keys = tl.load(
+            k_base + token[None, :] * sk_n + offs_d[:, None] * sk_d,
+            mask=valid[None, :],
+            other=0.0,
+        )
+        if KV_IS_FP8:
+            keys = keys.to(q_values.dtype)
+        values = tl.load(
+            v_base + token[:, None] * sv_n + offs_d[None, :] * sv_d,
+            mask=valid[:, None],
+            other=0.0,
+        )
+        if KV_IS_FP8:
+            values = values.to(q_values.dtype)
+        scores = tl.dot(q_values, keys)
+        if KV_IS_FP8:
+            scores *= k_scale
+        scores = tl.where(valid[None, :], scores, -float("inf"))
+        next_max = tl.maximum(max_value, tl.max(scores, 1))
+        alpha = tl.math.exp2(max_value - next_max)
+        probabilities = tl.math.exp2(scores - next_max[:, None])
+        if KV_IS_FP8:
+            accumulator = (
+                accumulator * alpha[:, None]
+                + tl.dot(probabilities.to(values.dtype), values) * v_scale
+            )
+        else:
+            accumulator = tl.dot(
+                probabilities.to(values.dtype), values, accumulator * alpha[:, None]
+            )
+        normalizer = normalizer * alpha + tl.sum(probabilities, 1)
+        max_value = next_max
+    output = accumulator / normalizer[:, None]
+    tl.store(
+        out
+        + query * so_m
+        + (group * GROUP_SIZE + offs_h[:, None]) * so_h
+        + offs_d[None, :] * so_d,
+        output,
+        mask=(offs_h < GROUP_SIZE)[:, None],
+    )
+
+
+def sparse_gqa_fwd_interface_triton_ck(
+    q,
+    k,
+    v,
+    indices,
+    cu_q,
+    cu_k,
+    kv_lens,
+    scale,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+):
+    k, v = k.contiguous(), v.contiguous()
+    kv_is_fp8 = _validate_sparse_gqa_dtypes(q, k, v)
+    total_q, num_q_heads, head_dim = q.shape
+    num_kv_heads = k.shape[1]
+    group_size = num_q_heads // num_kv_heads
+    max_q = int((cu_q[1:] - cu_q[:-1]).max().item())
+    block_m = max(16, triton.next_power_of_2(group_size))
+    block_n, warps, stages = _get_best_config(total_q)
+    out = torch.empty_like(q)
+    _sparse_gqa_chunk_prefill[(max_q, (cu_q.shape[0] - 1) * num_kv_heads)](
+        q,
+        k,
+        v,
+        out,
+        indices,
+        cu_q,
+        cu_k,
+        kv_lens,
+        scale,
+        _unit_scale(k_scale),
+        _unit_scale(v_scale),
+        indices.shape[-1],
+        q.stride(0),
+        q.stride(1),
+        q.stride(2),
+        k.stride(0),
+        k.stride(1),
+        k.stride(2),
+        v.stride(0),
+        v.stride(1),
+        v.stride(2),
+        out.stride(0),
+        out.stride(1),
+        out.stride(2),
+        indices.stride(0),
+        indices.stride(1) if indices.ndim == 3 else 0,
+        indices.stride(2) if indices.ndim == 3 else indices.stride(1),
+        NUM_KV_HEADS=num_kv_heads,
+        GROUP_SIZE=group_size,
+        BLOCK_M=block_m,
+        BLOCK_N=block_n,
+        HEAD_DIM=head_dim,
+        KV_IS_FP8=kv_is_fp8,
+        num_warps=warps,
+        num_stages=stages,
+    )
+    return out
+
+
+@triton.jit
+def _compact_kv(
+    k,
+    v,
+    req_to_token,
+    req_indices,
+    indices,
+    seq_lens,
+    cu_k,
+    out_k,
+    out_v,
+    k_scale,
+    v_scale,
+    topk: tl.constexpr,
+    heads: tl.constexpr,
+    dim: tl.constexpr,
+    req_stride: tl.constexpr,
+    idx_stride: tl.constexpr,
+    pad_cols,
+    BLOCK_TOPK: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+    DEQUANTIZE_FP8: tl.constexpr,
+    ZERO_FILL: tl.constexpr,
+):
+    batch, head, block = tl.program_id(0), tl.program_id(1), tl.program_id(2)
+    cols = block * BLOCK_TOPK + tl.arange(0, BLOCK_TOPK)
+    dims = tl.arange(0, BLOCK_D)
+    length = tl.load(seq_lens + batch)
+    req = tl.load(req_indices + batch)
+    pack_start = tl.load(cu_k + batch)
+    valid_count = tl.load(cu_k + batch + 1) - pack_start
+    positions = tl.load(indices + batch * idx_stride + cols, mask=cols < topk, other=-1)
+    valid = (cols < valid_count) & (positions >= 0) & (positions < length)
+    slots = tl.load(
+        req_to_token + req * req_stride + tl.where(valid, positions, 0),
+        mask=valid,
+        other=0,
+    )
+    # 64-bit element offsets: slot * heads * dim exceeds int32 once the pool holds
+    # more than 2^31 / (heads * dim) tokens (~4.2M for 2 x 256), which an FP8 pool
+    # on one GPU does reach.
+    src = slots.to(tl.int64)[:, None] * heads * dim + head * dim + dims[None, :]
+    dst = (
+        (pack_start + cols).to(tl.int64)[:, None] * heads * dim
+        + head * dim
+        + dims[None, :]
+    )
+    load_mask = valid[:, None] & (dims[None, :] < dim)
+    if ZERO_FILL:
+        # Strided (page-aligned) packing: the paged decode kernel reads whole pages,
+        # so every slot in [valid_count, pad_cols) must hold zeros, never stale bytes.
+        # `valid_count` here is the row's page-aligned stride, not its valid count, so
+        # the store covers the full region while the load stays limited to valid rows.
+        store_mask = (cols < pad_cols)[:, None] & (dims[None, :] < dim)
+    else:
+        store_mask = load_mask
+    k_values = tl.load(k + src, mask=load_mask, other=0.0)
+    v_values = tl.load(v + src, mask=load_mask, other=0.0)
+    if DEQUANTIZE_FP8:
+        k_values = k_values.to(tl.float32) * k_scale
+        v_values = v_values.to(tl.float32) * v_scale
+    tl.store(out_k + dst, k_values, mask=store_mask)
+    tl.store(out_v + dst, v_values, mask=store_mask)
+
+
+def qwen_sparse_kv_extraction_compact_triton(
+    k,
+    v,
+    req_to_token,
+    req_indices,
+    indices,
+    seq_lens,
+    cu_k,
+    out_k,
+    out_v,
+    batch,
+    topk,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+    zero_fill_cols: int = 0,
+):
+    """Gather the selected K/V rows into ``out_k``/``out_v``.
+
+    ``zero_fill_cols`` > 0 selects the strided (page-aligned) layout used by the paged
+    decode kernel: row ``b`` owns ``[cu_k[b], cu_k[b] + zero_fill_cols)`` and every slot
+    past its valid rows is zero-filled. Paged kernels read whole pages and multiply the
+    masked probabilities into V, so stale or uninitialized bytes there (NaN/Inf bit
+    patterns) would otherwise leak into the output. ``0`` keeps the compact layout for
+    the varlen fallback, whose rows are packed back-to-back.
+
+    ``out_k``/``out_v`` may use a wider dtype than the pool (bf16 scratch for an FP8
+    pool); rows are converted while gathering.
+
+    Both layouts assume the valid entries of each ``indices`` row are contiguous at
+    the front (``expand_qsa_block_indices`` sorts them that way): ``valid_count`` is a
+    count, not a mask, so a ``-1`` in the middle of a row would shift the packing.
+    """
+    if k.dtype != v.dtype or out_k.dtype != out_v.dtype:
+        raise ValueError("QSA compact K/V input and output dtype pairs must match")
+    dequantize_fp8 = is_fp8_kv_dtype(k.dtype) and not is_fp8_kv_dtype(out_k.dtype)
+    _, heads, dim = k.shape
+    block_topk = 16
+    zero_fill = zero_fill_cols > 0
+    num_cols = zero_fill_cols if zero_fill else topk
+    _compact_kv[(batch, heads, triton.cdiv(num_cols, block_topk))](
+        k,
+        v,
+        req_to_token,
+        req_indices,
+        indices,
+        seq_lens,
+        cu_k,
+        out_k,
+        out_v,
+        _unit_scale(k_scale),
+        _unit_scale(v_scale),
+        topk,
+        heads,
+        dim,
+        req_to_token.stride(0),
+        indices.stride(0),
+        num_cols,
+        BLOCK_TOPK=block_topk,
+        BLOCK_D=triton.next_power_of_2(dim),
+        DEQUANTIZE_FP8=dequantize_fp8,
+        ZERO_FILL=zero_fill,
+        num_warps=8,
+    )
