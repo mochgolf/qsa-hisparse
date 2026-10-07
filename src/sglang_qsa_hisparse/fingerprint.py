@@ -9,13 +9,21 @@ Each record also has
 - ``sha256``: raw bytes of the definition, its decorators, and the
   decorator/header lines of every enclosing class (upgrade diagnostics);
 - ``chains``: per binding mode (``cpu``/``cuda``, because some SGLang modules
-  choose implementations at import time from CUDA availability), the live
-  binding as imported from the pinned checkout, from the attribute itself
-  through every ``__wrapped__`` level (type and code location per level).
-  Activation recomputes the chain for the current mode from the installed
-  objects and requires an exact match, so a foreign wrapper, even one using
-  ``functools.wraps``, cannot pass as the pinned definition. A missing chain
-  for the current mode fails activation; regenerate it in that mode.
+  choose implementations at import time from CUDA availability), a
+  description of the live binding as imported from the pinned checkout: the
+  attribute and every level beneath it (descriptor, ``property.fget``,
+  ``__wrapped__``), with each function's code location, closure, defaults
+  and keyword defaults (recursively), class members, ``lru_cache``
+  parameters, ``partial`` arguments, and operator dispatcher registrations.
+  Levels or values that cannot be identified raise ``Undescribable`` when the
+  record is written. Activation recomputes the chain for the current mode and
+  requires an exact match; ``patching.verify_final`` recomputes it again.
+
+Threat model: see ``docs/PLAN.md`` ("Activation guarantees"). These checks
+detect SGLang source drift from the pin and replacement, wrapping or
+identifiable in-place mutation of protected bindings up to final
+verification. They do not detect later mutations, native-library changes
+(versions are recorded by the launcher), or state marked unchecked.
 
 Writing a record requires exactly one binding of each name along the
 qualified path, counting every Python binding form in that scope.
@@ -25,7 +33,9 @@ parallel work does not share a file).
 """
 
 import ast
+import enum
 import functools
+import re
 import hashlib
 import importlib
 import inspect
@@ -55,6 +65,12 @@ def _expression_bindings(node: ast.AST, names: list[str], in_comprehension: bool
     if isinstance(node, ast.NamedExpr):
         names.append(node.target.id)  # Walrus binds outside comprehensions too.
         _expression_bindings(node.value, names, in_comprehension)
+        return
+    if isinstance(node, ast.Lambda):
+        # Defaults are evaluated in the enclosing scope; the body is not.
+        arguments = node.args
+        for default in arguments.defaults + [d for d in arguments.kw_defaults if d]:
+            _expression_bindings(default, names, in_comprehension)
         return
     if isinstance(node, _NEW_SCOPES):
         return
@@ -146,8 +162,23 @@ def _statements(scope: ast.AST):
                     pending.append(child)
 
 
+def _global_rebindings(module: ast.Module, name: str) -> int:
+    """Bindings of ``name`` in nested scopes that declare it ``global``."""
+    count = 0
+    for node in ast.walk(module):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        statements = list(_statements(node))
+        if any(isinstance(s, ast.Global) and name in s.names for s in statements):
+            count += sum(_statement_bindings(s).count(name) for s in statements)
+    return count
+
+
 def binding_count(scope: ast.AST, name: str) -> int:
-    return sum(_statement_bindings(s).count(name) for s in _statements(scope))
+    count = sum(_statement_bindings(s).count(name) for s in _statements(scope))
+    if isinstance(scope, ast.Module):
+        count += _global_rebindings(scope, name)
+    return count
 
 
 def _locate(tree: ast.Module, qualname: str) -> tuple[ast.AST, list[ast.ClassDef]]:
@@ -206,6 +237,7 @@ def definition_record(path: str | Path, qualname: str) -> dict:
 # outside the pinned tree (library decorators) also describe their closure and
 # defaults, which is where decorator factories keep their configuration.
 
+CHAIN_FORMAT = 2  # Bump whenever live_chain's description changes.
 _SCALARS = (type(None), bool, int, float, complex, str, bytes)
 _MAX_ITEMS = 64
 
@@ -239,6 +271,18 @@ def _code(function, root: Path) -> dict:
     return entry, internal
 
 
+def _function_state(function, root: Path, depth: int) -> dict:
+    """Code identity plus everything a function object carries besides code."""
+    entry, _ = _code(function, root)
+    entry["closure"] = [
+        [name, describe_value(cell.cell_contents, root, depth)]
+        for name, cell in zip(function.__code__.co_freevars, function.__closure__ or ())
+    ]
+    entry["defaults"] = describe_value(function.__defaults__, root, depth)
+    entry["kwdefaults"] = describe_value(function.__kwdefaults__ or {}, root, depth)
+    return entry
+
+
 def describe_value(value: object, root: Path, depth: int = 0) -> object:
     """Identity of a closure cell, default or partial argument."""
     if depth > 4:
@@ -256,8 +300,10 @@ def describe_value(value: object, root: Path, depth: int = 0) -> object:
         return {"type": _type_name(value)}
     if inspect.ismodule(value):
         return {"module": value.__name__}
+    if isinstance(value, enum.Enum):
+        return {"enum": f"{_type_name(value)}.{value.name}"}
     if inspect.isfunction(value):
-        return _code(value, root)[0]
+        return _function_state(value, root, depth + 1)
     if inspect.ismethod(value):
         return {
             "method": f"{_type_name(value.__self__)}.{value.__func__.__qualname__}",
@@ -295,17 +341,15 @@ def _level(current: object, root: Path) -> tuple[dict, object]:
         except TypeError:
             pass
         entry.update(type_name=_type_name(current), file=location)
+        entry["members"] = {
+            name: live_chain(member, root)
+            for name, member in sorted(current.__dict__.items())
+            if inspect.isfunction(member)
+            or isinstance(member, (staticmethod, classmethod, property, functools.partial))
+        }
         return entry, None
     if inspect.isfunction(current):
-        code, internal = _code(current, root)
-        entry.update(code)
-        if not internal:
-            entry["closure"] = [
-                [name, describe_value(cell.cell_contents, root)]
-                for name, cell in zip(current.__code__.co_freevars, current.__closure__ or ())
-            ]
-            entry["defaults"] = describe_value(current.__defaults__, root)
-            entry["kwdefaults"] = describe_value(current.__kwdefaults__ or {}, root)
+        entry.update(_function_state(current, root, 0))
         return entry, getattr(current, "__wrapped__", None)
     if isinstance(current, functools.partial):
         entry["partial"] = describe_value(current, root)
@@ -320,8 +364,30 @@ def _level(current: object, root: Path) -> tuple[dict, object]:
         if not name:
             raise Undescribable("operator without a qualified name")
         entry["op"] = str(name)
+        entry["dispatch"] = _dispatch_registrations(str(name), root)
         return entry, None
     raise Undescribable(f"cannot identify binding level of type {_type_name(current)}")
+
+
+def _dispatch_registrations(op: str, root: Path) -> list[str]:
+    """Dispatcher kernel registrations of ``op`` with normalized locations."""
+    import torch
+
+    def normalize(match):
+        location, _ = _location(match.group(1), root)
+        return f"registered at {location}:{match.group(2)}"
+
+    try:
+        dump = torch._C._dispatch_dump(op)
+    except RuntimeError as error:
+        raise Undescribable(f"no dispatcher entry for {op}: {error}") from error
+    lines = []
+    for line in dump.splitlines():
+        if line.startswith(("name:", "schema:", "debug:", "alias analysis")):
+            lines.append(line)
+        elif "registered at" in line:
+            lines.append(re.sub(r"registered at (\S+?):(\d+)", normalize, line))
+    return lines
 
 
 def raw_attribute(target: str) -> object:
@@ -386,9 +452,14 @@ def record(source_root: str | Path, target: str, previous: dict | None = None) -
         )
     data = {"file": file, **definition_record(root / file, qualname)}
     chains = {}
-    if previous and previous.get("module_sha256") == data["module_sha256"]:
+    if (
+        previous
+        and previous.get("module_sha256") == data["module_sha256"]
+        and previous.get("chain_format") == CHAIN_FORMAT
+    ):
         chains.update(previous.get("chains", {}))
     chains[binding_mode()] = live_chain(raw_attribute(target), root)
+    data["chain_format"] = CHAIN_FORMAT
     data["chains"] = dict(sorted(chains.items()))
     return data
 
@@ -444,6 +515,9 @@ def verify(
             continue
         if check_bindings:
             mode = binding_mode()
+            if expected.get("chain_format") != CHAIN_FORMAT:
+                problems.append(f"{name}: binding chain format is stale; refresh records")
+                continue
             pinned_chain = expected.get("chains", {}).get(mode)
             if pinned_chain is None:
                 problems.append(f"{name}: no pinned binding chain for mode {mode}")

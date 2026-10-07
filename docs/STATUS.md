@@ -8,7 +8,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | P0-A inventory | done | `docs/patch-inventory.md`: 196 hunks → 89 rows, 39 REPLACE (~3,900 copied lines), 63 targets resolve at the pin |
 | P0-B baseline | done | `docs/baseline.md`: fork CPU 183 passed/7 skipped; pin subset 72 passed/3 skipped |
 | P0-C upstream status | done | `docs/upstream-status.md`: main `0b635266d4`, 1201 commits after pin |
-| G0 review | round 3 fixed; round 4 running | `reviews/G0*.md` |
+| G0 review | round 4 fixed; round 5 running | `reviews/G0*.md` |
 | Phase 1 W1–W7 | not started | |
 | G1 review | pending | |
 | Phase 2 GPU | approved (runtime-env-sglang-20260923) | |
@@ -67,3 +67,6 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   ~45 GB per GPU), started outside this work. A CUDA-mode fingerprint refresh
   (imports only, no model) ran while it was up. GPU validation must wait for
   an agreed window; never stop or reuse its GPUs without the owner.
+- G0 round 4: 2 blockers (shallow behavior records; unmanifested same-source
+  hooks) and 2 minor items fixed; threat model documented in PLAN.md. CUDA
+  chains must be regenerated in a GPU window (chain format 2). 80 tests.

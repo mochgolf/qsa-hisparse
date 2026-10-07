@@ -77,6 +77,7 @@ def registry():
         patching._applied.clear()
         patching._frozen_hooks.clear()
         patching._frozen_depends.clear()
+        patching._snapshots.clear()
         patching._attached_live.clear()
 
     clear()
@@ -241,11 +242,15 @@ def test_method_record_covers_class_header(fake):
         ("\ndef other(x=(double := 1)):\n    pass\n", "double"),
         ("\nclass Other((double := object)):\n    pass\n", "double"),
         ("\nvalue: (double := int)\n", "double"),
+        ("\ng = lambda x=(double := 1): x\n", "double"),
+        ("\nclass Other:\n    global double\n    double = 1\n", "double"),
+        ("\ndef other():\n    global double\n    double = 1\n", "double"),
         ("", "Child.value"),
     ],
     ids=["conditional", "reassigned", "imported", "except-alias", "match-capture",
          "walrus", "for-target", "with-target", "del", "default-walrus",
-         "base-walrus", "annotation-walrus", "inherited"],
+         "base-walrus", "annotation-walrus", "lambda-default", "class-global",
+         "function-global", "inherited"],
 )
 def test_ambiguous_or_inherited_bindings_cannot_be_pinned(fake, suffix, qualname):
     fake.path.write_text(MODULE + suffix)
@@ -279,8 +284,13 @@ def test_non_bindings_do_not_count(fake, suffix):
             functools.lru_cache(maxsize=None)(f),
         ),
         lambda torch, f: (functools.partial(f, 1), functools.partial(f, 2)),
+        lambda torch, f: (torch.set_grad_enabled(False)(f), torch.set_grad_enabled(True)(f)),
+        lambda torch, f: (
+            functools.partial(_closure_over(3)),
+            functools.partial(_closure_over(4)),
+        ),
     ],
-    ids=["grad-mode", "operator", "lru-cache", "partial"],
+    ids=["grad-mode", "operator", "lru-cache", "partial", "grad-setting", "partial-closure"],
 )
 def test_chains_identify_behavior(build, tmp_path):
     import torch
@@ -290,6 +300,26 @@ def test_chains_identify_behavior(build, tmp_path):
 
     first, second = build(torch, f)
     assert fingerprint.live_chain(first, tmp_path) != fingerprint.live_chain(second, tmp_path)
+
+
+def _closure_over(value):
+    def inner():
+        return value
+
+    return inner
+
+
+def test_operator_kernel_registrations_are_part_of_the_chain(tmp_path):
+    import torch
+
+    library = torch.library.Library("qsa_fw_probe", "DEF")
+    library.define("f(Tensor x) -> Tensor")
+    library.impl("f", lambda x: x + 1, "CPU")
+    before = fingerprint.live_chain(torch.ops.qsa_fw_probe.f, tmp_path)
+    override = torch.library.Library("qsa_fw_probe", "IMPL")
+    override.impl("f", lambda x: x * 4, "CPU", allow_override=True)  # different line
+    after = fingerprint.live_chain(torch.ops.qsa_fw_probe.f, tmp_path)
+    assert before != after
 
 
 def test_unidentifiable_levels_are_rejected(tmp_path):
@@ -436,6 +466,77 @@ def test_decorator_configuration_is_part_of_the_binding(registry, fake, monkeypa
         patching.activate(COMPAT)
 
 
+@pytest.mark.parametrize("mutation", ["class-member", "defaults"])
+def test_in_place_mutation_before_activation_fails(registry, fake, monkeypatch, mutation):
+    fake.pin("qsa_fake.mod.double", "qsa_fake.mod.Box")
+    mod = _mod()
+    patching.patch(
+        "qsa_fake.mod.double", "after", feature="model_compat", row="R1",
+        depends=("qsa_fake.mod.Box",),
+    )(lambda result, x: result)
+    if mutation == "class-member":
+        monkeypatch.setattr(mod.Box, "value", lambda self: 9)
+        expected = "Box: live binding"
+    else:
+        monkeypatch.setattr(mod.double, "__defaults__", (1,))
+        expected = "double: live binding"
+    with pytest.raises(FingerprintMismatch, match=expected):
+        patching.activate(COMPAT)
+
+
+@pytest.mark.parametrize("mutation", ["defaults", "class-member"])
+def test_in_place_mutation_after_activation_fails_final_check(registry, fake, mutation):
+    fake.pin("qsa_fake.mod.double", "qsa_fake.mod.helper", "qsa_fake.mod.Box")
+    patching.patch(
+        "qsa_fake.mod.double", "after", feature="model_compat", row="R1",
+        depends=("qsa_fake.mod.helper", "qsa_fake.mod.Box"),
+    )(lambda result, x: result)
+    patching.activate(COMPAT)
+    patching.verify_final("scheduler")
+    mod = _mod()
+    if mutation == "defaults":
+        mod.helper.__kwdefaults__ = {"unused": 1}
+    else:
+        mod.Box.value = lambda self: 9
+    with pytest.raises(PluginActivationError, match="changed in place"):
+        patching.verify_final("scheduler")
+
+
+def test_unmanifested_entries_claiming_this_plugin_fail(registry, fake):
+    from sglang.srt.plugins.hook_registry import HookType
+
+    fake.pin("qsa_fake.mod.Box.value")
+    registry.register(
+        "qsa_fake.mod.Box.value",
+        lambda original, self: original.__wrapped__(self),
+        HookType.AROUND,
+        source=patching._source(),
+    )
+    patching.patch("qsa_fake.mod.Box.value", "replace", feature="model_compat", row="R1")(
+        lambda self: "QSA"
+    )
+    with pytest.raises(PluginActivationError, match="already registered"):
+        patching.activate(COMPAT)
+
+
+def test_manifest_feature_ownership_is_checked(registry, fake):
+    fake.pin("qsa_fake.mod.double", "qsa_fake.mod.helper")
+    patching.patch("qsa_fake.mod.double", "after", feature="model_compat", row="R1")(
+        lambda result, x: result
+    )
+    patching.patch("qsa_fake.mod.helper", "after", feature="hisparse", row="R2")(
+        lambda result: result
+    )
+    fake.manifest = {
+        "R1": {"feature": "hisparse", "attach": [],
+               "patches": [{"target": "qsa_fake.mod.double", "hook_type": "after"}]},
+        "R2": {"feature": "model_compat", "attach": [],
+               "patches": [{"target": "qsa_fake.mod.helper", "hook_type": "after"}]},
+    }
+    with pytest.raises(PluginActivationError, match="differ from manifest"):
+        patching.activate(BOTH)
+
+
 def test_duplicate_hook_declarations_fail(registry, fake):
     fake.pin("qsa_fake.mod.double")
     for _ in range(2):
@@ -464,7 +565,7 @@ def test_dependencies_are_protected(registry, fake):
         patching.verify_final("scheduler")
 
     registry.register("qsa_fake.mod.helper", lambda: 0, HookType.REPLACE, source=_foreign())
-    with pytest.raises(PluginActivationError, match="overlapping"):
+    with pytest.raises(PluginActivationError, match="already registered"):
         patching.activate(COMPAT)
 
     registry.reset()
@@ -536,7 +637,7 @@ def test_earlier_foreign_hooks_fail(registry, fake, foreign_target):
     patching.patch("qsa_fake.mod.Box.value", "after", feature="model_compat", row="R1")(
         lambda result, self: result + 1
     )
-    with pytest.raises(PluginActivationError, match="overlapping"):
+    with pytest.raises(PluginActivationError, match="already registered"):
         patching.activate(COMPAT)
 
 

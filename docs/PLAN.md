@@ -55,6 +55,32 @@ this repository; `fork:` is `../qsa-hisparse` at `ee8fe158d6`; `pin:` is
 10. **Report** in your final message: files changed, tests run with results,
    unresolved items, and any deviation from this plan.
 
+## Activation guarantees (threat model)
+
+Detected and fail closed (process stops before serving):
+- SGLang source drift: any byte change in a module that contains a patch
+  target or a declared dependency, or in a pinned-tree file implementing a
+  decorator level of such a binding.
+- Replacement or wrapping of a protected binding (target, dependency) and
+  identifiable in-place changes to it (code, closures, defaults, class
+  members, decorator configuration, operator kernel registration locations),
+  before activation or between activation and final verification in each
+  scheduler/TP process.
+- HookRegistry entries on or around protected names that this activation did
+  not declare (any source), registered before or after activation.
+- Incomplete or extra declarations versus `manifest.json` (per feature).
+- Missing activation in any scheduler/TP process (launcher readiness check).
+
+Not detected (out of scope; controlled by deployment):
+- Mutations after final verification, or by code that also tampers with the
+  plugin's own verifier; state of bindings listed in `unchecked_bindings`;
+  re-registration of an operator kernel from the same source location.
+- Native library changes (torch, sglang-kernel, flashinfer, triton): the
+  launcher records versions in activation records and refuses versions other
+  than the validated environment lock.
+- Other general plugins: the launcher sets `SGLANG_PLUGINS=qsa_hisparse` so
+  no other general plugin loads in served processes.
+
 ## Layout
 
 | Path | Content | Owner |

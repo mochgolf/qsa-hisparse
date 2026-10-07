@@ -1,25 +1,26 @@
 {
   "sglang.srt.managers.scheduler.configure_scheduler_process": {
+    "chain_format": 2,
     "chains": {
       "cpu": [
         {
+          "closure": [],
           "code": [
             "sglang/srt/managers/scheduler.py",
             5749
           ],
+          "defaults": {
+            "builtins.tuple": [
+              "None",
+              "None",
+              "None"
+            ]
+          },
           "file_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
           "function": "sglang.srt.managers.scheduler.configure_scheduler_process",
-          "type": "builtins.function"
-        }
-      ],
-      "cuda": [
-        {
-          "code": [
-            "sglang/srt/managers/scheduler.py",
-            5749
-          ],
-          "file_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
-          "function": "sglang.srt.managers.scheduler.configure_scheduler_process",
+          "kwdefaults": {
+            "dict": {}
+          },
           "type": "builtins.function"
         }
       ]
@@ -33,26 +34,27 @@
     "sha256": "405472456ec64b9dafea75a3c717cdddb001caeb43a7cdc102d6401c378c3c51"
   },
   "sglang.srt.managers.scheduler.run_scheduler_process": {
+    "chain_format": 2,
     "chains": {
       "cpu": [
         {
+          "closure": [],
           "code": [
             "sglang/srt/managers/scheduler.py",
             5817
           ],
+          "defaults": {
+            "builtins.tuple": [
+              "None",
+              "None",
+              "None"
+            ]
+          },
           "file_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
           "function": "sglang.srt.managers.scheduler.run_scheduler_process",
-          "type": "builtins.function"
-        }
-      ],
-      "cuda": [
-        {
-          "code": [
-            "sglang/srt/managers/scheduler.py",
-            5817
-          ],
-          "file_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
-          "function": "sglang.srt.managers.scheduler.run_scheduler_process",
+          "kwdefaults": {
+            "dict": {}
+          },
           "type": "builtins.function"
         }
       ]
@@ -66,32 +68,24 @@
     "sha256": "b11d68ff49dfc216bda7932c3228b69710337611f830a8b2a10b2bb91ca9846c"
   },
   "sglang.srt.plugins.hook_registry.HookRegistry._apply_target": {
+    "chain_format": 2,
     "chains": {
       "cpu": [
         {
           "type": "builtins.classmethod"
         },
         {
+          "closure": [],
           "code": [
             "sglang/srt/plugins/hook_registry.py",
             181
           ],
+          "defaults": "None",
           "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
           "function": "sglang.srt.plugins.hook_registry.HookRegistry._apply_target",
-          "type": "builtins.function"
-        }
-      ],
-      "cuda": [
-        {
-          "type": "builtins.classmethod"
-        },
-        {
-          "code": [
-            "sglang/srt/plugins/hook_registry.py",
-            181
-          ],
-          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
-          "function": "sglang.srt.plugins.hook_registry.HookRegistry._apply_target",
+          "kwdefaults": {
+            "dict": {}
+          },
           "type": "builtins.function"
         }
       ]
@@ -105,32 +99,24 @@
     "sha256": "be068c601d81a79a35f24b6c23c7d464a6c1b42fdd97a406c0557072bb5ce303"
   },
   "sglang.srt.plugins.hook_registry.HookRegistry._target_sort_key": {
+    "chain_format": 2,
     "chains": {
       "cpu": [
         {
           "type": "builtins.staticmethod"
         },
         {
+          "closure": [],
           "code": [
             "sglang/srt/plugins/hook_registry.py",
             168
           ],
+          "defaults": "None",
           "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
           "function": "sglang.srt.plugins.hook_registry.HookRegistry._target_sort_key",
-          "type": "builtins.function"
-        }
-      ],
-      "cuda": [
-        {
-          "type": "builtins.staticmethod"
-        },
-        {
-          "code": [
-            "sglang/srt/plugins/hook_registry.py",
-            168
-          ],
-          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
-          "function": "sglang.srt.plugins.hook_registry.HookRegistry._target_sort_key",
+          "kwdefaults": {
+            "dict": {}
+          },
           "type": "builtins.function"
         }
       ]
@@ -144,32 +130,32 @@
     "sha256": "e39840950d99d67b912a04bdf237d8d451c6dbd1cc2aa76b41568ad8aa3e03ec"
   },
   "sglang.srt.plugins.hook_registry.HookRegistry.register": {
+    "chain_format": 2,
     "chains": {
       "cpu": [
         {
           "type": "builtins.classmethod"
         },
         {
+          "closure": [],
           "code": [
             "sglang/srt/plugins/hook_registry.py",
             83
           ],
+          "defaults": {
+            "builtins.tuple": [
+              {
+                "enum": "sglang.srt.plugins.hook_registry.HookType.AFTER"
+              }
+            ]
+          },
           "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
           "function": "sglang.srt.plugins.hook_registry.HookRegistry.register",
-          "type": "builtins.function"
-        }
-      ],
-      "cuda": [
-        {
-          "type": "builtins.classmethod"
-        },
-        {
-          "code": [
-            "sglang/srt/plugins/hook_registry.py",
-            83
-          ],
-          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
-          "function": "sglang.srt.plugins.hook_registry.HookRegistry.register",
+          "kwdefaults": {
+            "dict": {
+              "source": "None"
+            }
+          },
           "type": "builtins.function"
         }
       ]
@@ -183,26 +169,21 @@
     "sha256": "802aea688985e5a20a0f1704b0496a21dbdf3a17476c86c4a65b4a9b656cf49e"
   },
   "sglang.srt.plugins.hook_registry._propagate_patch": {
+    "chain_format": 2,
     "chains": {
       "cpu": [
         {
+          "closure": [],
           "code": [
             "sglang/srt/plugins/hook_registry.py",
             320
           ],
+          "defaults": "None",
           "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
           "function": "sglang.srt.plugins.hook_registry._propagate_patch",
-          "type": "builtins.function"
-        }
-      ],
-      "cuda": [
-        {
-          "code": [
-            "sglang/srt/plugins/hook_registry.py",
-            320
-          ],
-          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
-          "function": "sglang.srt.plugins.hook_registry._propagate_patch",
+          "kwdefaults": {
+            "dict": {}
+          },
           "type": "builtins.function"
         }
       ]
@@ -216,26 +197,21 @@
     "sha256": "49c03f76266054fb81be18c81c89419c60716d79bf7857729c2aff0e762d5e61"
   },
   "sglang.srt.plugins.hook_registry._wrap_fn": {
+    "chain_format": 2,
     "chains": {
       "cpu": [
         {
+          "closure": [],
           "code": [
             "sglang/srt/plugins/hook_registry.py",
             350
           ],
+          "defaults": "None",
           "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
           "function": "sglang.srt.plugins.hook_registry._wrap_fn",
-          "type": "builtins.function"
-        }
-      ],
-      "cuda": [
-        {
-          "code": [
-            "sglang/srt/plugins/hook_registry.py",
-            350
-          ],
-          "file_sha256": "0144d8c3e5ee294322894f88b8ad3bd49edad15c124650e4e834d0366815dc7d",
-          "function": "sglang.srt.plugins.hook_registry._wrap_fn",
+          "kwdefaults": {
+            "dict": {}
+          },
           "type": "builtins.function"
         }
       ]
@@ -249,26 +225,21 @@
     "sha256": "864f78c5d65446667245a8d38a1e51652f1c3b9d81e988befb350f29a6efcd17"
   },
   "sglang.srt.plugins.load_plugins": {
+    "chain_format": 2,
     "chains": {
       "cpu": [
         {
+          "closure": [],
           "code": [
             "sglang/srt/plugins/__init__.py",
             103
           ],
+          "defaults": "None",
           "file_sha256": "3a975a73f1a7887e68c81ea7a2530250597ac8ae978efc0b0f70f038a99a3164",
           "function": "sglang.srt.plugins.load_plugins",
-          "type": "builtins.function"
-        }
-      ],
-      "cuda": [
-        {
-          "code": [
-            "sglang/srt/plugins/__init__.py",
-            103
-          ],
-          "file_sha256": "3a975a73f1a7887e68c81ea7a2530250597ac8ae978efc0b0f70f038a99a3164",
-          "function": "sglang.srt.plugins.load_plugins",
+          "kwdefaults": {
+            "dict": {}
+          },
           "type": "builtins.function"
         }
       ]

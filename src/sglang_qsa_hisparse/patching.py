@@ -92,6 +92,8 @@ _activated: Features | None = None
 _applied: dict[str, object] = {}
 _frozen_hooks: dict[str, tuple] = {}
 _frozen_depends: dict[str, object] = {}
+# name -> (object, description): pinned objects this activation relies on.
+_snapshots: dict[str, tuple[object, object]] = {}
 _attached_live: list[AttachSpec] = []
 
 
@@ -204,10 +206,17 @@ def _check_manifest(
     for row, entry in manifest.items():
         if entry["feature"] not in wanted:
             continue
-        expected.update(("patch", row, p["target"], p["hook_type"]) for p in entry["patches"])
-        expected.update(("attach", row, f"{a['owner']}.{a['name']}", "") for a in entry["attach"])
-    declared: Counter = Counter(("patch", s.row, s.target, s.hook_type) for s in specs)
-    declared.update(("attach", a.row, a.target, "") for a in attaches)
+        feature = entry["feature"]
+        expected.update(
+            ("patch", feature, row, p["target"], p["hook_type"]) for p in entry["patches"]
+        )
+        expected.update(
+            ("attach", feature, row, f"{a['owner']}.{a['name']}", "") for a in entry["attach"]
+        )
+    declared: Counter = Counter(
+        ("patch", s.feature, s.row, s.target, s.hook_type) for s in specs
+    )
+    declared.update(("attach", a.feature, a.row, a.target, "") for a in attaches)
     missing = sorted((expected - declared).elements())
     extra = sorted((declared - expected).elements())
     if missing or extra:
@@ -262,13 +271,38 @@ def _raw_attribute(target: str):
     return fingerprint.raw_attribute(target)
 
 
+def _source():
+    from sglang.srt.plugins.hook_registry import HookSource
+
+    return HookSource(plugin_name=PLUGIN_NAME, dist_name=DIST_NAME)
+
+
 def _foreign_overlaps(registry, targets: set[str]) -> list[str]:
+    """Registry keys overlapping ``targets`` with any hook not exactly ours."""
+    ours = _source()
     found = []
     for key, hooks in registry._hooks.items():
-        foreign = [h for h in hooks if h[2] is None or h[2].plugin_name != PLUGIN_NAME]
+        foreign = [h for h in hooks if h[2] != ours]
         if foreign and any(_overlaps(key, target) for target in targets):
             found.append(key)
     return sorted(found)
+
+
+def _existing_entries(registry, names: set[str]) -> list[str]:
+    """Registry keys overlapping ``names`` with any hook, from any source."""
+    return sorted(
+        key
+        for key, hooks in registry._hooks.items()
+        if hooks and any(_overlaps(key, name) for name in names)
+    )
+
+
+def _describe(value: object) -> object:
+    """Recomputable description of an object (identity if unidentifiable)."""
+    try:
+        return ("chain", fingerprint.live_chain(value, fingerprint.installed_source_root()))
+    except fingerprint.Undescribable:
+        return ("identity", id(value))
 
 
 def _defines(owner: object, name: str) -> bool:
@@ -324,9 +358,14 @@ def activate(features: Features) -> list[PatchSpec]:
     targets = {spec.target for spec in specs}
     depends = names - targets
     protected = targets | {a.target for a in attaches} | depends
-    overlap = _foreign_overlaps(HookRegistry, protected)
-    if overlap:
-        raise PluginActivationError(f"Other plugins hook overlapping targets: {overlap}")
+    # Nothing has been registered by this activation yet, so any entry on a
+    # protected name (from another plugin or claiming this plugin's source)
+    # is unexplained.
+    existing = _existing_entries(HookRegistry, protected)
+    if existing:
+        raise PluginActivationError(
+            f"Hooks already registered on or around protected names: {existing}"
+        )
     originals = {target: _raw_attribute(target) for target in targets}
     source = HookSource(plugin_name=PLUGIN_NAME, dist_name=DIST_NAME)
     for spec in specs:
@@ -336,6 +375,14 @@ def activate(features: Features) -> list[PatchSpec]:
     # Apply only this plugin's targets (class REPLACE first, as the registry
     # does); other plugins' entries are left for load_plugins()'s final pass.
     # The registry's own apply loop logs and skips failures; this does not.
+    for target in targets:
+        expected = [
+            (HookType(spec.hook_type), spec.hook, source)
+            for spec in specs
+            if spec.target == target
+        ]
+        if list(HookRegistry._hooks[target]) != expected:
+            raise PluginActivationError(f"Registry entries for {target} differ from declarations")
     ours = sorted(
         ((t, HookRegistry._hooks[t]) for t in targets), key=HookRegistry._target_sort_key
     )
@@ -351,6 +398,10 @@ def activate(features: Features) -> list[PatchSpec]:
     # Attach last, so owners resolve to any class we replaced.
     _attach_all(attaches)
     _attached_live[:] = attaches
+    # Patched targets: the wrapped original (our wrapper is identity-checked);
+    # dependencies: the live object. Attached members are plugin code.
+    relied_on = {**{d: _raw_attribute(d) for d in depends}, **originals}
+    _snapshots.update({n: (obj, _describe(obj)) for n, obj in relied_on.items()})
     _activated = features
     logger.info(
         "QSA HiSparse plugin activated %s with %d patches and %d attached members",
@@ -380,6 +431,7 @@ def verify_final(role: str, **details: object) -> None:
         or (
             key not in _frozen_hooks
             and any(h[2] is not None and h[2].plugin_name == PLUGIN_NAME for h in hooks)
+            # Any entry claiming this plugin's name after activation is late.
         )
     )
     if late:
@@ -391,6 +443,9 @@ def verify_final(role: str, **details: object) -> None:
             f"Patched targets or dependencies were replaced afterwards: {changed}"
         )
     _verify_attached(_attached_live)
+    mutated = sorted(name for name, (obj, desc) in _snapshots.items() if _describe(obj) != desc)
+    if mutated:
+        raise PluginActivationError(f"Protected bindings changed in place: {mutated}")
 
     directory = os.environ.get(ACTIVATION_DIR_ENV)
     if directory:
