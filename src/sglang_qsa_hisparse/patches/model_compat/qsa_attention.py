@@ -265,7 +265,8 @@ def _store_kv(self, layer, loc, k: torch.Tensor, v: torch.Tensor) -> None:
 
 _Q04_REASON = (
     "model_compat: FP8 KV store path; the qsa_hisparse branch is inert (rule 2). "
-    "attach: member added by the fork. Scope: called only from the scoped "
+    "attach: member added by the fork; is_fp8_kv_dtype is the plugin copy "
+    "(A01). Scope: called only from the scoped "
     "Q08/Q10/Q11/Q12 copies, so it needs no check of its own."
 )
 _Q04_DEPENDS = (
@@ -899,7 +900,8 @@ patch(
         "model_compat (both; rule 2): qsa_hisparse.selected buffers, trtllm "
         "disabled under HiSparse, NVTX ranges, FP8 scratch dtype and descales, "
         "FA2 graph wrapper, capture_decode. replace (124). Uses the plugin "
-        "Q01 resolver and A09 launcher. " + _BACKEND_METHOD_SCOPE
+        "Q01 resolver, A09 launcher and A01 is_fp8_kv_dtype. "
+        + _BACKEND_METHOD_SCOPE
     ),
 )(_scoped_method("_forward_paged_attention", _forward_paged_attention))
 
