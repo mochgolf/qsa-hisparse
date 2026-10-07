@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sglang-qsa-hisparse"
+version = "0.1.0.dev0"
+description = "QSA HiSparse CPU KV offload and host prefix reuse as an SGLang general plugin."
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# SGLang itself is not declared: the supported revision is a pinned commit
+# (see sglang_qsa_hisparse.PINNED_SGLANG_COMMIT), verified at activation by
+# per-target source fingerprints rather than by a package version.
+dependencies = []
+
+[project.entry-points."sglang.srt.plugins"]
+qsa_hisparse = "sglang_qsa_hisparse.plugin:load"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sglang_qsa_hisparse = ["fingerprints/*.json", "kernels/csrc/**/*"]
