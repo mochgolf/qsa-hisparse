@@ -337,7 +337,12 @@
           "hook_type": "replace"
         }
       ],
-      "attach": []
+      "attach": [
+        {
+          "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func",
+          "name": "cache_clear"
+        }
+      ]
     },
     "Q02": {
       "feature": "model_compat",

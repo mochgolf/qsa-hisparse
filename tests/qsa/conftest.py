@@ -24,9 +24,7 @@ BOTH = Features(model_compat=True, hisparse_mode="p2-offload")
 BACKEND_MODULE = "sglang.srt.layers.attention.qwen_sparse_attn_backend"
 # Declared by this workstream but not yet in manifest.json (inventory section 6,
 # G5); the orchestrator adds it to the inventory and manifest at merge.
-PENDING_MANIFEST_ATTACH = {
-    "Q01": [{"owner": f"{BACKEND_MODULE}._resolve_flash_attn_varlen_func", "name": "cache_clear"}],
-}
+PENDING_MANIFEST_ATTACH: dict = {}  # Q01's cache_clear attach is in manifest.json now.
 
 _load_real_manifest = patching.load_manifest
 

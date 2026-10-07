@@ -36,6 +36,15 @@ OVERRIDES = {
             {"target": "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch", "hook_type": "after"},
         ]
     },
+    "Q01": {
+        "patches": [
+            {"target": "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func", "hook_type": "replace"},
+        ],
+        # HookRegistry's REPLACE wrapper drops lru_cache's cache_clear (inventory G5).
+        "attach": [
+            {"owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func", "name": "cache_clear"},
+        ],
+    },
     "Q04": {"attach": [{"owner": BACKEND, "name": "_kv_descales"}, {"owner": BACKEND, "name": "_store_kv"}]},
     "Q09": {
         "attach": [

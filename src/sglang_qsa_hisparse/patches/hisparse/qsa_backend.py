@@ -7,16 +7,11 @@ feature only builds the runtime and adds before/after hooks.
 
 import os
 
+from sglang_qsa_hisparse import scope
+from sglang_qsa_hisparse.errors import PluginActivationError
 from sglang_qsa_hisparse.features import HISPARSE
+from sglang_qsa_hisparse.hisparse.depends import RUNTIME_DEPENDS
 from sglang_qsa_hisparse.patching import patch
-
-try:
-    from sglang_qsa_hisparse.hisparse.depends import RUNTIME_DEPENDS
-except ModuleNotFoundError as error:
-    # TODO(orchestrator): W1 adds this module; drop the guard when merging W1.
-    if error.name != "sglang_qsa_hisparse.hisparse.depends":
-        raise
-    RUNTIME_DEPENDS = ()
 
 _BACKEND = "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend"
 
@@ -32,11 +27,19 @@ _BACKEND = "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnB
         "is followed only by plain None assignments. Fork lines 247-257 with the "
         "runtime imports rewritten to sglang_qsa_hisparse.hisparse; the fork's "
         "preceding qsa_hisparse = None is the model_compat Q02 hook, which sets "
-        "it only when absent, so hook order is irrelevant (section 2, C3)."
+        "it only when absent, so hook order is irrelevant (section 2, C3). "
+        "Plugin addition: rejects a non-target model (unsupported combination)."
     ),
 )
 def _attach_hisparse_runtime(result, self, runner=None):
     if runner is not None and os.environ.get("SGLANG_QSA_HISPARSE_V3"):
+        # The runtime relies on the model_compat bodies, which run only for
+        # the target model (rule 9); other models are unsupported.
+        if not scope.target_model_active():
+            raise PluginActivationError(
+                "SGLANG_QSA_HISPARSE_V3 requires the target model "
+                f"{sorted(scope.TARGET_ARCHITECTURES)}"
+            )
         from sglang_qsa_hisparse.hisparse.single_request import QSAHiSparseSingleRequest
 
         mode = os.environ["SGLANG_QSA_HISPARSE_V3"]
