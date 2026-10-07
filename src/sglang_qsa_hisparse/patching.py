@@ -23,7 +23,9 @@ Activation, in order:
 patched target to be exactly the frozen set, no late hooks from this plugin
 or overlapping hooks from others, unchanged patched attributes, attachments
 and dependency objects (identity), and writes an activation record when
-``SGLANG_QSA_ACTIVATION_DIR`` is set.
+``SGLANG_QSA_ACTIVATION_DIR`` is set (by ``launch.py``). The record holds the
+caller's ``details`` plus ``launch.record_details()`` (the native library
+versions the launcher compares with ``docs/environment.lock.json``).
 """
 
 import importlib
@@ -429,6 +431,10 @@ def verify_final(role: str, **details: object) -> None:
 
     directory = os.environ.get(ACTIVATION_DIR_ENV)
     if directory:
+        # Launcher hook: record fields the launcher verifies before reporting
+        # readiness (native library versions; see launch.record_details).
+        from sglang_qsa_hisparse.launch import record_details
+
         record = {
             "pid": os.getpid(),
             "role": role,
@@ -438,6 +444,7 @@ def verify_final(role: str, **details: object) -> None:
             "attached": sorted(a.target for a in _attached_live),
             "pinned_sglang_commit": PINNED_SGLANG_COMMIT,
             **details,
+            **record_details(),
         }
         path = Path(directory) / f"{role}-{os.getpid()}.json"
         path.parent.mkdir(parents=True, exist_ok=True)

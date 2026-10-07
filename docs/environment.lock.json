@@ -1,0 +1,11 @@
+{
+  "interpreter": "../service/runtime-env-sglang-20260923/bin/python",
+  "packages": {
+    "flashinfer-python": "0.6.18",
+    "sglang-kernel": "0.4.7",
+    "torch": "2.13.0",
+    "triton": "3.7.1"
+  },
+  "python": "3.12.3",
+  "source": "importlib.metadata.version() in the interpreter above (sglang_qsa_hisparse.launch.native_versions), without CUDA"
+}
