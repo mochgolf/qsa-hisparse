@@ -88,15 +88,18 @@ def test_server_command_changes_only_the_profile_and_arm(evidence, monkeypatch):
     expected = [a if a != "2097152" else "266304" for a in base["command"][3:]]
     common = dict(python="py", roots=ROOTS, output=Path("/out"))
 
-    argv, env = run.server_command("fork", base, PROFILE, **common)
+    argv, env, ready_file = run.server_command("fork", base, PROFILE, **common)
     assert argv == ["py", "-m", "sglang.launch_server", *expected]
+    assert ready_file is None
     assert not [k for k in env if k.startswith("SGLANG_QSA_") or k == "SGLANG_PLUGINS"]
     assert env["PYTHONPATH"] == "/f/python"
     assert env["SGLANG_QWEN38_GDN_QKVZ_WNA16"] == "0" and env["SGLANG_LOGPROB_CHUNK_SIZE"] == "256"
     assert env["SGLANG_CACHE_DIR"] == "/out/cache" and env["PYTHONDONTWRITEBYTECODE"] == "1"
 
-    argv, env = run.server_command("plugin", base, PROFILE, **common)
-    assert argv == ["py", "-m", "sglang_qsa_hisparse.launch", "--", *expected]
+    argv, env, ready_file = run.server_command("plugin", base, PROFILE, **common)
+    launcher = ["py", "-m", "sglang_qsa_hisparse.launch", "--run-dir", "/out/launcher", "--"]
+    assert argv == [*launcher, *expected]
+    assert ready_file == Path("/out/launcher/ready.json")
     assert {k: v for k, v in env.items() if k.startswith("SGLANG_QSA_") or k == "SGLANG_PLUGINS"} == {
         "SGLANG_QSA_MODEL_COMPAT": "1",
         "SGLANG_PLUGINS": "qsa_hisparse",
@@ -162,40 +165,61 @@ def free_port():
         return s.getsockname()[1]
 
 
+# Fake server: answers /health at once. As the fake launcher (plugin arm) it
+# writes <run-dir>/ready.json after FAKE_READY_AFTER seconds, or never.
+FAKE_SERVER = """
+import http.server, json, os, sys, threading, time
+from pathlib import Path
+args = sys.argv[1:]
+if "--run-dir" in args:
+    run_dir = Path(args[args.index("--run-dir") + 1])
+    run_dir.mkdir()
+    args = args[args.index("--") + 1 :]
+    delay = os.environ["FAKE_READY_AFTER"]
+    if delay != "never":
+        def ready():
+            time.sleep(float(delay))
+            (run_dir / "ready.json").write_text("{}")
+        threading.Thread(target=ready, daemon=True).start()
+print("argv", json.dumps(args), flush=True)
+print("env", json.dumps(dict(os.environ)), flush=True)
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        info = {"max_total_num_tokens": int(args[args.index("--max-total-tokens") + 1])}
+        body = json.dumps(info if self.path == "/get_server_info" else {}).encode()
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(body)
+    def log_message(self, *a):
+        pass
+port = int(args[args.index("--port") + 1])
+http.server.HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+"""
+
+
 def fake_tree(tmp_path, gpu_apps=""):
-    fork = tmp_path / "fork"
-    (fork / "python/sglang").mkdir(parents=True)
-    (fork / "python/sglang/__init__.py").write_text("")
-    (fork / "python/sglang/launch_server.py").write_text(
-        textwrap.dedent(
-            """
-            import http.server, json, os, sys
-            args = sys.argv[1:]
-            print("argv", json.dumps(args), flush=True)
-            print("env", json.dumps(dict(os.environ)), flush=True)
-            class Handler(http.server.BaseHTTPRequestHandler):
-                def do_GET(self):
-                    info = {"max_total_num_tokens": int(args[args.index("--max-total-tokens") + 1])}
-                    body = json.dumps(info if self.path == "/get_server_info" else {}).encode()
-                    self.send_response(200)
-                    self.end_headers()
-                    self.wfile.write(body)
-                def log_message(self, *a):
-                    pass
-            port = int(args[args.index("--port") + 1])
-            http.server.HTTPServer(("127.0.0.1", port), Handler).serve_forever()
-            """
-        )
-    )
-    (fork / "test/manual").mkdir(parents=True)
-    (fork / "test/manual/qsa_hisparse_prefix_acceptance.py").write_text(
+    roots = {"fork": tmp_path / "fork", "plugin": tmp_path / "plugin"}
+    for package, module in (
+        (roots["fork"] / "python/sglang", "launch_server.py"),
+        (roots["plugin"] / "src/sglang_qsa_hisparse", "launch.py"),
+    ):
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text("")
+        (package / module).write_text(FAKE_SERVER)
+    (roots["fork"] / "test/manual").mkdir(parents=True)
+    (roots["fork"] / "test/manual/qsa_hisparse_prefix_acceptance.py").write_text(
         textwrap.dedent(
             """
             import json, os, sys, urllib.request
             args = sys.argv[1:]
             urllib.request.urlopen(args[args.index("--url") + 1] + "/health").read()
-            with open(args[args.index("--output") + 1], "w") as out:
-                json.dump({"passed": True, "argv": args, "cwd": os.getcwd()}, out)
+            output = args[args.index("--output") + 1]
+            ready = os.path.join(os.path.dirname(output), "launcher", "ready.json")
+            with open(output, "w") as out:
+                json.dump(
+                    {"argv": args, "cwd": os.getcwd(), "ready_at_start": os.path.exists(ready)},
+                    out,
+                )
             """
         )
     )
@@ -204,62 +228,103 @@ def fake_tree(tmp_path, gpu_apps=""):
     smi = bin_dir / "nvidia-smi"
     smi.write_text(f"#!/bin/sh\nprintf '{gpu_apps}'\n")
     smi.chmod(0o755)
-    return fork, bin_dir
+    return roots, bin_dir
 
 
-def arm_args(tmp_path, fork, port, path):
+def arm_args(tmp_path, roots, port, path, arm="fork", timeout=60):
     base = tmp_path / "base.json"
-    base.write_text(json.dumps(base_profile(port)))
+    profile = base_profile(port)
+    profile["readiness"]["timeout_seconds"] = timeout
+    base.write_text(json.dumps(profile))
     profile = tmp_path / "profile.json"
     profile.write_text(json.dumps(profile_for(path)))
     return [
-        "--arm", "fork",
+        "--arm", arm,
         "--base-profile", str(base),
         "--fixtures", str(path),
-        "--output", str(tmp_path / "F"),
+        "--output", str(tmp_path / f"{arm}-arm"),
         "--python", sys.executable,
-        "--fork-root", str(fork),
+        "--fork-root", str(roots["fork"]),
+        "--plugin-root", str(roots["plugin"]),
         "--profile", str(profile),
     ]  # fmt: skip
 
 
-def test_fork_arm_runs_the_harness_and_stops_its_server(evidence, tmp_path, monkeypatch):
-    run = evidence("run_compat")
-    fork, bin_dir = fake_tree(tmp_path)
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-    port = free_port()
-    path = fixtures(tmp_path)
-    assert run.main(arm_args(tmp_path, fork, port, path)) == 0
+def port_closed(port):
+    with socket.socket() as probe:
+        return probe.connect_ex(("127.0.0.1", port)) != 0
 
-    out = tmp_path / "F"
+
+@pytest.fixture
+def fake(tmp_path, monkeypatch):
+    roots, bin_dir = fake_tree(tmp_path)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    return roots, fixtures(tmp_path)
+
+
+def test_fork_arm_runs_the_harness_and_stops_its_server(evidence, tmp_path, fake):
+    roots, path = fake
+    port = free_port()
+    assert evidence("run_compat").main(arm_args(tmp_path, roots, port, path)) == 0
+
+    out = tmp_path / "fork-arm"
     log = (out / "server.log").read_text().splitlines()
     argv = json.loads(log[0].removeprefix("argv "))
     env = json.loads(log[1].removeprefix("env "))
     assert argv[argv.index("--max-total-tokens") + 1] == "266304"
     assert argv[argv.index("--model-path") + 1] == PRIVATE_MODEL
     assert not [k for k in env if k.startswith("SGLANG_QSA_")]
-    assert env["PYTHONPATH"] == str(fork / "python")
+    assert env["PYTHONPATH"] == str(roots["fork"] / "python")
     assert json.loads((out / "server_info.json").read_text()) == {"max_total_num_tokens": 266304}
     report = json.loads((out / "compat-cold.json").read_text())
     assert report["argv"][:1] == ["baseline"]
     assert report["argv"][report["argv"].index("--max-prefix") + 1] == "262016"
-    assert report["cwd"] == str(fork / "test/manual")
-    with socket.socket() as probe:
-        assert probe.connect_ex(("127.0.0.1", port)) != 0  # Its server was stopped.
+    assert report["cwd"] == str(roots["fork"] / "test/manual")
+    assert port_closed(port)  # Its server was stopped.
+
+
+def test_plugin_arm_starts_the_harness_only_after_launcher_ready(
+    evidence, tmp_path, fake, monkeypatch
+):
+    roots, path = fake
+    monkeypatch.setenv("FAKE_READY_AFTER", "1.0")  # /health answers a second earlier.
+    port = free_port()
+    assert evidence("run_compat").main(arm_args(tmp_path, roots, port, path, "plugin")) == 0
+    out = tmp_path / "plugin-arm"
+    assert json.loads((out / "compat-cold.json").read_text())["ready_at_start"]
+    env = json.loads((out / "server.log").read_text().splitlines()[1].removeprefix("env "))
+    assert env["SGLANG_QSA_MODEL_COMPAT"] == "1"
+    assert port_closed(port)
+
+
+def test_plugin_arm_health_without_launcher_ready_never_starts_the_harness(
+    evidence, tmp_path, fake, monkeypatch
+):
+    roots, path = fake
+    monkeypatch.setenv("FAKE_READY_AFTER", "never")
+    port = free_port()
+    args = arm_args(tmp_path, roots, port, path, "plugin", timeout=3)
+    with pytest.raises(SystemExit, match="not ready"):
+        evidence("run_compat").main(args)
+    out = tmp_path / "plugin-arm"
+    assert (out / "launcher").is_dir() and not (out / "launcher" / "ready.json").exists()
+    assert not (out / "compat-cold.json").exists()
+    assert port_closed(port)
 
 
 def test_busy_gpu_used_port_and_production_port_are_refused(evidence, tmp_path, monkeypatch):
     run = evidence("run_compat")
-    fork, bin_dir = fake_tree(tmp_path, gpu_apps="4242, 45000 MiB")
+    roots, bin_dir = fake_tree(tmp_path, gpu_apps="4242, 45000 MiB")
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
     path = fixtures(tmp_path)
     with pytest.raises(SystemExit, match="GPU compute processes are running"):
-        run.main(arm_args(tmp_path, fork, free_port(), path))
+        run.main(arm_args(tmp_path, roots, free_port(), path))
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen()
         with pytest.raises(SystemExit, match="is in use"):
-            run.main(arm_args(tmp_path, fork, listener.getsockname()[1], path))
+            run.main(arm_args(tmp_path, roots, listener.getsockname()[1], path))
     with pytest.raises(SystemExit, match="production port"):
-        run.main(arm_args(tmp_path, fork, 8081, path))
-    assert not (tmp_path / "F").exists()
+        run.main(arm_args(tmp_path, roots, 8081, path))
+    assert not (tmp_path / "fork-arm").exists()
+
