@@ -14,8 +14,10 @@ import torch
 
 from pools.activation import activated
 from sglang.srt.batch_overlap.two_batch_overlap import TboForwardBatchPreparer
+from sglang.srt.environ import envs
 from sglang.srt.layers.attention.base_attn_backend import SharedReadEnds
 from sglang.srt.layers.logits_processor import LogitsProcessorOutput
+from sglang.srt.model_executor.cuda_graph_buffer_registry import CudaGraphBufferRegistry
 from sglang.srt.model_executor.forward_batch_info import (
     CaptureHiddenMode,
     ForwardBatch,
@@ -23,6 +25,7 @@ from sglang.srt.model_executor.forward_batch_info import (
 )
 from sglang.srt.model_executor.model_runner import ModelRunner, ModelRunnerOutput
 from sglang.srt.model_executor.runner.decode_cuda_graph_runner import DecodeCudaGraphRunner
+from sglang.srt.model_executor.runner.eager_runner import EagerRunner
 from sglang.srt.model_executor.runner.shape_key import ShapeKey
 from sglang.srt.model_executor.runner_backend.full_cuda_graph_backend import (
     FullCudaGraphBackend,
@@ -424,7 +427,7 @@ def test_no_coordinator_without_lease_runtime(events, stub_init_attention_backen
     assert runner.hisparse_coordinator is None
 
 
-# F01 ForwardBatch.init_new ---------------------------------------------------------
+# F01 ForwardBatch.init_new, EagerRunner.load_batch ---------------------------------
 
 
 def _forward_batch():
@@ -470,7 +473,7 @@ def test_two_batch_overlap_unaffected_without_runtime(stub_init_new, published):
     with activated("F01"):
         _, forward_batch = _init_new(runtime=None)
     assert not hasattr(forward_batch, "req_pool_indices_cpu")
-    assert "req_pool_indices_cpu" not in {f.name for f in ForwardBatch.__dataclass_fields__.values()}
+    assert "req_pool_indices_cpu" not in ForwardBatch.__dataclass_fields__
     child = TboForwardBatchPreparer.filter_batch(
         forward_batch,
         start_token_index=0,
@@ -481,3 +484,29 @@ def test_two_batch_overlap_unaffected_without_runtime(stub_init_new, published):
     )
     assert child.batch_size == 1
     assert child.req_pool_indices.tolist() == [1]
+
+
+def _eager_runner():
+    runner = EagerRunner.__new__(EagerRunner)
+    runner._eager_registry = CudaGraphBufferRegistry(device="cpu", max_bs=8, max_num_tokens=64)
+    return runner
+
+
+@pytest.mark.parametrize("no_copy", [False, True])
+def test_eager_batch_copy_keeps_cpu_request_rows(no_copy):
+    runner = _eager_runner()
+    with_rows = _forward_batch()
+    with_rows.req_pool_indices_cpu = torch.tensor([1, 2])
+    without_rows = _forward_batch()
+    with envs.SGLANG_EAGER_INPUT_NO_COPY.override(no_copy):
+        pinned = runner.load_batch(with_rows)
+        with activated("F01"):
+            kept = runner.load_batch(with_rows)
+            inert = runner.load_batch(without_rows)
+    # The pinned eager runner hands a dataclasses.replace copy to
+    # init_forward_metadata (where the runtime's begin_batch reads the rows);
+    # the copy drops instance attributes.
+    assert pinned is not with_rows and not hasattr(pinned, "req_pool_indices_cpu")
+    assert kept is not with_rows
+    assert kept.req_pool_indices_cpu is with_rows.req_pool_indices_cpu
+    assert not hasattr(inert, "req_pool_indices_cpu")

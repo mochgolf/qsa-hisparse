@@ -18,6 +18,29 @@ MODULES = (
     "sglang_qsa_hisparse.patches.hisparse.graph",
 )
 ROWS = ("K01", "K02", "K03", "F01", "R01", "R02", "C01", "C02", "G01", "G02", "G03")
+# Hooks W3 added beyond the inventory, until the orchestrator updates
+# docs/patch-inventory.md and manifest.json: under deviation D3 the F01
+# instance attribute must also survive EagerRunner.load_batch's copy.
+PENDING_MANIFEST = {
+    "F01": [
+        {
+            "target": "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch",
+            "hook_type": "after",
+        }
+    ],
+}
+
+
+def manifest_rows(rows):
+    """``manifest.json`` entries of ``rows``, plus pending entries not in it yet."""
+    manifest = {}
+    for row, entry in patching.load_manifest().items():
+        if row in rows:
+            manifest[row] = {**entry, "patches": list(entry["patches"])}
+    for row, patches in PENDING_MANIFEST.items():
+        if row in manifest:
+            manifest[row]["patches"] += [p for p in patches if p not in manifest[row]["patches"]]
+    return manifest
 
 
 @contextlib.contextmanager
@@ -27,7 +50,7 @@ def activated(*rows):
     assert set(rows) <= set(ROWS), rows
     for module in MODULES:
         importlib.import_module(module)
-    manifest = {row: entry for row, entry in patching.load_manifest().items() if row in rows}
+    manifest = manifest_rows(rows)
     specs = [spec for spec in patching._declared if spec.row in rows]
     originals = {spec.target: patching._raw_attribute(spec.target) for spec in specs}
     saved = (

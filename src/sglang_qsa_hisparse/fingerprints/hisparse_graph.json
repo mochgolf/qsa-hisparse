@@ -35,6 +35,15 @@
     "qualname": "ScheduleBatch",
     "sha256": "115b034e5566781df231c2374725c40952873cbaf9ba8cffaed381cf05ada3d3"
   },
+  "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.extract_buffer": {
+    "def_line": 473,
+    "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
+    "first_line": 473,
+    "kind": "function",
+    "module_sha256": "f13d41c14a5f4f1484d04d5394d847da059ea721a571693b8d8015b0dedc7ee9",
+    "qualname": "CudaGraphBufferRegistry.extract_buffer",
+    "sha256": "c2555c71b3038b4857f791addd94c66a2fc924460c5e244c9b1602915a75024d"
+  },
   "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.fill_from": {
     "def_line": 381,
     "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
@@ -340,6 +349,15 @@
     "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
     "qualname": "build_replay_fb_view",
     "sha256": "763501e7e7b58134b108fcc2592124bb1326a94d4a322b5964e06dab78af43e0"
+  },
+  "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch": {
+    "def_line": 183,
+    "file": "sglang/srt/model_executor/runner/eager_runner.py",
+    "first_line": 183,
+    "kind": "function",
+    "module_sha256": "9868a79ab6c7f637a88659caa6beba50006dba557ce916e65b940b13daf37683",
+    "qualname": "EagerRunner.load_batch",
+    "sha256": "c24823b6fdcb71f43f4153c45991752b76b27f21c4b43606d419b70a993eb5fd"
   },
   "sglang.srt.model_executor.runner.flashinfer_autotune.maybe_flashinfer_autotune_speculative_draft": {
     "def_line": 310,

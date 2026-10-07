@@ -73,12 +73,36 @@ _FULL_BACKEND = (
         "only when the KV pool carries a qsa_hisparse runtime; dataclass fields are "
         "unchanged, so two-batch overlap's filter_batch is unaffected. The after "
         "hook covers every return of init_new, and nothing inside init_new reads "
-        "the attribute at the pin."
+        "the attribute at the pin. The EagerRunner.load_batch hook below keeps "
+        "it on the eager runner's copy."
     ),
 )
 def _carry_req_pool_indices_cpu(ret, cls, batch, model_runner, *args, **kwargs):
     if getattr(model_runner.token_to_kv_pool, "qsa_hisparse", None) is not None:
         ret.req_pool_indices_cpu = batch.req_pool_indices_cpu
+
+
+@patch(
+    "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch",
+    "after",
+    feature=HISPARSE,
+    row="F01",
+    depends=(
+        "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.extract_buffer",
+    ),
+    reason=(
+        "Second half of F01 under D3 (added in W3; not yet in the inventory). "
+        "EagerRunner.load_batch returns a dataclasses.replace copy (extract_buffer, "
+        "or replace() with SGLANG_EAGER_INPUT_NO_COPY), which carries the fork's "
+        "field but drops an instance attribute; the eager extend/decode paths "
+        "pass that copy to init_forward_metadata, where the runtime's "
+        "begin_batch reads req_pool_indices_cpu. Copy it when F01 set it; "
+        "otherwise the hook does nothing."
+    ),
+)
+def _keep_req_pool_indices_cpu(result, self, forward_batch, *args, **kwargs):
+    if hasattr(forward_batch, "req_pool_indices_cpu"):
+        result.req_pool_indices_cpu = forward_batch.req_pool_indices_cpu
 
 
 # R01 ---------------------------------------------------------------------------
