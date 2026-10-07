@@ -9,8 +9,8 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | P0-B baseline | done | `docs/baseline.md`: fork CPU 183 passed/7 skipped; pin subset 72 passed/3 skipped |
 | P0-C upstream status | done | `docs/upstream-status.md`: main `0b635266d4`, 1201 commits after pin |
 | G0 review | cleared (`reviews/G0final.md`) | `reviews/G0*.md` |
-| Phase 1 W1–W8 | merged; G1 findings fixed, re-check running | `reviews/G1*.md` |
-| G1 review | pending | |
+| Phase 1 W1–W8 | done; G1 cleared | `reviews/G1*.md` |
+| G1 review | cleared (`reviews/G1r.md`) | |
 | Phase 2 GPU | approved (runtime-env-sglang-20260923) | |
 | Phase 3 tracks I/U | not started | |
 
@@ -138,3 +138,4 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   coverage, required observer evidence and launcher-ready gating (2–4).
 - G1 findings fixed (W5 `46669a3`, W8 `af67564`/`1f4299d`, lock `fb4f627`);
   CPU runner 408 + 3 + 26 passed. G1 re-check running.
+- G1 cleared (re-check: all five findings resolved, no new findings).
