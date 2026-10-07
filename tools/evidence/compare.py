@@ -17,8 +17,8 @@ the exit status is 1 if any item differs.
 - ``server.log``: LOG_FIGURES per TP rank, in sorted order.
 - ``events/rank-N.jsonl`` (fork runtime ledger): the first event's
   FIXED_POOL_FIELDS, every ``graph_capture_complete`` record without times
-  and pointers, and the prefix event sequence with the fork ledger harness's
-  fields (PREFIX_FIELDS).
+  and pointers, and the prefix event sequence with PREFIX_FIELDS
+  (scheduling-dependent SCHEDULING_FIELDS are not compared).
 - ``observer/rank-N.jsonl`` (observer.py): every record. Within each arm,
   every restore must also equal the capture of the checkpoint it restored.
 
@@ -71,11 +71,10 @@ PREFIX_FIELDS = (
     "prefix_cache_evictions",
     "prefix_cache_epoch",
     "rid",
-    "generation",
-    "req_pool_idx",
-    "lease_slot",
-    "forward_id",
 )
+# Scheduling-dependent (arrival timing decides row/slot/generation/forward
+# numbering); not compared. Event order itself is still compared.
+SCHEDULING_FIELDS = ("generation", "req_pool_idx", "lease_slot", "forward_id")
 VOLATILE_KEYS = frozenset(
     {"time_ns", "cuda_allocated", "cuda_reserved", "host_alloc_wall_ms", "graph_pool"}
 )

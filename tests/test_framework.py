@@ -647,42 +647,29 @@ def test_entry_point_is_noop_when_off(tmp_path):
     assert "patching False" in result.stdout
 
 
-def test_entry_point_rejects_unimplemented_features(tmp_path):
-    result = _run_loader(tmp_path, {"SGLANG_QSA_MODEL_COMPAT": "1"})
-    assert result.returncode != 0
-    assert "PluginActivationError" in result.stderr
-    assert "differ from manifest.json" in result.stderr
-    assert "hooks" not in result.stdout
 
 
-def test_entry_point_activates_on_the_pin(tmp_path):
-    # Stand-in for a finished feature: one pinned model_compat row.
-    prelude = textwrap.dedent(
-        """
-        import sglang_qsa_hisparse.patching as patching
-        manifest = patching.load_manifest()
-        manifest = {k: v for k, v in manifest.items() if v["feature"] == "framework"}
-        target = "sglang.srt.managers.scheduler.run_scheduler_process"
-        manifest["T1"] = {"feature": "model_compat", "attach": [],
-                          "patches": [{"target": target, "hook_type": "around"}]}
-        patching.load_manifest = lambda: manifest
-        real_import = patching._import_feature_modules
-        def import_features(feature):
-            patching.patch(target, "around", feature="model_compat", row="T1")(
-                lambda original, *a, **k: original(*a, **k))
-        patching._import_feature_modules = import_features
-        """
-    )
+
+
+@pytest.mark.parametrize(
+    "environ",
+    [
+        {"SGLANG_QSA_MODEL_COMPAT": "1"},
+        {"SGLANG_QSA_MODEL_COMPAT": "1", "SGLANG_QSA_HISPARSE_V3": "p2-offload"},
+    ],
+    ids=["compat", "compat+hisparse"],
+)
+def test_entry_point_activates_every_feature_on_the_pin(tmp_path, environ):
     epilogue = textwrap.dedent(
         """
+        import sglang_qsa_hisparse.patching as patching
         patching.verify_final("test")
-        print("verified")
+        print("verified", len(HookRegistry._patched), len(patching._attached_live))
         """
     )
-    result = _run_loader(tmp_path, {"SGLANG_QSA_MODEL_COMPAT": "1"}, prelude, epilogue)
-    assert result.returncode == 0, result.stderr
+    result = _run_loader(tmp_path, environ, epilogue=epilogue)
+    assert result.returncode == 0, result.stderr[-3000:]
     assert "sglang.srt.managers.scheduler.configure_scheduler_process" in result.stdout
-    assert "sglang.srt.managers.scheduler.run_scheduler_process" in result.stdout
     assert "verified" in result.stdout
 
 

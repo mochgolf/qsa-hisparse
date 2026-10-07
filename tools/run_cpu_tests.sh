@@ -20,4 +20,18 @@ export PYTHONDONTWRITEBYTECODE=1
 unset SGLANG_QSA_MODEL_COMPAT SGLANG_QSA_HISPARSE_V3 SGLANG_QSA_ACTIVATION_DIR \
   QSA_GPU_TESTS QSA_SERVICE_LIFECYCLE_TESTS SGLANG_TEST_MARLIN_GPU SGLANG_PLUGINS
 
-exec "$python" -m pytest -q -p no:cacheprovider tests "$@"
+run() { "$python" -m pytest -q -p no:cacheprovider "$@"; }
+
+if [[ $# -gt 0 ]]; then
+  exec "$python" -m pytest -q -p no:cacheprovider "$@"
+fi
+
+status=0
+# 1. Unit tests: each activates only the rows it tests, in-process.
+run -m "not integration" tests || status=1
+# 2. Integration tests that activate in their own subprocesses.
+run -m integration tests/regression tests/model_compat || status=1
+# 3. Integration tests that need every row active before collection.
+QSA_ACTIVATE_FEATURES=1 SGLANG_QSA_MODEL_COMPAT=1 SGLANG_QSA_HISPARSE_V3=p2-offload \
+  run -m integration tests/runtime tests/prefix || status=1
+exit "$status"

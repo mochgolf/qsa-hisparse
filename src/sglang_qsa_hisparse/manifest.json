@@ -327,7 +327,12 @@
           "hook_type": "replace"
         }
       ],
-      "attach": []
+      "attach": [
+        {
+          "owner": "sglang.srt.managers.schedule_policy.PrefillAdder",
+          "name": "_add_one_req"
+        }
+      ]
     },
     "Q01": {
       "feature": "model_compat",

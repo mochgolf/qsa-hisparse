@@ -56,11 +56,17 @@ def w2_active():
         mp.setattr(
             patching, "_declared", [s for s in patching._declared if s.row in W2_ROWS]
         )
-        mp.setattr(patching, "_attached", [])
+        mp.setattr(
+            patching, "_attached", [a for a in patching._attached if a.row in W2_ROWS]
+        )
         try:
             patching.activate(BOTH)
             yield
         finally:
+            for spec in patching._attached_live:
+                owner = pkgutil.resolve_name(spec.owner)
+                if owner.__dict__.get(spec.name) is spec.value:
+                    delattr(owner, spec.name)
             for target, original in originals.items():
                 owner_path, name = target.rsplit(".", 1)
                 owner = pkgutil.resolve_name(owner_path)

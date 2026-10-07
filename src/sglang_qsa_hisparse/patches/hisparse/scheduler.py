@@ -47,7 +47,7 @@ from sglang.srt.managers.scheduler_components.batch_result_processor import (
     release_kv_cache,
 )
 from sglang_qsa_hisparse.features import HISPARSE
-from sglang_qsa_hisparse.patching import patch
+from sglang_qsa_hisparse.patching import attach, patch
 
 SCHEDULER = "sglang.srt.managers.scheduler.Scheduler"
 PROCESSOR = (
@@ -1367,9 +1367,8 @@ def add_chunked_req(self, req: Req):
         "hisparse: getattrs on the tree cache; with upstream caches the charge is "
         "0, the limit None and the ignore_eos predicate unchanged. Replace: the "
         "ignore_eos predicate is mid-function. The fork renamed the original "
-        "body to PrefillAdder._add_one_req; it is kept as the plugin-local "
-        "function _add_one_req (no attach), so the one mechanical edit is "
-        "`self._add_one_req(...)` -> `_add_one_req(self, ...)`."
+        "body to PrefillAdder._add_one_req, which is attached (absent at the "
+        "pin), so the copy keeps `self._add_one_req(...)` verbatim."
     ),
 )
 def add_one_req(
@@ -1390,7 +1389,7 @@ def add_one_req(
     self.memory_budget.total_offset += charge
     self.memory_budget.current_offset += charge
     try:
-        return _add_one_req(self, req, has_chunked_req, truncation_align_size)
+        return self._add_one_req(req, has_chunked_req, truncation_align_size)
     finally:
         if capped:
             spent = limit - self.rem_chunk_tokens
@@ -1405,6 +1404,7 @@ def add_one_req(
 
 
 # Fork managers/schedule_policy.py:1194-1308, verbatim.
+@attach(ADDER, feature=HISPARSE, row="P02")
 def _add_one_req(
     self, req: Req, has_chunked_req: bool, truncation_align_size: Optional[int]
 ):

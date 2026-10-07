@@ -102,12 +102,21 @@ def _scoped_function(upstream, plugin_impl):
     return replacement
 
 
+def _in_scope(backend) -> bool:
+    """Scope decided once per backend: by Q02 at construction, or on first use
+    for backends built without ``__init__`` (the fork's tests use ``__new__``)."""
+    decided = backend.__dict__.get("_qsa_target_model")
+    if decided is None:
+        decided = backend._qsa_target_model = scope.target_model_active()
+    return decided
+
+
 def _scoped_method(name, plugin_impl):
     """REPLACE body for a backend method: the fork copy only in scope."""
     upstream = _backend.QwenSparseAttnBackend.__dict__[name]
 
     def replacement(self, *args, **kwargs):
-        if self._qsa_target_model:
+        if _in_scope(self):
             return plugin_impl(self, *args, **kwargs)
         return upstream(self, *args, **kwargs)
 
@@ -307,7 +316,7 @@ attach_value(
     ),
 )
 def _match_graph_decode_score_width(result, self, forward_batch):
-    if not self._qsa_target_model:
+    if not _in_scope(self):
         return None
     forward_mode = forward_batch.forward_mode
     if (

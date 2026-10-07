@@ -9,7 +9,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | P0-B baseline | done | `docs/baseline.md`: fork CPU 183 passed/7 skipped; pin subset 72 passed/3 skipped |
 | P0-C upstream status | done | `docs/upstream-status.md`: main `0b635266d4`, 1201 commits after pin |
 | G0 review | cleared (`reviews/G0final.md`) | `reviews/G0*.md` |
-| Phase 1 W1–W8 | running | `docs/tasks/W*.md` |
+| Phase 1 W1–W8 | merged; G1 review running | `docs/tasks/W*.md`, `reviews/G1.md` |
 | G1 review | pending | |
 | Phase 2 GPU | approved (runtime-env-sglang-20260923) | |
 | Phase 3 tracks I/U | not started | |
@@ -122,3 +122,13 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   package data (wheel installs would refuse to start; Phase 2 uses
   `PYTHONPATH=src`); systemd lifecycle tests ported but not yet run (needs
   owner OK).
+- Phase 1 integrated on main (all eight branches merged). Merge-time fixes:
+  F01 `EagerRunner.load_batch` hook and Q01 `cache_clear` / P02
+  `_add_one_req` attaches added to the manifest; `RUNTIME_DEPENDS` guard
+  removed; HiSparse with a non-target model rejected (Q03); QSA backend scope
+  decided on first use for `__new__`-built backends; W2 test fixture removes
+  attached members; comparator ignores scheduling-dependent ledger fields.
+  Real loader activates `compat` (28 targets + 6 attaches) and
+  `compat+hisparse` (60 + 6). `tools/run_cpu_tests.sh` runs three passes:
+  396 unit passed (12 GPU skipped, 1 known fork xfail), 1 subprocess
+  integration passed, 26 activated integration passed. 358 fingerprints match.
