@@ -233,10 +233,9 @@ def _healthy(url: str) -> bool:
         return False
 
 
-def _exit_state(pid: int, *, block: bool = False):
+def _exit_state(pid: int):
     """The child's exit state without reaping it (None while it runs)."""
-    flags = os.WEXITED | os.WNOWAIT | (0 if block else os.WNOHANG)
-    return os.waitid(os.P_PID, pid, flags)
+    return os.waitid(os.P_PID, pid, os.WEXITED | os.WNOWAIT | os.WNOHANG)
 
 
 def _describe(state) -> str:
