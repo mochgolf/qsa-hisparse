@@ -16,8 +16,15 @@ this repository; `fork:` is `../qsa-hisparse` at `ee8fe158d6`; `pin:` is
    `qsa_hisparse` branches, which are inert when the runtime is absent).
    `hisparse` may add only BEFORE/AFTER/AROUND hooks on such targets.
    Duplicate REPLACE fails activation.
-3. **REPLACE bodies are copied from the fork**, not rewritten. Name every
-   other upstream definition whose behavior the copy assumes in `depends`.
+3. **REPLACE bodies are copied from the fork**, not rewritten. Allowed
+   mechanical edits only: explicit `super(Class, self)` for zero-argument
+   `super()`, plugin-owned names for custom ops/JIT modules, imports rewritten
+   to plugin modules, and preserved decorators (`lru_cache` etc.). List every
+   edit in the patch `reason` and cover it with a test. Members the fork
+   *added* (absent at the pin) use `attach`/`attach_value`, which fail if
+   upstream defines the name. Name every other upstream definition whose
+   behavior the copy assumes in `depends` (definitions with `@overload`
+   variants cannot be fingerprinted; name their callers instead).
    Fingerprints: `tools/fingerprint.py write <module-name> <targets...>`,
    always against `pin:`. Never hand-edit hashes.
 4. **Prefer the narrowest hook.** AFTER/AROUND at a function boundary first;
@@ -30,7 +37,11 @@ this repository; `fork:` is `../qsa-hisparse` at `ee8fe158d6`; `pin:` is
 6. **Prohibited:** GPU use, starting or stopping services, installing into or
    modifying `flash-next-env`/`quant-env`, editing `fork:` or `pin:`, pushing,
    opening PRs/issues. Write only inside your assigned paths.
-7. **Report** in your final message: files changed, tests run with results,
+7. **Intentional deviations** from the fork are allowed only when listed in
+   [DEVIATIONS.md](DEVIATIONS.md) by the orchestrator.
+8. The fork's `test_service_control.py::ServiceLifecycleTests` starts systemd
+   user units; deselect it (`-k 'not ServiceLifecycleTests'`).
+9. **Report** in your final message: files changed, tests run with results,
    unresolved items, and any deviation from this plan.
 
 ## Layout
@@ -57,7 +68,7 @@ Import mapping: `sglang.srt.mem_cache.qsa_hisparse.X` →
 | P0-A inventory | `docs/patch-inventory.md` | Every fork change (28 modified srt files, Marlin JIT/op files, new files) → target, feature (rule 1), hook type, workstream, fingerprint targets, `depends`, upstream interface that would remove a REPLACE |
 | P0-B baseline | `docs/baseline.md` | Fork CPU suite at `ee8fe158d6` in a new detached worktree; pinned upstream subset of the same upstream tests; GPU equivalence fixture inventory (locations, frozen inputs, commands) without running GPU |
 | P0-C upstream status | `docs/upstream-status.md` | Re-verify #26161, #34398, #22038, #38855, #35485, #39862; upstream `main` changes since the pin to each planned PR area; contribution requirements |
-| P0-D framework | done by orchestrator | Plugin skeleton, fail-closed activation, fingerprints, CPU runner, moved runtime package |
+| P0-D framework | done by orchestrator | Plugin skeleton, fail-closed activation, fingerprints, `attach`, CPU runner, moved runtime package |
 
 Gate G0: Codex review of framework + three documents.
 
@@ -70,8 +81,13 @@ Gate G0: Codex review of framework + three documents.
 | W3 pools/graph | `pool_configurator.py`, `kv_cache_configurator.py`, `qsa_kv_pool.py`, `model_runner.py`, `decode_cuda_graph_runner.py`, `forward_batch_info.py` | `patches/*/pools.py`, `patches/*/graph.py`, `tests/pools/` ← fork pool configurator tests |
 | W4 QSA attention | `qwen_sparse_attn_backend.py`, `qsa/{kernel,metadata,qsa_indexer,sparse_attn}.py` | `patches/model_compat/qsa_attention.py`, `patches/hisparse/qsa_backend.py`, `kernels/qsa_*.py`, `tests/qsa/` ← `test_deterministic_topk.py`, `test_flash_attention.py`, registered `kernel/qsa/test_qsa.py` additions |
 | W5 model compat | `quantization/{auto_round,gptq/schemes/gptq_moe}.py`, `gptq_kernels.py`, `fused_marlin_moe.py`, `moe/.../layer.py`, Marlin JIT `.cuh/.h` + op wrapper, `hc_mix_triton.py`, `hyperconnection.py`, `models/qwen4_exp.py`, `utils/common.py` | `patches/model_compat/{quantization,marlin,qwen4_exp,hyperconnection}.py`, `kernels/csrc/marlin_moe/`, `kernels/{marlin_moe,hc_mix,ple_gather}.py`, `tests/model_compat/` ← `test_marlin_deterministic_alignment.py`, `test_model_compatibility.py`, hc mix test additions |
-| W6 prefix cache | `qsa_hisparse/{prefix,prefix_cache}.py` integration surface | `tests/prefix/` ← `test_prefix_cache.py`; `docs/prefix-cache.md`; verify every scheduler/allocation call site the prefix cache relies on is covered by W2 patches |
+| W6 prefix cache | `qsa_hisparse/{prefix,prefix_cache}.py` integration surface | `tests/prefix/` ← `test_prefix_cache.py`; `docs/prefix-cache.md`; verify every scheduler/allocation call site the prefix cache relies on is covered by W2 patches; evaluate building the host cache through the pin's `register_radix_cache_backend`/`--radix-cache-backend` instead of a scheduler patch (needed anyway at the next pin, see Phase 4) |
 | W7 off/scope regression | none | `tests/regression/`: plugin installed but off ⇒ zero hooks and pinned upstream tests pass; compat on with a non-target model config ⇒ scoped patches inert; patch-inventory completeness check (every fork-diff hunk mapped) |
+
+Row IDs in `docs/patch-inventory.md` assign each fork hunk to a workstream;
+a workstream implements exactly its rows. Use the inventory's equivalence
+arguments for narrow hooks; if an argument fails, fall back to the listed
+REPLACE and report it.
 
 Interfaces between workstreams: W2/W3/W4 patches call the runtime only through
 the attributes the fork already uses (`kvcache.qsa_hisparse`,
@@ -104,20 +120,40 @@ capture at every page64 boundary. I4 CPU counterexamples. I5 GPU validation
 fixed first by the orchestrator; I3 follows I1. Gate G3-I.
 
 **Track U, upstream PRs (branches from fresh `upstream/main`, local only).**
-U1 scheduler gates on coordinator presence + coordinator protocol;
-U2 `BasePrefixCache` lifecycle protocol; U3 allocator free-group/release
-callbacks + KV pool runtime attachment; U4 pool fixed reservation +
-`full_kv_pool` factory; U5 decode CUDA graph backend lifecycle hooks;
-U6 QSA backend extension points + FP8 descale/SM89 fallback;
-U7 GPTQ MoE scale sizing/dtype, AutoRound g64 split, INT8-row PLE;
-U8 deterministic Marlin whole-K, QSA stable top-k, stable HC;
-U9 monotonic `req_generation`, HiSparse decode batch multimodal inputs.
-All independent. Gate G3-U per batch, then owner confirmation per PR.
+Upstream moved 1201 commits past the pin and is actively reworking several
+target areas (`docs/upstream-status.md`). Each U task first decides between
+contributing to an existing upstream PR, rebasing onto it, or a new PR, and
+follows upstream style (no defensive `getattr` probing, `msgspec.Struct`
+containers, `model_runner.py` orchestration only, tests under
+`test/registered/unit/<module>` with `register_cpu_ci`). Engaging on an
+existing upstream PR (comments, reviews) is publication and needs owner
+confirmation.
+U1 HiSparse coordinator protocol and scheduler gating (align with open
+#35488); U2 prefix-cache lifecycle hooks on the reworked upstream API
+(`checkpoint`, `on_release`, `claim_kv_row`; track #42823/#42824/#42825/#42923);
+U3 allocator free-group/release callbacks + KV pool runtime attachment;
+U4 pool fixed reservation + `full_kv_pool` factory; U5 decode CUDA graph
+backend lifecycle hooks, widening the existing extend-only
+`ForwardBatch.req_pool_indices_cpu`; U6 QSA backend extension points, FP8
+descales, SM86/SM89 flash-attention fallback, `decode_score_width`;
+U7 GPTQ MoE scale sizing/dtype incl. w13 `size_k` (align with open #35955),
+AutoRound g64 split, INT8-row PLE (meta-device table is already upstream,
+#39928); U8 deterministic Marlin whole-K, QSA stable top-k and stable HC
+(align with open #42087); U9 monotonic `req_generation`, HiSparse decode batch
+multimodal inputs. Track I's identity transport aligns with draft #41792
+(`MultimodalDataItem.identity`). All independent. Gate G3-U per batch, then
+owner confirmation per PR.
 
 ## Phase 4: shrink REPLACE (after upstream merges)
 
 Each merged PR: new pin cycle, convert the matching REPLACE into a protocol
-implementation, re-run Phase 1 CPU and Phase 2 GPU gates.
+implementation, re-run Phase 1 CPU and Phase 2 GPU gates. Known break at the
+next pin: upstream #42354 gives hybrid-SSM models (Qwen4-Exp) a
+`UnifiedRadixCache` under `--disable-radix-cache` and rejects caches without
+`supports_mamba()`, so the host prefix cache must become a registered radix
+cache backend. Upstream test paths also moved (QSA tests to
+`test/registered/kernels/ops/attention/qsa/`, `hc_mix_triton.py` to
+`kernels/ops/gemm/hc_mix.py`).
 
 ## Review protocol
 

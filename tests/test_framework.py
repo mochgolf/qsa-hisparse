@@ -21,13 +21,14 @@ from sglang_qsa_hisparse.features import Features, read_features
 def registry():
     from sglang.srt.plugins.hook_registry import HookRegistry
 
-    saved = list(patching._declared)
+    saved = list(patching._declared), list(patching._attached)
     HookRegistry.reset()
     patching._declared.clear()
+    patching._attached.clear()
     patching._activated = None
     yield HookRegistry
     HookRegistry.reset()
-    patching._declared[:] = saved
+    patching._declared[:], patching._attached[:] = saved
     patching._activated = None
 
 
@@ -183,6 +184,54 @@ def test_duplicate_replace_fails(registry, fake_sglang, monkeypatch):
         )
     with pytest.raises(PluginActivationError, match="Two REPLACE"):
         patching.activate(Features(model_compat=True))
+
+
+def test_attach_adds_absent_member(registry, fake_sglang, monkeypatch):
+    pinned = _pin(fake_sglang, "qsa_fake.mod.Box.value")
+    monkeypatch.setattr(fingerprint, "load_pinned", lambda: pinned)
+
+    @patching.attach(
+        "qsa_fake.mod.Box", feature="model_compat", depends=("qsa_fake.mod.Box.value",)
+    )
+    def doubled(self):
+        return 2 * self.value()
+
+    patching.attach_value("qsa_fake.mod", "LIMIT", 3, feature="model_compat")
+    patching.activate(Features(model_compat=True))
+    import qsa_fake.mod as mod
+
+    assert mod.Box().doubled() == 2
+    assert mod.LIMIT == 3
+
+
+@pytest.mark.parametrize("name", ["value", "__init__"])
+def test_attach_fails_when_upstream_defines_the_name(
+    registry, fake_sglang, monkeypatch, name
+):
+    monkeypatch.setattr(fingerprint, "load_pinned", lambda: {})
+    patching.attach_value("qsa_fake.mod.Box", name, lambda self: 0, feature="model_compat")
+    with pytest.raises(PluginActivationError, match="already defined"):
+        patching.activate(Features(model_compat=True))
+    import qsa_fake.mod as mod
+
+    assert mod.Box().value() == 1
+    assert patching._activated is None
+
+
+def test_attach_conflicts_fail(registry, fake_sglang, monkeypatch):
+    pinned = _pin(fake_sglang, "qsa_fake.mod.double")
+    monkeypatch.setattr(fingerprint, "load_pinned", lambda: pinned)
+    for _ in range(2):
+        patching.attach_value("qsa_fake.mod.Box", "extra", 1, feature="model_compat")
+    with pytest.raises(PluginActivationError, match="attached twice"):
+        patching.activate(Features(model_compat=True))
+    patching._attached.clear()
+    patching.attach_value("qsa_fake.mod.Box", "extra", 1, feature="model_compat")
+    patching.patch("qsa_fake.mod.Box.extra", "after", feature="hisparse")(
+        lambda result, self: result
+    )
+    with pytest.raises(PluginActivationError, match="Hooks on attached"):
+        patching.activate(Features(model_compat=True, hisparse_mode="p2-offload"))
 
 
 def _run_loader(tmp_path, environ):
