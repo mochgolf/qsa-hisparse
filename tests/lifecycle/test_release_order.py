@@ -34,7 +34,7 @@ pytestmark = pytest.mark.usefixtures("w2_patches", "published_context")
 PAGE = 4
 TOKENS = 8
 
-# The tail every lease release shares once its logical pages are free.
+# Every lease release continues so after the logical free (deferred in a group).
 RELEASE_TAIL = [
     "req_to_token_pool.free",
     "mark_kv_released",
@@ -96,7 +96,10 @@ class World:
         rt.prefix_cache = SimpleNamespace(epoch=0, reused_tokens=0)
         kvcache.qsa_hisparse = rt
         params = CacheInitParams(
-            disable=True, req_to_token_pool=pool, token_to_kv_pool_allocator=allocator, page_size=PAGE
+            disable=True,
+            req_to_token_pool=pool,
+            token_to_kv_pool_allocator=allocator,
+            page_size=PAGE,
         )
         cache = ChunkCache(params)
         if cache_type is QSAHostPrefixCache:
