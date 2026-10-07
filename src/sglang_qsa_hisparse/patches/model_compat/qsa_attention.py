@@ -16,9 +16,13 @@ methods are module-level functions attached to or installed on the class.
 
 Target-model scope (PLAN.md rule 9): the backend ``__init__`` hook (Q02)
 evaluates ``scope.target_model_active()`` once per backend and stores it as
-``_qsa_target_model``; backend method hooks read that attribute. Module-level
-targets (Q01, T02, T03, A03, A05, A09) have no backend reference and call the
-process-cached predicate. Out of scope, every hook runs the pinned definition.
+``_qsa_target_model``; the backend method hooks (Q05, Q08, Q10-Q12) read that
+attribute. Module-level targets (Q01, T02, T03, A03, A05, A09) have no backend
+reference and call the process-cached predicate. Out of scope each of them
+runs the pinned definition. The remaining rows change no behavior by
+themselves: Q02's other attributes, the Q04/Q09 members (called only from the
+scoped copies and the hisparse Q07 hook) and the T04 field, which stays None
+unless Q05 sets it.
 """
 
 from __future__ import annotations
