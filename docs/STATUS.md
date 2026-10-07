@@ -11,7 +11,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | G0 review | running | `reviews/G0.md` |
 | Phase 1 W1–W7 | not started | |
 | G1 review | pending | |
-| Phase 2 GPU | needs owner window | |
+| Phase 2 GPU | approved (runtime-env-sglang-20260923) | |
 | Phase 3 tracks I/U | not started | |
 
 ## Log
@@ -52,3 +52,5 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   fail if upstream defines the name); 19 framework tests pass. Deviations
   D1–D3 recorded in DEVIATIONS.md. PLAN.md updated with rule 3 mechanical
   edits, inventory-row ownership, Track U alignment, next-pin break (#42354).
+- Owner (2026-10-07): GPU validation and `service/runtime-env-sglang-20260923`
+  approved; deviations D1–D3 accepted.

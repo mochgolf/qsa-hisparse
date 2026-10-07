@@ -10,5 +10,5 @@ Only the orchestrator adds items; the owner may revert any of them.
 | D2 | `freeze_gc` log | GC freeze message at info | stays at debug | Cosmetic; avoids a REPLACE | Log output only |
 | D3 | F01 `ForwardBatch` fields | Class fields `req_pool_indices_cpu`, `kv_allocated_lens_cpu` for every model; two-batch overlap's `filter_batch` raises for every model | Instance attributes set only when the HiSparse runtime is active; `kv_allocated_lens_cpu` (never read) is dropped unless a reader is found | Avoids a class REPLACE pinning 1,412 lines and does not reproduce a crash in an unsupported configuration | Two-batch overlap (outside the HiSparse contract); dataclass field introspection |
 
-Decided 2026-10-07 by the orchestrator from P0-A findings, pending owner
-review.
+Decided 2026-10-07 by the orchestrator from P0-A findings; D1–D3 accepted
+by the owner on 2026-10-07.

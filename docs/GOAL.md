@@ -43,8 +43,11 @@ Set 2026-10-07. Owner decisions are final unless the owner changes them.
 
 ## Constraints
 
-- Do not start, stop, or replace the production service. GPU work needs an
-  owner-approved test window and runs exclusively, one job at a time.
+- Do not start, stop, or replace the production service. The owner approved
+  (2026-10-07) GPU validation and the interpreter
+  `../service/runtime-env-sglang-20260923` for it. GPU jobs run one at a time,
+  on ports other than production's 8081, only after checking that the GPUs
+  and ports are free; never kill a process the plugin work did not start.
 - Do not modify shared Python environments (`flash-next-env`, `quant-env`);
   tests select sources with `PYTHONPATH`.
 - No publication (push, PR, issue, release) without explicit confirmation.
