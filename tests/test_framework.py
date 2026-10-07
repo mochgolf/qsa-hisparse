@@ -1,5 +1,6 @@
 """Plugin framework contracts: no-op when off, fail-closed when on."""
 
+import functools
 import json
 import os
 import subprocess
@@ -18,19 +19,37 @@ from sglang_qsa_hisparse.features import Features, read_features
 
 MODULE = textwrap.dedent(
     """
+    import functools
+
+
     def double(x):
         return 2 * x
+
+
+    def configure():
+        return "configured"
+
+
+    @functools.lru_cache(maxsize=None)
+    def cached(x):
+        return x
 
 
     class Box:
         def value(self):
             return 1
 
+        @property
+        def size(self):
+            return 3
+
 
     class Child(Box):
         pass
     """
 )
+COMPAT = Features(model_compat=True)
+BOTH = Features(model_compat=True, hisparse_mode="p2-offload")
 
 
 @pytest.fixture
@@ -38,23 +57,29 @@ def registry():
     from sglang.srt.plugins.hook_registry import HookRegistry
 
     saved = list(patching._declared), list(patching._attached)
-    HookRegistry.reset()
-    patching._declared.clear()
-    patching._attached.clear()
-    patching._activated = None
-    patching._applied.clear()
-    patching._attached_live.clear()
+
+    def clear():
+        HookRegistry.reset()
+        patching._declared.clear()
+        patching._attached.clear()
+        patching._activated = None
+        patching._applied.clear()
+        patching._frozen_hooks.clear()
+        patching._attached_live.clear()
+
+    clear()
     yield HookRegistry
-    HookRegistry.reset()
+    clear()
     patching._declared[:], patching._attached[:] = saved
-    patching._activated = None
-    patching._applied.clear()
-    patching._attached_live.clear()
 
 
 @pytest.fixture
-def fake_sglang(tmp_path, monkeypatch):
-    """A throwaway module tree standing in for the installed SGLang sources."""
+def fake(tmp_path, monkeypatch):
+    """A throwaway module tree standing in for the installed SGLang sources.
+
+    The manifest is derived from whatever the test declares unless the test
+    sets ``fake.manifest`` explicitly.
+    """
     package = tmp_path / "qsa_fake"
     package.mkdir()
     (package / "__init__.py").write_text("")
@@ -65,17 +90,39 @@ def fake_sglang(tmp_path, monkeypatch):
     monkeypatch.setattr(patching, "_import_framework_hooks", lambda: None)
     for name in [m for m in sys.modules if m.startswith("qsa_fake")]:
         monkeypatch.delitem(sys.modules, name)
-    return tmp_path
+
+    class Fake:
+        root = tmp_path
+        path = package / "mod.py"
+        manifest = None
+
+        def pin(self, *targets):
+            pinned = {t: fingerprint.record(tmp_path, t) for t in targets}
+            monkeypatch.setattr(fingerprint, "load_pinned", lambda: pinned)
+            return pinned
+
+    state = Fake()
+
+    def manifest():
+        if state.manifest is not None:
+            return state.manifest
+        rows = {}
+        for spec in patching._declared:
+            entry = rows.setdefault(spec.row, {"feature": spec.feature, "patches": [], "attach": []})
+            entry["patches"].append({"target": spec.target, "hook_type": spec.hook_type})
+        for spec in patching._attached:
+            entry = rows.setdefault(spec.row, {"feature": spec.feature, "patches": [], "attach": []})
+            entry["attach"].append({"owner": spec.owner, "name": spec.name})
+        return rows
+
+    monkeypatch.setattr(patching, "load_manifest", manifest)
+    return state
 
 
-def _pin(root, *targets):
-    return {target: fingerprint.record(root, target) for target in targets}
+def _mod():
+    import qsa_fake.mod as mod
 
-
-def _use_pin(monkeypatch, root, *targets):
-    pinned = _pin(root, *targets)
-    monkeypatch.setattr(fingerprint, "load_pinned", lambda: pinned)
-    return pinned
+    return mod
 
 
 def _foreign():
@@ -92,11 +139,8 @@ def _foreign():
     [
         ({}, Features()),
         ({"SGLANG_QSA_MODEL_COMPAT": "0"}, Features()),
-        ({"SGLANG_QSA_MODEL_COMPAT": "1"}, Features(model_compat=True)),
-        (
-            {"SGLANG_QSA_MODEL_COMPAT": "1", "SGLANG_QSA_HISPARSE_V3": "p2-offload"},
-            Features(model_compat=True, hisparse_mode="p2-offload"),
-        ),
+        ({"SGLANG_QSA_MODEL_COMPAT": "1"}, COMPAT),
+        ({"SGLANG_QSA_MODEL_COMPAT": "1", "SGLANG_QSA_HISPARSE_V3": "p2-offload"}, BOTH),
     ],
 )
 def test_feature_switches(environ, expected):
@@ -128,13 +172,20 @@ def test_activation_errors_escape_exception_handlers():
 # Fingerprints ---------------------------------------------------------------
 
 
-def test_record_locates_definitions(fake_sglang):
-    record = fingerprint.record(fake_sglang, "qsa_fake.mod.Box.value")
+def test_record_locates_definitions(fake):
+    record = fingerprint.record(fake.root, "qsa_fake.mod.Box.value")
     assert record["file"] == "qsa_fake/mod.py"
     assert record["qualname"] == "Box.value"
     assert record["kind"] == "function"
-    assert record["first_line"] == record["def_line"] == 7
-    assert fingerprint.record(fake_sglang, "qsa_fake.mod.Box")["kind"] == "class"
+    assert record["chains"] == {
+        "cpu": [{"type": "builtins.function", "code": ["qsa_fake/mod.py", record["def_line"]]}]
+    }
+    cached = fingerprint.record(fake.root, "qsa_fake.mod.cached")
+    assert [level["type"] for level in cached["chains"]["cpu"]] == [
+        "functools._lru_cache_wrapper",
+        "builtins.function",
+    ]
+    assert fingerprint.record(fake.root, "qsa_fake.mod.Box")["kind"] == "class"
 
 
 @pytest.mark.parametrize(
@@ -148,44 +199,65 @@ def test_record_locates_definitions(fake_sglang):
     ],
     ids=["body", "conditional-redefinition", "crlf", "indent-shift", "module-constant"],
 )
-def test_any_module_edit_fails_verification(fake_sglang, edit):
-    pinned = _pin(fake_sglang, "qsa_fake.mod.Box.value")
-    path = fake_sglang / "qsa_fake" / "mod.py"
-    path.write_bytes(edit(path.read_text()).encode())
+def test_any_module_edit_fails_verification(fake, edit):
+    pinned = fake.pin("qsa_fake.mod.Box.value")
+    fake.path.write_bytes(edit(fake.path.read_text()).encode())
     with pytest.raises(FingerprintMismatch):
-        fingerprint.verify(["qsa_fake.mod.Box.value"], pinned=pinned)
+        fingerprint.verify(["qsa_fake.mod.Box.value"], pinned=pinned, check_bindings=False)
 
 
-def test_method_record_covers_class_header(fake_sglang):
-    before = fingerprint.record(fake_sglang, "qsa_fake.mod.Box.value")["sha256"]
-    path = fake_sglang / "qsa_fake" / "mod.py"
-    path.write_text(path.read_text().replace("class Box:", "@dataclass\nclass Box(Base):"))
-    assert fingerprint.record(fake_sglang, "qsa_fake.mod.Box.value")["sha256"] != before
+def test_method_record_covers_class_header(fake):
+    before = fingerprint.definition_record(fake.path, "Box.value")["sha256"]
+    fake.path.write_text(fake.path.read_text().replace("class Box:", "@dataclass\nclass Box(Base):"))
+    assert fingerprint.definition_record(fake.path, "Box.value")["sha256"] != before
 
 
 @pytest.mark.parametrize(
-    "source, target",
+    "suffix, qualname",
     [
-        (MODULE + "\nif True:\n    def double(x):\n        return 3 * x\n", "qsa_fake.mod.double"),
-        (MODULE + "\ndouble = staticmethod(double)\n", "qsa_fake.mod.double"),
-        (MODULE + "\nfrom os import path as double\n", "qsa_fake.mod.double"),
-        (MODULE, "qsa_fake.mod.Child.value"),
+        ("\nif True:\n    def double(x):\n        return 3 * x\n", "double"),
+        ("\ndouble = staticmethod(double)\n", "double"),
+        ("\nfrom os import path as double\n", "double"),
+        ("\ntry:\n    pass\nexcept Exception as double:\n    pass\n", "double"),
+        ("\nmatch 1:\n    case double:\n        pass\n", "double"),
+        ("\nif (double := 3):\n    pass\n", "double"),
+        ("\nfor double in ():\n    pass\n", "double"),
+        ("\nwith open(__file__) as double:\n    pass\n", "double"),
+        ("\ndel double\n", "double"),
+        ("", "Child.value"),
     ],
-    ids=["conditional", "reassigned", "imported", "inherited"],
+    ids=["conditional", "reassigned", "imported", "except-alias", "match-capture",
+         "walrus", "for-target", "with-target", "del", "inherited"],
 )
-def test_ambiguous_or_inherited_bindings_cannot_be_pinned(fake_sglang, source, target):
-    (fake_sglang / "qsa_fake" / "mod.py").write_text(source)
+def test_ambiguous_or_inherited_bindings_cannot_be_pinned(fake, suffix, qualname):
+    fake.path.write_text(MODULE + suffix)
     with pytest.raises(LookupError):
-        fingerprint.record(fake_sglang, target)
+        fingerprint.definition_record(fake.path, qualname)
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    [
+        "\ndouble.extra = 1\n",
+        "\ndouble: object\n",
+        "\nvalues = [double for double in ()]\n",
+        "\ndef other():\n    double = 1\n    return double\n",
+        "\nclass Other:\n    double = 1\n",
+    ],
+    ids=["attribute", "annotation-only", "comprehension", "nested-function", "nested-class"],
+)
+def test_non_bindings_do_not_count(fake, suffix):
+    fake.path.write_text(MODULE + suffix)
+    assert fingerprint.definition_record(fake.path, "double")["qualname"] == "double"
 
 
 # Activation -----------------------------------------------------------------
 
 
-def test_activate_applies_and_verifies(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.double", "qsa_fake.mod.Box.value")
+def test_activate_applies_and_verifies(registry, fake):
+    fake.pin("qsa_fake.mod.double", "qsa_fake.mod.Box.value")
 
-    @patching.patch("qsa_fake.mod.double", "around", feature="model_compat")
+    @patching.patch("qsa_fake.mod.double", "around", feature="model_compat", row="R1")
     def triple(original, x):
         return original(x) + x
 
@@ -193,218 +265,292 @@ def test_activate_applies_and_verifies(registry, fake_sglang, monkeypatch):
         "qsa_fake.mod.Box.value",
         "replace",
         feature="hisparse",
+        row="R2",
         depends=("qsa_fake.mod.double",),
     )
     def value(self):
         return 7
 
-    specs = patching.activate(Features(model_compat=True))
-    import qsa_fake.mod as mod
-
+    specs = patching.activate(COMPAT)
+    mod = _mod()
     assert [spec.target for spec in specs] == ["qsa_fake.mod.double"]
     assert mod.double(2) == 6
     assert mod.Box().value() == 1  # hisparse was not requested.
-    assert patching.activate(Features(model_compat=True)) == specs
+    assert patching.activate(COMPAT) == specs
     with pytest.raises(PluginActivationError):
-        patching.activate(Features(model_compat=True, hisparse_mode="p2-offload"))
+        patching.activate(BOTH)
 
 
-def test_fingerprint_mismatch_registers_nothing(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.double")
-    path = fake_sglang / "qsa_fake" / "mod.py"
-    path.write_text(path.read_text().replace("2 * x", "x + x"))
+def test_manifest_must_match_declarations(registry, fake):
+    fake.pin("qsa_fake.mod.double", "qsa_fake.mod.Box.value")
+    patching.patch("qsa_fake.mod.double", "after", feature="model_compat", row="R1")(
+        lambda result, x: result
+    )
+    hook_entry = {"target": "qsa_fake.mod.Box.value", "hook_type": "after"}
+    fake.manifest = {
+        "R1": {"feature": "model_compat", "patches": [{"target": "qsa_fake.mod.double", "hook_type": "after"}], "attach": []},
+        "R2": {"feature": "model_compat", "patches": [hook_entry], "attach": []},
+    }
+    with pytest.raises(PluginActivationError, match="missing"):
+        patching.activate(COMPAT)
+    fake.manifest = {}
+    with pytest.raises(PluginActivationError, match="no manifest rows"):
+        patching.activate(COMPAT)
+    fake.manifest = {
+        "R1": {"feature": "model_compat", "patches": [{"target": "qsa_fake.mod.double", "hook_type": "around"}], "attach": []},
+    }
+    with pytest.raises(PluginActivationError, match="undeclared in manifest"):
+        patching.activate(COMPAT)
+    assert not registry._hooks
 
-    @patching.patch("qsa_fake.mod.double", "around", feature="model_compat")
-    def hook(original, x):
-        return original(x)
 
+def test_fingerprint_mismatch_registers_nothing(registry, fake):
+    fake.pin("qsa_fake.mod.double")
+    fake.path.write_text(fake.path.read_text().replace("2 * x", "x + x"))
+    patching.patch("qsa_fake.mod.double", "around", feature="model_compat", row="R1")(
+        lambda original, x: original(x)
+    )
     with pytest.raises(FingerprintMismatch):
-        patching.activate(Features(model_compat=True))
+        patching.activate(COMPAT)
     assert not registry._hooks
     assert patching._activated is None
 
 
-def test_unpinned_dependency_fails(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.double")
-
-    @patching.patch(
+def test_unpinned_dependency_fails(registry, fake):
+    fake.pin("qsa_fake.mod.double")
+    patching.patch(
         "qsa_fake.mod.double",
         "around",
         feature="model_compat",
+        row="R1",
         depends=("qsa_fake.mod.Box.value",),
-    )
-    def hook(original, x):
-        return original(x)
-
+    )(lambda original, x: original(x))
     with pytest.raises(FingerprintMismatch, match="no pinned fingerprint"):
-        patching.activate(Features(model_compat=True))
+        patching.activate(COMPAT)
 
 
-def test_live_object_must_be_the_pinned_definition(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.double")
-    import qsa_fake.mod as mod
-
-    monkeypatch.setattr(mod, "double", lambda x: 3 * x)  # e.g. a raw monkeypatch
-    patching.patch("qsa_fake.mod.double", "around", feature="model_compat")(
-        lambda original, x: original(x)
+def test_missing_mode_chain_fails(registry, fake, monkeypatch):
+    fake.pin("qsa_fake.mod.double")
+    monkeypatch.setattr(fingerprint, "binding_mode", lambda: "cuda")
+    patching.patch("qsa_fake.mod.double", "after", feature="model_compat", row="R1")(
+        lambda result, x: result
     )
-    with pytest.raises(PluginActivationError, match="not the pinned definition"):
-        patching.activate(Features(model_compat=True))
+    with pytest.raises(FingerprintMismatch, match="no pinned binding chain for mode cuda"):
+        patching.activate(COMPAT)
+
+
+@pytest.mark.parametrize("kind", ["raw", "wraps"])
+def test_live_object_must_be_the_pinned_definition(registry, fake, monkeypatch, kind):
+    fake.pin("qsa_fake.mod.double")
+    mod = _mod()
+    original = mod.double
+    if kind == "raw":
+        replacement = lambda x: 50 * x  # noqa: E731
+    else:
+
+        @functools.wraps(original)
+        def replacement(x):
+            return 50 * original(x)
+
+    monkeypatch.setattr(mod, "double", replacement)
+    patching.patch("qsa_fake.mod.double", "after", feature="model_compat", row="R1")(
+        lambda result, x: result + 1
+    )
+    with pytest.raises(FingerprintMismatch, match="not the pinned definition"):
+        patching.activate(COMPAT)
     assert not registry._hooks
 
 
-def test_inherited_member_is_rejected(registry, fake_sglang, monkeypatch):
-    pinned = _pin(fake_sglang, "qsa_fake.mod.Box.value")
+def test_decorated_definition_passes_with_its_pinned_chain(registry, fake):
+    fake.pin("qsa_fake.mod.cached")
+    patching.patch("qsa_fake.mod.cached", "after", feature="model_compat", row="R1")(
+        lambda result, x: result + 1
+    )
+    patching.activate(COMPAT)
+    assert _mod().cached(1) == 2
+
+
+def test_inherited_member_is_rejected(registry, fake, monkeypatch):
+    pinned = fake.pin("qsa_fake.mod.Box.value")
     pinned["qsa_fake.mod.Child.value"] = pinned["qsa_fake.mod.Box.value"]
-    monkeypatch.setattr(fingerprint, "load_pinned", lambda: pinned)
-    patching.patch("qsa_fake.mod.Child.value", "after", feature="model_compat")(
+    patching.patch("qsa_fake.mod.Child.value", "after", feature="model_compat", row="R1")(
         lambda result, self: result
     )
-    with pytest.raises(PluginActivationError, match="not defined directly"):
-        patching.activate(Features(model_compat=True))
+    with pytest.raises(FingerprintMismatch, match="not the pinned definition"):
+        patching.activate(COMPAT)
 
 
-def test_duplicate_replace_fails(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.double")
+def test_property_targets_are_rejected(registry, fake):
+    fake.pin("qsa_fake.mod.Box.size")
+    patching.patch("qsa_fake.mod.Box.size", "after", feature="model_compat", row="R1")(
+        lambda result, self: result
+    )
+    with pytest.raises(PluginActivationError, match="Properties cannot be hook targets"):
+        patching.activate(COMPAT)
+    assert _mod().Box().size == 3
+
+
+def test_duplicate_replace_fails(registry, fake):
+    fake.pin("qsa_fake.mod.double")
     for _ in range(2):
-        patching.patch("qsa_fake.mod.double", "replace", feature="model_compat")(
+        patching.patch("qsa_fake.mod.double", "replace", feature="model_compat", row="R1")(
             lambda x: x
         )
     with pytest.raises(PluginActivationError, match="Two REPLACE"):
-        patching.activate(Features(model_compat=True))
+        patching.activate(COMPAT)
 
 
-@pytest.mark.parametrize(
-    "foreign_target, hook",
-    [
-        ("qsa_fake.mod.Box.value", lambda original, self: 0),
-        ("qsa_fake.mod.Box", "class"),
-    ],
-    ids=["same-target", "ancestor-class"],
-)
-def test_earlier_foreign_hooks_fail(registry, fake_sglang, monkeypatch, foreign_target, hook):
+@pytest.mark.parametrize("foreign_target", ["qsa_fake.mod.Box.value", "qsa_fake.mod.Box"])
+def test_earlier_foreign_hooks_fail(registry, fake, foreign_target):
     from sglang.srt.plugins.hook_registry import HookType
 
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.Box.value")
-    import qsa_fake.mod as mod
-
-    if hook == "class":
-        hook = type("Other", (mod.Box,), {})
-        hook_type = HookType.REPLACE
+    fake.pin("qsa_fake.mod.Box.value")
+    mod = _mod()
+    if foreign_target.endswith("Box"):
+        hook, hook_type = type("Other", (mod.Box,), {}), HookType.REPLACE
     else:
-        hook_type = HookType.AROUND
+        hook, hook_type = (lambda original, self: 0), HookType.AROUND
     registry.register(foreign_target, hook, hook_type, source=_foreign())
-    patching.patch("qsa_fake.mod.Box.value", "after", feature="model_compat")(
+    patching.patch("qsa_fake.mod.Box.value", "after", feature="model_compat", row="R1")(
         lambda result, self: result + 1
     )
     with pytest.raises(PluginActivationError, match="overlapping"):
-        patching.activate(Features(model_compat=True))
+        patching.activate(COMPAT)
 
 
-def test_later_foreign_class_replace_fails_final_check(
-    registry, fake_sglang, monkeypatch, tmp_path
-):
+def test_activation_leaves_other_plugins_hooks_to_the_loader(registry, fake):
     from sglang.srt.plugins.hook_registry import HookType
 
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.Box.value")
-    patching.patch("qsa_fake.mod.Box.value", "after", feature="model_compat")(
+    fake.pin("qsa_fake.mod.Box.value")
+    registry.register(
+        "qsa_fake.mod.double", lambda r, x: r + 1, HookType.AFTER, source=_foreign()
+    )
+    patching.patch("qsa_fake.mod.Box.value", "after", feature="model_compat", row="R1")(
         lambda result, self: result + 1
     )
-    patching.activate(Features(model_compat=True))
-    monkeypatch.setenv(patching.ACTIVATION_DIR_ENV, str(tmp_path / "records"))
-    patching.verify_final("scheduler", tp_rank=0)
-    record = json.loads(next((tmp_path / "records").glob("scheduler-*.json")).read_text())
-    assert record["patches"] == ["qsa_fake.mod.Box.value"]
-    assert record["tp_rank"] == 0
+    patching.activate(COMPAT)
+    assert "qsa_fake.mod.double" not in registry._patched
+    registry.register(
+        "qsa_fake.mod.double", lambda r, x: r + 10, HookType.AFTER, source=_foreign()
+    )
+    registry.apply_hooks()  # load_plugins()'s final pass after every plugin ran.
+    mod = _mod()
+    assert mod.double(1) == 13
+    assert mod.Box().value() == 2
+    patching.verify_final("scheduler")
 
-    import qsa_fake.mod as mod
 
-    replacement = type("Other", (mod.Box,), {"value": lambda self: 0})
-    registry.register("qsa_fake.mod.Box", replacement, HookType.REPLACE, source=_foreign())
-    registry.apply_hooks()  # load_plugins() does this after every plugin ran.
-    with pytest.raises(PluginActivationError, match="overlapping"):
+def test_late_hooks_fail_final_verification(registry, fake, tmp_path, monkeypatch):
+    from sglang.srt.plugins.hook_registry import HookSource, HookType
+
+    fake.pin("qsa_fake.mod.Box.value", "qsa_fake.mod.configure")
+    patching.patch("qsa_fake.mod.Box.value", "after", feature="model_compat", row="R1")(
+        lambda result, self: result + 1
+    )
+    calls = []
+
+    @patching.patch("qsa_fake.mod.configure", "before", feature="framework", row="FW")
+    def verifier(*args, **kwargs):
+        calls.append(1)
         patching.verify_final("scheduler", tp_rank=0)
 
+    patching.activate(COMPAT)
+    monkeypatch.setenv(patching.ACTIVATION_DIR_ENV, str(tmp_path / "records"))
+    mod = _mod()
 
-def test_hooks_inside_a_replaced_class_are_rejected(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.Box", "qsa_fake.mod.Box.value")
-    import qsa_fake.mod as mod
+    # A later plugin replacing an unrelated class cannot remove the verifier.
+    registry.register("qsa_fake.mod.Child", type("Other", (mod.Box,), {}), HookType.REPLACE, source=_foreign())
+    registry.apply_hooks()
+    assert mod.configure() == "configured" and calls == [1]
+    record = json.loads(next((tmp_path / "records").glob("scheduler-*.json")).read_text())
+    assert record["patches"] == ["qsa_fake.mod.Box.value", "qsa_fake.mod.configure"]
 
-    patching.patch("qsa_fake.mod.Box", "replace", feature="model_compat")(
+    # A later hook on the verifier's own target is skipped by the registry,
+    # which final verification reports.
+    registry.register("qsa_fake.mod.configure", lambda *a, **k: None, HookType.BEFORE, source=_foreign())
+    registry.apply_hooks()
+    with pytest.raises(PluginActivationError, match="overlapping"):
+        mod.configure()
+
+    registry._hooks["qsa_fake.mod.configure"].pop()
+    own = HookSource(plugin_name=patching.PLUGIN_NAME, dist_name=patching.DIST_NAME)
+    registry.register("qsa_fake.mod.double", lambda r, x: r, HookType.AFTER, source=own)
+    with pytest.raises(PluginActivationError, match="registered after activation"):
+        mod.configure()
+
+
+def test_hooks_inside_a_replaced_class_are_rejected(registry, fake):
+    fake.pin("qsa_fake.mod.Box", "qsa_fake.mod.Box.value")
+    mod = _mod()
+    patching.patch("qsa_fake.mod.Box", "replace", feature="model_compat", row="R1")(
         type("Replacement", (mod.Box,), {})
     )
-    patching.patch("qsa_fake.mod.Box.value", "after", feature="model_compat")(
+    patching.patch("qsa_fake.mod.Box.value", "after", feature="model_compat", row="R2")(
         lambda result, self: result
     )
     with pytest.raises(PluginActivationError, match="replaced class"):
-        patching.activate(Features(model_compat=True))
+        patching.activate(COMPAT)
 
 
 # Attach ---------------------------------------------------------------------
 
 
-def test_attach_adds_absent_member(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.Box.value")
+def test_attach_adds_absent_member(registry, fake):
+    fake.pin("qsa_fake.mod.Box.value")
 
     @patching.attach(
-        "qsa_fake.mod.Box", feature="model_compat", depends=("qsa_fake.mod.Box.value",)
+        "qsa_fake.mod.Box", feature="model_compat", row="R1", depends=("qsa_fake.mod.Box.value",)
     )
     def doubled(self):
         return 2 * self.value()
 
-    patching.attach_value("qsa_fake.mod", "LIMIT", 3, feature="model_compat")
-    patching.activate(Features(model_compat=True))
-    import qsa_fake.mod as mod
-
+    patching.attach_value("qsa_fake.mod", "LIMIT", 3, feature="model_compat", row="R1")
+    patching.activate(COMPAT)
+    mod = _mod()
     assert mod.Box().doubled() == 2
     assert mod.LIMIT == 3
 
 
-def test_attach_follows_a_replaced_class(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.Box")
-    import qsa_fake.mod as mod
-
+def test_attach_follows_a_replaced_class(registry, fake):
+    fake.pin("qsa_fake.mod.Box")
+    mod = _mod()
     replacement = type("Replacement", (mod.Box,), {})
-    patching.patch("qsa_fake.mod.Box", "replace", feature="model_compat")(replacement)
-    patching.attach_value("qsa_fake.mod.Box", "extra", 5, feature="model_compat")
-    patching.activate(Features(model_compat=True))
+    patching.patch("qsa_fake.mod.Box", "replace", feature="model_compat", row="R1")(replacement)
+    patching.attach_value("qsa_fake.mod.Box", "extra", 5, feature="model_compat", row="R1")
+    patching.activate(COMPAT)
     assert mod.Box is replacement
     assert replacement.__dict__["extra"] == 5
 
 
 @pytest.mark.parametrize("name", ["value", "__init__"])
-def test_attach_fails_when_upstream_defines_the_name(
-    registry, fake_sglang, monkeypatch, name
-):
-    monkeypatch.setattr(fingerprint, "load_pinned", lambda: {})
-    patching.attach_value("qsa_fake.mod.Box", name, lambda self: 0, feature="model_compat")
+def test_attach_fails_when_upstream_defines_the_name(registry, fake, name):
+    fake.pin()
+    patching.attach_value("qsa_fake.mod.Box", name, lambda self: 0, feature="model_compat", row="R1")
     with pytest.raises(PluginActivationError, match="already defined"):
-        patching.activate(Features(model_compat=True))
-    import qsa_fake.mod as mod
-
-    assert mod.Box().value() == 1
+        patching.activate(COMPAT)
+    assert _mod().Box().value() == 1
     assert patching._activated is None
 
 
-def test_attach_conflicts_fail(registry, fake_sglang, monkeypatch):
-    _use_pin(monkeypatch, fake_sglang, "qsa_fake.mod.double")
+def test_attach_conflicts_fail(registry, fake):
+    fake.pin("qsa_fake.mod.double")
     for _ in range(2):
-        patching.attach_value("qsa_fake.mod.Box", "extra", 1, feature="model_compat")
+        patching.attach_value("qsa_fake.mod.Box", "extra", 1, feature="model_compat", row="R1")
     with pytest.raises(PluginActivationError, match="attached twice"):
-        patching.activate(Features(model_compat=True))
+        patching.activate(COMPAT)
     patching._attached.clear()
-    patching.attach_value("qsa_fake.mod.Box", "extra", 1, feature="model_compat")
-    patching.patch("qsa_fake.mod.Box.extra", "after", feature="hisparse")(
+    patching.attach_value("qsa_fake.mod.Box", "extra", 1, feature="model_compat", row="R1")
+    patching.patch("qsa_fake.mod.Box.extra", "after", feature="hisparse", row="R2")(
         lambda result, self: result
     )
     with pytest.raises(PluginActivationError, match="Hooks on attached"):
-        patching.activate(Features(model_compat=True, hisparse_mode="p2-offload"))
+        patching.activate(BOTH)
 
 
 # Real SGLang loader in a fresh process --------------------------------------
 
 
-def _run_loader(tmp_path, environ, prelude=""):
+def _run_loader(tmp_path, environ, prelude="", epilogue=""):
     dist = tmp_path / "sglang_qsa_hisparse-0.1.0.dev0.dist-info"
     dist.mkdir(exist_ok=True)
     (dist / "METADATA").write_text(
@@ -423,7 +569,7 @@ def _run_loader(tmp_path, environ, prelude=""):
         print("patched", sorted(HookRegistry._patched))
         print("patching", "sglang_qsa_hisparse.patching" in sys.modules)
         """
-    )
+    ) + epilogue
     env = {
         key: value
         for key, value in os.environ.items()
@@ -443,11 +589,43 @@ def test_entry_point_is_noop_when_off(tmp_path):
     assert "patching False" in result.stdout
 
 
-def test_entry_point_activates_on_the_pin(tmp_path):
+def test_entry_point_rejects_unimplemented_features(tmp_path):
     result = _run_loader(tmp_path, {"SGLANG_QSA_MODEL_COMPAT": "1"})
+    assert result.returncode != 0
+    assert "PluginActivationError" in result.stderr
+    assert "differ from manifest.json" in result.stderr
+    assert "hooks" not in result.stdout
+
+
+def test_entry_point_activates_on_the_pin(tmp_path):
+    # Stand-in for a finished feature: one pinned model_compat row.
+    prelude = textwrap.dedent(
+        """
+        import sglang_qsa_hisparse.patching as patching
+        manifest = patching.load_manifest()
+        manifest = {k: v for k, v in manifest.items() if v["feature"] == "framework"}
+        target = "sglang.srt.managers.scheduler.run_scheduler_process"
+        manifest["T1"] = {"feature": "model_compat", "attach": [],
+                          "patches": [{"target": target, "hook_type": "around"}]}
+        patching.load_manifest = lambda: manifest
+        real_import = patching._import_feature_modules
+        def import_features(feature):
+            patching.patch(target, "around", feature="model_compat", row="T1")(
+                lambda original, *a, **k: original(*a, **k))
+        patching._import_feature_modules = import_features
+        """
+    )
+    epilogue = textwrap.dedent(
+        """
+        patching.verify_final("test")
+        print("verified")
+        """
+    )
+    result = _run_loader(tmp_path, {"SGLANG_QSA_MODEL_COMPAT": "1"}, prelude, epilogue)
     assert result.returncode == 0, result.stderr
-    assert "sglang.srt.managers.scheduler.Scheduler.__init__" in result.stdout
-    assert "patching True" in result.stdout
+    assert "sglang.srt.managers.scheduler.configure_scheduler_process" in result.stdout
+    assert "sglang.srt.managers.scheduler.run_scheduler_process" in result.stdout
+    assert "verified" in result.stdout
 
 
 def test_entry_point_config_failure_stops_the_process(tmp_path):

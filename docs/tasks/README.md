@@ -11,9 +11,22 @@ Common to every card:
   orchestrator. Do not merge into `main`.
 - Implement exactly your rows. If an inventory equivalence argument for a
   narrow hook fails, use the listed fallback REPLACE and report it.
-- Fingerprints: `tools/fingerprint.py write <your-module> <targets...>` for
-  every target and `depends` name, against the pin only.
+- Every `@patch`/`@attach` passes `row="<inventory row>"`. Activation
+  requires the declarations of a feature to equal `manifest.json` exactly
+  (generated from the inventory by the orchestrator; do not edit it). If a
+  row needs a different hook than listed (e.g. an equivalence fallback),
+  implement it, and report the change; the orchestrator updates the
+  inventory and manifest at merge.
+- Fingerprints: `CUDA_VISIBLE_DEVICES=99 <validation python> tools/fingerprint.py
+  write <your-module> <targets...>` for every target and `depends` name,
+  against the pin only. Records include CPU binding chains; the orchestrator
+  adds CUDA chains before GPU validation. `depends` entries must be functions
+  or classes (fields and instance attributes are not definitions). Properties
+  cannot be hook targets.
 - Run `tools/run_cpu_tests.sh` (all tests, including the framework suite).
+  Until every row of a feature is implemented, real activation of that
+  feature fails by design; test your hooks by activating against a manifest
+  restricted to your rows (see `tests/test_framework.py` for the pattern).
   A ported test that needs another workstream's patches stays unchanged,
   gets `@pytest.mark.integration`, and is listed in your report; the
   orchestrator runs those after merging.

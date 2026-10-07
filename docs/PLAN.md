@@ -106,8 +106,9 @@ REPLACE and report it.
 Interfaces between workstreams: W2/W3/W4 patches call the runtime only through
 the attributes the fork already uses (`kvcache.qsa_hisparse`,
 `uses_qsa_hisparse_leases`, `graph_enabled`, coordinator methods). W1 keeps
-those names unchanged. Integration (orchestrator): merge W1–W7, run the full
-CPU suite and `tools/fingerprint.py check`.
+those names unchanged. Integration (orchestrator): merge W1–W8, regenerate
+and check `manifest.json` (`tools/manifest.py --check`), run the full CPU
+suite including `integration` tests, and `tools/fingerprint.py check`.
 
 Gate G1: Codex review of the merged Phase 1.
 
@@ -126,17 +127,44 @@ identical `fixed_bytes` and static pools. Gate G2: Codex review of evidence.
 
 ## Phase 3: two parallel tracks
 
-**Track I, image prefix reuse (in the plugin).**
-I1 identity: carry the full artifact key, content digest and grid to the
-scheduler for Qwen-VL image items; define the bypass set (video/audio,
+**Track I, image prefix reuse (in the plugin).** One agent per task, each
+with its own task card written before Phase 3 starts.
+I1 identity transport (owner: I1 agent): carry the full artifact key,
+content digest and grid of each Qwen-VL image item to the scheduler, aligned
+with draft #41792 where possible; define the bypass set (video/audio,
 precomputed embeddings, skipped hashing, multi-span items, unscoped hashes).
-I2 matching: snapshot schema with image records intersecting `[0, L)` and a
-page-cumulative M-RoPE digest; `HostPrefixCache.acquire` and TP signatures.
-I3 inside-image boundaries: suffix embedding slicing via `extend_prefix_len`,
-per-image ViT cache reuse, PLE n-gram history over pad tokens, checkpoint
-capture at every page64 boundary. I4 CPU counterexamples. I5 GPU validation
-(window). I1 and I2 run in parallel against an `ImagePrefixIdentity` contract
-fixed first by the orchestrator; I3 follows I1. Gate G3-I.
+Processor hooks run where plugins load (tokenizer manager in the main
+process; plugins are not loaded in tokenizer-worker subprocesses at the pin,
+so multi-tokenizer mode is rejected while image reuse is on).
+I2 matching (owner: I2 agent): snapshot schema with the image records
+intersecting `[0, L)` and a page-cumulative M-RoPE digest; acquisition and TP
+signatures. I1 and I2 start from an `ImagePrefixIdentity` contract the
+orchestrator fixes first.
+I3 inside-image boundaries (owner: I3 agent, after I1): suffix embedding
+slicing via `extend_prefix_len`, per-image ViT cache reuse, PLE n-gram
+history over pad tokens, checkpoint capture at every page64 boundary.
+I4 CPU counterexamples (owner: I4 agent) and I5 GPU evidence (orchestrator,
+with W8's observer and comparator).
+
+Track I acceptance (gate G3-I), each criterion with a named test:
+1. Hit requires equal prefix tokens, and for every image intersecting
+   `[0, L)`: equal artifact key (content and preprocessing), order, full
+   offsets and grid. Counterexamples: forced `pad_value` collision, same
+   content with different preprocessing, swapped order, different grid,
+   different image after `L` (must still hit).
+2. Equal prefix M-RoPE positions (page-cumulative digest); no whole-prompt
+   digest in the key, so different suffixes share.
+3. Hits at every page64 boundary, including inside an image; the straddling
+   image's identity is part of the key.
+4. Restored state is exact: raw K/V bytes, compressed index, pending C4 ring
+   and rope positions, every recurrent and PLE state (W8 observer hashes
+   equal between restore and the original capture).
+5. A hit always leaves the logits tail to compute; input-logprob limits are
+   unchanged.
+6. Deterministic profile: cold, warm and divergent-suffix image requests
+   produce identical token IDs to their uncached controls; `cached_tokens`
+   > 0 on hits; ViT work for cached images is skipped.
+7. Text-only behavior and the existing qualification (G2-2) are unchanged.
 
 **Track U, upstream PRs (branches from fresh `upstream/main`, local only).**
 Upstream moved 1201 commits past the pin and is actively reworking several

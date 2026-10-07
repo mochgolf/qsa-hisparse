@@ -6504,3 +6504,1780 @@ Traceback (most recent call last):
     raise FileNotFoundError(_errno.ENOENT,
 FileNotFoundError: [Errno 2] No usable temporary directory found in ['/tmp', '/var/tmp', '/usr/tmp', '/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin']
 
+codex
+The rank extraction matches the pinned scheduler call: `args[3]` is `tp_rank` and `args[5]` is `pp_rank`. I also found stale inventory instructions that still prescribe the dropped `ForwardBatch` class replacement.
+
+A direct SGLang import failed because a dependency probes for a writable temporary directory in this read-only sandbox. I’ll use in-memory probes with the pinned registry source to continue checking the guard logic without creating files.
+exec
+/bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/src" ../service/runtime-env-sglang-20260923/bin/python -B - <<'"'PY'
+import ast, functools, sys, types, importlib.util
+from pathlib import Path
+from unittest.mock import patch as mock_patch
+from sglang_qsa_hisparse import fingerprint, patching
+from sglang_qsa_hisparse.features import Features
+root=Path('../.worktrees/sglang-pin-76e06febab/python/sglang').resolve()
+for name, path in [('sglang',root),('sglang.srt',root/'srt'),('sglang.srt.plugins',root/'srt/plugins')]:
+    m=types.ModuleType(name); m.__path__=[str(path)]; m.__file__=str(path/'__init__.py'); sys.modules[name]=m
+from sglang.srt.plugins.hook_registry import HookRegistry, HookSource, HookType
+base = 'def f(x):\\n    return 2*x\\n'
+cases = {
+    'if redef': base+'if True:\\n    def f(x): return 3*x\\n',
+    'try redef': base+'try:\\n    def f(x): return 3*x\\nexcept Exception:\\n    pass\\n',
+    'match body redef': base+'match 1:\\n    case 1:\\n        def f(x): return 3*x\\n',
+    'except capture': base+'try:\\n    raise ValueError()\\nexcept ValueError as f:\\n    pass\\n',
+    'match capture': base+'match 42:\\n    case f:\\n        pass\\n',
+    'walrus': base+'(f := lambda x: 3*x)\\n',
+    'attribute mutation': base+'f.extra = 1\\n',
+    'annotation only': base+'f: object\\n',
+    'nested local': base+'def g():\\n    f = 3\\n',
+    'nested global call': base+'def g():\\n    global f\\n    f = lambda x: 3*x\\ng()\\n',
+    'class nested local': 'class Box:\\n    def f(self): return 2\\n    def g(self):\\n        f = 3\\n',
+    'class match capture': 'class Box:\\n    def f(self): return 2\\n    match 42:\\n        case f:\\n            pass\\n',
+    'class walrus': 'class Box:\\n    def f(self): return 2\\n    (f := 42)\\n',
+    'class attribute mutation': 'class Box:\\n    def f(self): return 2\\n    f.extra = 1\\n',
+}
+for label, source in cases.items():
+    target = 'Box.f' if label.startswith('class ') else 'f'
+    try:
+        fingerprint._locate(ast.parse(source), target); verdict = 'ACCEPT'
+    except LookupError:
+        verdict = 'REJECT'
+    print('UNIQUENESS', label, verdict)
+module_name = 'qsa_review_probe'
+def reset(source):
+    HookRegistry.reset()
+    patching._declared.clear(); patching._attached.clear()
+    patching._activated = None; patching._applied.clear(); patching._attached_live.clear()
+    module = types.ModuleType(module_name); module.__file__ = '/virtual/qsa_review_probe.py'
+    sys.modules[module_name] = module
+    exec(compile(source, module.__file__, 'exec'), module.__dict__)
+    return module
+
+def rec(source, qualname):
+    with mock_patch.object(Path, 'read_bytes', return_value=source.encode()):
+        return {**fingerprint.definition_record('/virtual/qsa_review_probe.py', qualname), 'path':'/virtual/qsa_review_probe.py'}
+
+def activate(source, module, target, hook, hook_type='around'):
+    name = module_name + '.' + target
+    patching.patch(name, hook_type, feature='model_compat')(hook)
+    with mock_patch.object(fingerprint, 'verify', return_value={name:rec(source, target)}), mock_patch.object(patching, '_import_framework_hooks'), mock_patch.object(patching, '_import_feature_modules'):
+        patching.activate(Features(model_compat=True))
+source = base; module = reset(source); original = module.f
+@functools.wraps(original)
+def foreign(x): return 99
+module.f = foreign
+activate(source, module, 'f', lambda original, x: original(x)+1)
+patching.verify_final('probe')
+print('RAW_WRAPS activation and verify_final PASS; f(2)=', module.f(2), '(expected 5)')
+source = 'class Box:\\n    @staticmethod\\n    def s(x): return 2*x\\n    @classmethod\\n    def c(cls,x): return 2*x\\n    @property\\n    def p(self): return 2\\n'
+for member in ['s','c','p']:
+    module = reset(source)
+    activate(source, module, 'Box.'+member, lambda original, *args: original(*args))
+    patching.verify_final('probe')
+    try:
+        value = getattr(module.Box(), member)
+        print('DESCRIPTOR',member,'activation PASS; raw type=',type(module.Box.__dict__[member]).__name__,'value=',value if member=='p' else value(2))
+        if member=='p': print('PROPERTY callable access:', value())
+    except Exception as e: print('DESCRIPTOR',member,'RUNTIME ERROR',repr(e))
+source = base; module = reset(source)
+activate(source, module, 'f', lambda original, x: original(x)+1)
+name = module_name+'.f'
+HookRegistry.register(name, lambda result,x: result+10, HookType.AFTER, source=HookSource(patching.PLUGIN_NAME,patching.DIST_NAME))
+HookRegistry.apply_hooks(); patching.verify_final('probe')
+print('LATE_OWN_HOOK verify_final PASS; f(2)=',module.f(2),'(expected 15 if applied)')
+HookRegistry.reset(); patching.verify_final('probe')
+print('REGISTRY_RESET verify_final PASS; hooks=',len(HookRegistry._hooks),'patched=',len(HookRegistry._patched))
+source = 'def f(x): return 2*x\\ndef unrelated(x): return x\\n'; module = reset(source)
+other = module_name+'.unrelated'; foreign_source = HookSource('other','other-dist')
+HookRegistry.register(other, lambda result,x: result+1, HookType.AFTER,source=foreign_source)
+activate(source,module,'f',lambda original,x: original(x)+1)
+HookRegistry.register(other,lambda result,x: result+10,HookType.AFTER,source=foreign_source)
+HookRegistry.apply_hooks(); patching.verify_final('probe')
+print('EARLY_GLOBAL_APPLY verify_final PASS; unrelated(1)=',module.unrelated(1),'(expected 12)')
+PY" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+UNIQUENESS if redef REJECT
+UNIQUENESS try redef REJECT
+UNIQUENESS match body redef REJECT
+UNIQUENESS except capture ACCEPT
+UNIQUENESS match capture ACCEPT
+UNIQUENESS walrus ACCEPT
+UNIQUENESS attribute mutation REJECT
+UNIQUENESS annotation only REJECT
+UNIQUENESS nested local ACCEPT
+UNIQUENESS nested global call ACCEPT
+UNIQUENESS class nested local ACCEPT
+UNIQUENESS class match capture ACCEPT
+UNIQUENESS class walrus ACCEPT
+UNIQUENESS class attribute mutation REJECT
+RAW_WRAPS activation and verify_final PASS; f(2)= 100 (expected 5)
+DESCRIPTOR s activation PASS; raw type= staticmethod value= 4
+DESCRIPTOR c activation PASS; raw type= classmethod value= 4
+DESCRIPTOR p activation PASS; raw type= function value= <bound method _wrap_fn.<locals>.wrapper of <qsa_review_probe.Box object at 0x716910ab4830>>
+DESCRIPTOR p RUNTIME ERROR TypeError("'property' object is not callable")
+LATE_OWN_HOOK verify_final PASS; f(2)= 5 (expected 15 if applied)
+REGISTRY_RESET verify_final PASS; hooks= 0 patched= 0
+EARLY_GLOBAL_APPLY verify_final PASS; unrelated(1)= 2 (expected 12)
+
+exec
+/bin/bash -lc "git log --oneline -5; git show f8f0958:src/sglang_qsa_hisparse/patching.py | tail -90; sed -n '1,80p' ../.worktrees/sglang-pin-76e06febab/python/sglang/srt/environ.py; nl -ba docs/patch-inventory.md | sed -n '358,437p'; nl -ba docs/patch-inventory.md | sed -n '678,686p'" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+797ae34 Add Phase 1 task cards and the scope contract
+142b2f7 Resolve G0 review: fail-closed activation and stricter fingerprints
+75566e2 Use the approved validation env for CPU tests
+ff909b1 Record owner approval of GPU validation env and deviations D1-D3
+cbe75f2 Phase 0: inventory, baseline, upstream status, attach
+    hook_type: str,
+    *,
+    feature: str,
+    depends: tuple[str, ...] = (),
+    reason: str = "",
+) -> Callable:
+    """Declare a hook on a pinned SGLang definition (HookRegistry signatures)."""
+    if hook_type not in HOOK_TYPES:
+        raise ValueError(f"Unknown hook type {hook_type!r}")
+    if feature not in FEATURES:
+        raise ValueError(f"Unknown feature {feature!r}")
+
+    def decorator(hook: Callable) -> Callable:
+        _declared.append(
+            PatchSpec(target, hook_type, hook, feature, tuple(depends), reason)
+        )
+        return hook
+
+    return decorator
+
+
+def _import_feature_modules(feature: str) -> None:
+    package = importlib.import_module(f"sglang_qsa_hisparse.patches.{feature}")
+    for info in sorted(pkgutil.iter_modules(package.__path__), key=lambda i: i.name):
+        importlib.import_module(f"{package.__name__}.{info.name}")
+
+
+def collect(features: Features) -> list[PatchSpec]:
+    for feature in features.active:
+        _import_feature_modules(feature)
+    specs = [spec for spec in _declared if spec.feature in features.active]
+    replaced: dict[str, PatchSpec] = {}
+    for spec in specs:
+        if spec.hook_type != "replace":
+            continue
+        if spec.target in replaced:
+            raise PluginActivationError(f"Two REPLACE patches on {spec.target}")
+        replaced[spec.target] = spec
+    return specs
+
+
+def _raw_attribute(target: str):
+    owner_path, name = target.rsplit(".", 1)
+    owner = pkgutil.resolve_name(owner_path)
+    if isinstance(owner, type) and name in owner.__dict__:
+        return owner.__dict__[name]
+    return getattr(owner, name)
+
+
+def activate(features: Features) -> list[PatchSpec]:
+    """Apply all patches for ``features`` exactly once per process."""
+    global _activated
+    if _activated is not None:
+        if _activated != features:
+            raise PluginActivationError(
+                f"Already activated with {_activated}, requested {features}"
+            )
+        return [spec for spec in _declared if spec.feature in features.active]
+
+    specs = collect(features)
+    names = sorted({s.target for s in specs} | {d for s in specs for d in s.depends})
+    fingerprint.verify(names)
+
+    from sglang.srt.plugins.hook_registry import HookRegistry, HookSource, HookType
+
+    targets = sorted({spec.target for spec in specs})
+    foreign = [t for t in targets if t in HookRegistry._patched]
+    if foreign:
+        raise PluginActivationError(f"Targets already patched elsewhere: {foreign}")
+    originals = {target: _raw_attribute(target) for target in targets}
+    source = HookSource(plugin_name=PLUGIN_NAME, dist_name=DIST_NAME)
+    for spec in specs:
+        HookRegistry.register(
+            spec.target, spec.hook, HookType(spec.hook_type), source=source
+        )
+    # HookRegistry logs and skips failures; verify every target instead.
+    HookRegistry.apply_hooks()
+    failed = [
+        target
+        for target in targets
+        if target not in HookRegistry._patched
+        or _raw_attribute(target) is originals[target]
+    ]
+    if failed:
+        raise PluginActivationError(f"Hooks were not applied to: {failed}")
+    _activated = features
+    logger.info(
+        "QSA HiSparse plugin activated %s with %d patches", features.active, len(specs)
+    )
+    return specs
+import base64
+import functools
+import json
+import os
+import warnings
+from contextlib import contextmanager
+from enum import IntEnum
+from typing import Any, Callable, Dict, Optional
+
+
+@functools.lru_cache(maxsize=1)
+def _default_hip() -> bool:
+    """Lazy ROCm/HIP detection for platform-conditional env defaults.
+
+    Avoids importing torch at environ import time (this module is intentionally
+    stdlib-only and loaded very early). Resolved on first EnvField.get() that uses
+    it as a default, by which point torch is already imported in any real run;
+    falls back to False if torch is unavailable.
+    """
+    try:
+        import torch
+
+        return torch.version.hip is not None
+    except Exception:
+        return False
+
+
+_NON_UTF8_PREFIX = "base64:"
+
+
+def _default_cache_subdir(name: str) -> str:
+    """A directory under SGLANG_CACHE_DIR, for env defaults that track it.
+
+    Pass as a callable default: SGLANG_CACHE_DIR is declared further down the
+    Envs body, and resolving late also lets tests override it.
+    """
+    return os.path.join(os.path.expanduser(envs.SGLANG_CACHE_DIR.get()), name)
+
+
+def _default_tree_cache_sanity_check() -> bool:
+    """Enable the expensive tree-cache sanity check by default in CI."""
+    return envs.SGLANG_IS_IN_CI.get()
+
+
+class EnvField:
+    _allow_set_name = True
+
+    def __init__(self, default: Any, secret: bool = False):
+        self.default = default
+        # NOTE: environ can only accept str values, so we need a flag to indicate
+        # whether the env var is explicitly set to None.
+        self._set_to_none = False
+        self.secret = secret
+
+    def __set_name__(self, owner, name):
+        assert EnvField._allow_set_name, "Usage like `a = envs.A` is not allowed"
+        self.name = name
+
+    def parse(self, value: str) -> Any:
+        raise NotImplementedError()
+
+    def _resolve_default(self) -> Any:
+        # Support a callable default for lazily/platform-computed defaults
+        # (e.g. EnvBool(_default_hip)); evaluated only when the env is unset.
+        return self.default() if callable(self.default) else self.default
+
+    def get(self) -> Any:
+        value = os.getenv(self.name)
+
+        # Explicitly set to None
+        if self._set_to_none:
+            assert value == str(None)
+            return None
+
+        # Not set, return default
+        if value is None:
+            return self._resolve_default()
+
+        try:
+            return self.parse(value)
+   358	  `_build_hybrid_linear_kv_pool` 119, `_forward_raw` 109, `forward_extend` 102,
+   359	  `Qwen4ExpNGramEmbedding.__init__` 100. F01 is a special case: its copy is
+   360	  only ~15 lines, but the class fingerprint pins all 1412 lines of
+   361	  `ForwardBatch`, the most-edited upstream dataclass, so every pin upgrade
+   362	  will trip it.
+   363	
+   364	## 6. Implementation constraints and deviations from PLAN.md
+   365	
+   366	- **G1. New members on pinned classes cannot be patched.** HookRegistry
+   367	  resolves `getattr(owner, name)`, so the attribute must already exist. A
+   368	  failure is logged and skipped, and `activate()` then raises "Hooks were not
+   369	  applied". This affects the new methods in Q04 and Q09, the `_add_one_req`
+   370	  split in P02 (a plugin function is enough there), and the dataclass/Struct
+   371	  fields in F01 and T04. PLAN rule 3 ("copied verbatim") cannot hold for
+   372	  bodies that call `self._store_kv(...)` and similar unless the framework
+   373	  gains an `attach` declaration: set a new attribute only after verifying it
+   374	  is absent at the pin, recorded as an "absent" fingerprint. The alternatives
+   375	  are a class replace or mechanical edits that call plugin functions.
+   376	  Orchestrator decision.
+   377	- **G2. Zero-argument `super()`** in a copied method fails outside its class.
+   378	  This affects E03 (`Qwen4ExpNGramEmbedding.__init__`), which must use
+   379	  `super(Qwen4ExpNGramEmbedding, self)`. That is a mechanical edit to a
+   380	  "verbatim" body.
+   381	- **G3. Copies run with the plugin module's globals.** Every private helper or
+   382	  constant a copy uses must be imported into the plugin module, for example
+   383	  `_TRTLLM_SPARSE_PAGE_SIZE`, `_get_best_config` and `logger`. Bindings made
+   384	  before `HookRegistry.apply_hooks` are rebound to patched objects by
+   385	  `_propagate_patch`. That is how copies reach other patched targets
+   386	  (Q12→Q01/A09, Q08→A03/A05, T03→T02).
+   387	- **G4. `fused_marlin_moe` is an eager custom op.** `register_custom_op`
+   388	  defaults to `eager=True`, so the module attribute is
+   389	  `torch.ops.sglang.fused_marlin_moe`. The copy must be registered under a
+   390	  distinct `op_name`; reusing the name would silently route to the upstream
+   391	  implementation (`CustomOpWrapper.real_impl` checks
+   392	  `hasattr(torch.ops.sglang, name)`). `register_custom_op` itself cannot be
+   393	  fingerprinted, because `fingerprint._locate` rejects its 5 `@overload`
+   394	  definitions.
+   395	- **G5. `lru_cache` targets.** The HookRegistry wrapper does not expose
+   396	  `cache_clear`. Fork `test/qsa_hisparse/test_flash_attention.py` and pinned
+   397	  `test/registered/kernel/qsa/test_qsa.py:162` call
+   398	  `_resolve_flash_attn_varlen_func.cache_clear()`. With the plugin on, W4 must
+   399	  expose `cache_clear` (and `_resolve_flashinfer_qsa_ragged`'s own cache)
+   400	  through the wrapper.
+   401	- **G6. Class REPLACE propagation (F01, T04).** `_propagate_patch` rebinds
+   402	  every module-level reference to the original class, including the plugin's
+   403	  own alias. Define the subclass against an attribute read at class-creation
+   404	  time rather than a stored alias. Every `ForwardBatch(...)` construction site
+   405	  and `ForwardBatch.init_new` (`cls(...)`) then produce the subclass.
+   406	- **G7. Unit tests with hisparse on.** The pinned
+   407	  `test/registered/unit/managers/test_scheduler_chunked_req_gate.py` builds a
+   408	  Scheduler without `hisparse_coordinator`, which S04's copy reads. The fork
+   409	  edited that test (+1 line). W7's "installed but off" run is unaffected.
+   410	- **Contradictions with PLAN.md:**
+   411	  (a) Rule 3 vs G1/G2/G4/G5: some copies cannot be both verbatim and
+   412	  activatable.
+   413	  (b) U-list gaps: F01's `ForwardBatch` fields and Q05/T04's
+   414	  `decode_score_width` match no PR; the log-level changes (U01, Z05) have no
+   415	  PR; U7 should also list Z01's w13 `size_k` and gc changes and E03's
+   416	  meta-device NGram embedding.
+   417	  (c) The known hidden-change list includes the `shape_key` move, which is
+   418	  pure (§4 item 3).
+   419	  (d) PLAN W5 scope implies `moe/.../layer.py` is reproduced in full; Z05 (a
+   420	  log-only line) is proposed as drop.
+   421	  (e) PLAN says W4 handles "SM89 fallback"; the fork's fallback is SM86 and
+   422	  SM89 (§4 item 5).
+   423	
+   424	## 7. Fork changes outside `python/sglang` (noted, not inventoried)
+   425	
+   426	- `test/qsa_hisparse/*` are ported per PLAN by W1 (runtime, slots,
+   427	  single_request, gather), W4 (deterministic_topk, flash_attention), W5
+   428	  (marlin alignment, model_compatibility), W6 (prefix_cache) and W2/W7
+   429	  (service_control; owner to assign).
+   430	- `test/registered/*`: test_hc_mix_triton (+7, W5), test_qsa (+36, W4),
+   431	  test_pool_configurator (+69, W3), test_batch_result_processor_hidden_states
+   432	  (−get_memory patch; needed only by the fork's import removal, B01) and
+   433	  test_scheduler_chunked_req_gate (+1, G7, W2).
+   434	- `test/manual/*` (GPU scripts: Marlin batch invariance and alignment, top-k
+   435	  probe, prefix acceptance, concurrency, latency, ledger, lifecycle) are
+   436	  Phase 2 inputs (P0-B).
+   437	- `scripts/qsa_service.py`, `scripts/test_qsa_hisparse_cpu.sh`,
+   678	| M01 | `mem_cache.allocation.alloc_for_extend` | `hardware_backend.npu.dsv4.dsv4_common_hooks.maybe_write_dsv4_extend`, `mem_cache.allocation._alloc_extend_loc_with_kv_reuse`, `mem_cache.allocation._alloc_page_size`, `mem_cache.allocation.alloc_paged_token_slots_extend`, `mem_cache.allocation.alloc_req_slots`, `mem_cache.allocation.alloc_token_slots`, `mem_cache.allocation.write_cache_indices`, `utils.common.is_pin_memory_available` | `_alloc_for_extend` |
+   679	| M03 | `mem_cache.common.release_kv_cache` | `mem_cache.common._release_overallocated_kv_indices` | none |
+   680	| M04 | `mem_cache.memory_pool.ReqToTokenPool.clear` | none | none |
+   681	| K02 | `mem_cache.kv_cache_configurator.KVCacheConfigurator._build_hybrid_linear_kv_pool` | `configs.model_config.dsa_layer_skips_topk`, `configs.model_config.get_dsa_index_head_dim`, `configs.model_config.get_dsa_index_kpool`, `configs.model_config.get_dsa_index_kpool_compress`, `configs.model_config.is_deepseek_dsa`, `layers.attention.qsa.config.parse_qsa_profile`, `mem_cache.kv_cache_configurator.KVCacheConfigurator._build_mha_quant_method`, `mem_cache.kv_cache_configurator.calculate_mla_kv_cache_dim`, `mem_cache.memory_pool.MHATokenToKVPool`, `runtime_context.get_exec`, `runtime_context.get_parallel`, `runtime_context.get_spec`, `runtime_context.max_speculative_num_draft_tokens` | `QSAHiSparseSlots` |
+   682	| F01 | `model_executor.forward_batch_info.ForwardBatch` | none | none |
+   683	| R02 | `model_executor.model_runner.ModelRunner._forward_raw` | `model_executor.forward_context.ForwardContext`, `model_executor.forward_context.forward_context`, `model_executor.forward_context.has_forward_context`, `model_executor.model_runner.ModelRunner._extend_forward_kwargs`, `model_executor.model_runner.ModelRunner._maybe_execute_deferred_mamba_cow_and_clear`, `model_executor.model_runner.ModelRunner._prepare_eager_forward_batch`, `model_executor.model_runner.ModelRunner.forward_split_prefill`, `model_executor.model_runner.ModelRunnerOutput`, `model_executor.model_runner._prefill_cuda_graph_allows_context_parallel`, `runtime_context.get_global_dwdp_manager`, `utils.device_timer.device_timer_ctx` | none |
+   684	| G01 | `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_one_shape` | `layers.dp_attention.set_dp_buffer_len`, `layers.dp_attention.set_is_extend_in_batch`, `model_executor.forward_batch_info.PPProxyTensors`, `model_executor.forward_context.ForwardContext`, `model_executor.forward_context.forward_context`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._capture_graph_size`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._make_graph_key`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._ragged_capture_slots`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._record_in_graph_metadata_prep_done`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_prepare`, `model_executor.runner.flashinfer_autotune.maybe_flashinfer_autotune_speculative_draft`, `runtime_context.get_exec`, `utils.common.empty_context` | none |
+   685	| G02 | `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.load_batch` | `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._capture_graph_size`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._make_graph_key`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._max_dp_batch_size`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._ragged_capture_slots`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._ragged_graph_num_tokens`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._replay_attn_backend`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._resolve_attention_variant`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._resolve_lora_variant`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._stage_ragged_verify_layout`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._validate_capture_hidden_mode`, `model_executor.runner.decode_cuda_graph_runner.build_replay_fb_view`, `multiplex.pdmux_context.get_current_stream_idx`, `speculative.ragged_verify.resolve_ragged_verify_layout` | none |
+   686	| G03 | `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.execute` | `layers.logits_processor.LogitsProcessorOutput`, `model_executor.forward_batch_info.PPProxyTensors`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._publish_read_done`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._ragged_capture_slots`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._replay_attn_backend`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._resolve_shared_read_ends`, `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.load_batch`, `utils.common.empty_context`, `utils.device_timer.device_timer_ctx` | none |
+
+exec
+/bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 ../service/runtime-env-sglang-20260923/bin/python -B tools/fingerprint.py check' in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+1 pinned fingerprint(s) match /home/zyk/projects/interests/ai-video/qwen/.worktrees/sglang-pin-76e06febab/python
+
+exec
+/bin/bash -lc "nl -ba docs/PLAN.md | sed -n '40,180p'; rg --files -g AGENTS.md ." in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ exited 1 in 0ms:
+    40	   which is the default interpreter of `tools/run_cpu_tests.sh` and is used
+    41	   read-only), editing `fork:` or `pin:`, pushing, opening or commenting on
+    42	   PRs/issues. Write only inside your assigned paths.
+    43	7. **Intentional deviations** from the fork are allowed only when listed in
+    44	   [DEVIATIONS.md](DEVIATIONS.md) by the orchestrator.
+    45	8. The fork's `test_service_control.py::ServiceLifecycleTests` starts systemd
+    46	   user units; deselect it (`-k 'not ServiceLifecycleTests'`).
+    47	9. **Target-model scope.** `model_compat` hooks on generic paths (GPTQ /
+    48	   AutoRound MoE loading, Marlin MoE, request-row generations, QSA kernels
+    49	   shared with other QSA models) call the original unless
+    50	   `sglang_qsa_hisparse.scope.target_model_active()` is true. The target set
+    51	   is the fork's validated model (`Qwen4ExpForConditionalGeneration` and the
+    52	   text model it builds). The predicate reads SGLang's published model
+    53	   configuration and raises if it cannot decide; it never guesses. Each
+    54	   row's scope decision goes in the patch `reason`.
+    55	10. **Report** in your final message: files changed, tests run with results,
+    56	   unresolved items, and any deviation from this plan.
+    57	
+    58	## Layout
+    59	
+    60	| Path | Content | Owner |
+    61	| --- | --- | --- |
+    62	| `src/sglang_qsa_hisparse/{plugin,features,patching,fingerprint,errors}.py`, `patches/framework.py` | Framework (fixed contract) | orchestrator |
+    63	| `src/sglang_qsa_hisparse/{launch,scope}.py` | Launcher preflight/activation records; target-model scope (rule 9) | W7 |
+    64	| `tools/evidence/` | Byte observer, F-vs-P comparator, compat-only reduced profile | W8 |
+    65	| `src/sglang_qsa_hisparse/hisparse/` | Fork `mem_cache/qsa_hisparse/*` and `hisparse_graph.py` as `graph.py` (moved verbatim, imports rewritten) | W1 |
+    66	| `src/sglang_qsa_hisparse/kernels/` | Plugin-owned kernels (`stable_align.py`, Marlin JIT copy, PLE gather, stable HC) | W4/W5 by file |
+    67	| `src/sglang_qsa_hisparse/patches/model_compat/*.py` | Shared-path patches | W4, W5 by file |
+    68	| `src/sglang_qsa_hisparse/patches/hisparse/*.py` | Runtime integration patches | W2, W3, W4 by file |
+    69	| `src/sglang_qsa_hisparse/fingerprints/<module>.json` | One file per patch module | that module's owner |
+    70	| `tests/<workstream>/` | Ported and new tests | that workstream |
+    71	
+    72	Import mapping: `sglang.srt.mem_cache.qsa_hisparse.X` →
+    73	`sglang_qsa_hisparse.hisparse.X`; `sglang.srt.layers.attention.qsa.hisparse_graph`
+    74	→ `sglang_qsa_hisparse.hisparse.graph`; `...fused_moe_triton.stable_align` →
+    75	`sglang_qsa_hisparse.kernels.stable_align`.
+    76	
+    77	## Phase 0: baseline and inventory (parallel)
+    78	
+    79	| Task | Output | Notes |
+    80	| --- | --- | --- |
+    81	| P0-A inventory | `docs/patch-inventory.md` | Every fork change (28 modified srt files, Marlin JIT/op files, new files) → target, feature (rule 1), hook type, workstream, fingerprint targets, `depends`, upstream interface that would remove a REPLACE |
+    82	| P0-B baseline | `docs/baseline.md` | Fork CPU suite at `ee8fe158d6` in a new detached worktree; pinned upstream subset of the same upstream tests; GPU equivalence fixture inventory (locations, frozen inputs, commands) without running GPU |
+    83	| P0-C upstream status | `docs/upstream-status.md` | Re-verify #26161, #34398, #22038, #38855, #35485, #39862; upstream `main` changes since the pin to each planned PR area; contribution requirements |
+    84	| P0-D framework | done by orchestrator | Plugin skeleton, fail-closed activation, fingerprints, `attach`, CPU runner, moved runtime package |
+    85	
+    86	Gate G0: Codex review of framework + three documents.
+    87	
+    88	## Phase 1: plugin parity on the pin (parallel workstreams)
+    89	
+    90	| Workstream | Fork scope | Plugin files |
+    91	| --- | --- | --- |
+    92	| W1 runtime | `mem_cache/qsa_hisparse/*` minus prefix modules' tests, `hisparse_graph.py` | `hisparse/` (except `prefix*.py` behavior), `tests/runtime/` ← fork `test_runtime.py`, `test_slots.py`, `test_single_request.py`, `test_gather.py` |
+    93	| W2 scheduler/lifecycle | `managers/scheduler.py`, `scheduler_components/{batch_result_processor,weight_updater}.py`, `schedule_policy.py`, `mem_cache/{allocation,common,memory_pool}.py`, `allocator/paged.py` | `patches/*/scheduler.py`, `patches/*/lifecycle.py`, `tests/lifecycle/` incl. release-ordering ledger test |
+    94	| W3 pools/graph | `pool_configurator.py`, `kv_cache_configurator.py`, `qsa_kv_pool.py`, `model_runner.py`, `decode_cuda_graph_runner.py`, `forward_batch_info.py` | `patches/*/pools.py`, `patches/*/graph.py`, `tests/pools/` ← fork pool configurator tests |
+    95	| W4 QSA attention | `qwen_sparse_attn_backend.py`, `qsa/{kernel,metadata,qsa_indexer,sparse_attn}.py` | `patches/model_compat/qsa_attention.py`, `patches/hisparse/qsa_backend.py`, `kernels/qsa_*.py`, `tests/qsa/` ← `test_deterministic_topk.py`, `test_flash_attention.py`, registered `kernel/qsa/test_qsa.py` additions |
+    96	| W5 model compat | `quantization/{auto_round,gptq/schemes/gptq_moe}.py`, `gptq_kernels.py`, `fused_marlin_moe.py`, `moe/.../layer.py`, Marlin JIT `.cuh/.h` + op wrapper, `hc_mix_triton.py`, `hyperconnection.py`, `models/qwen4_exp.py`, `utils/common.py` | `patches/model_compat/{quantization,marlin,qwen4_exp,hyperconnection}.py`, `kernels/csrc/marlin_moe/`, `kernels/{marlin_moe,hc_mix,ple_gather}.py`, `tests/model_compat/` ← `test_marlin_deterministic_alignment.py`, `test_model_compatibility.py`, hc mix test additions |
+    97	| W6 prefix cache | `qsa_hisparse/{prefix,prefix_cache}.py` integration surface | `tests/prefix/` ← `test_prefix_cache.py`; `docs/prefix-cache.md`; verify every scheduler/allocation call site the prefix cache relies on is covered by W2 patches; evaluate building the host cache through the pin's `register_radix_cache_backend`/`--radix-cache-backend` instead of a scheduler patch (needed anyway at the next pin, see Phase 4) |
+    98	| W7 launch/regression | fork `scripts/qsa_service.py`, `test/qsa_hisparse/test_service_control.py` | `src/sglang_qsa_hisparse/launch.py`: preflight (entry point discoverable from a private dist-info path that spawned processes inherit, allowed by `SGLANG_PLUGINS`), sets `SGLANG_QSA_ACTIVATION_DIR`, starts the server, and fails unless every scheduler/TP rank wrote an activation record before readiness; `src/sglang_qsa_hisparse/scope.py` (rule 10) with tests; service-control port adapted to the launcher (lifecycle tests deselected per rule 8); `tests/regression/`: off ⇒ zero hooks and pinned upstream tests pass; non-target model ⇒ scoped hooks delegate; inventory completeness (every fork hunk mapped) |
+    99	| W8 evidence tooling | fork `test/manual/qsa_hisparse_prefix_*.py`, baseline gaps 5–7 | `tools/evidence/`: a neutral checkpoint-byte observer (hashes of restored/captured raw K/V, index, pending ring, Mamba/PLE state per request and rank, enabled by env, identical in F and P), an offline F-vs-P comparator (rid-normalized ledgers, token IDs, hashes), and the reduced deterministic compat-only profile (context, `--max-total-tokens`, fixtures) with its run script; all CPU-tested |
+   100	
+   101	Row IDs in `docs/patch-inventory.md` assign each fork hunk to a workstream;
+   102	a workstream implements exactly its rows. Use the inventory's equivalence
+   103	arguments for narrow hooks; if an argument fails, fall back to the listed
+   104	REPLACE and report it.
+   105	
+   106	Interfaces between workstreams: W2/W3/W4 patches call the runtime only through
+   107	the attributes the fork already uses (`kvcache.qsa_hisparse`,
+   108	`uses_qsa_hisparse_leases`, `graph_enabled`, coordinator methods). W1 keeps
+   109	those names unchanged. Integration (orchestrator): merge W1–W7, run the full
+   110	CPU suite and `tools/fingerprint.py check`.
+   111	
+   112	Gate G1: Codex review of the merged Phase 1.
+   113	
+   114	## Phase 2: GPU equivalence (serial, owner-approved window)
+   115	
+   116	Approved by the owner on 2026-10-07 (interpreter
+   117	`../service/runtime-env-sglang-20260923`). All criteria compare fresh fork and
+   118	plugin runs from the same window; historical goldens are informational.
+   119	G2-1 kernel and graph checks (Marlin deterministic, QSA FP8 extraction,
+   120	deterministic top-k probe, B1–B8 capture). G2-2 frozen deterministic HTTP
+   121	fixtures: fork vs plugin `compat+hisparse` token IDs and cached bytes/state
+   122	(W8 observer), and fork (V3 unset) vs plugin `compat` on W8's reduced
+   123	profile.
+   124	G2-3 prefix acceptance, concurrency, latency, lifecycle scripts. G2-4 memory:
+   125	identical `fixed_bytes` and static pools. Gate G2: Codex review of evidence.
+   126	
+   127	## Phase 3: two parallel tracks
+   128	
+   129	**Track I, image prefix reuse (in the plugin).**
+   130	I1 identity: carry the full artifact key, content digest and grid to the
+   131	scheduler for Qwen-VL image items; define the bypass set (video/audio,
+   132	precomputed embeddings, skipped hashing, multi-span items, unscoped hashes).
+   133	I2 matching: snapshot schema with image records intersecting `[0, L)` and a
+   134	page-cumulative M-RoPE digest; `HostPrefixCache.acquire` and TP signatures.
+   135	I3 inside-image boundaries: suffix embedding slicing via `extend_prefix_len`,
+   136	per-image ViT cache reuse, PLE n-gram history over pad tokens, checkpoint
+   137	capture at every page64 boundary. I4 CPU counterexamples. I5 GPU validation
+   138	(window). I1 and I2 run in parallel against an `ImagePrefixIdentity` contract
+   139	fixed first by the orchestrator; I3 follows I1. Gate G3-I.
+   140	
+   141	**Track U, upstream PRs (branches from fresh `upstream/main`, local only).**
+   142	Upstream moved 1201 commits past the pin and is actively reworking several
+   143	target areas (`docs/upstream-status.md`). Each U task first decides between
+   144	contributing to an existing upstream PR, rebasing onto it, or a new PR, and
+   145	follows upstream style (no defensive `getattr` probing, `msgspec.Struct`
+   146	containers, `model_runner.py` orchestration only, tests under
+   147	`test/registered/unit/<module>` with `register_cpu_ci`). Engaging on an
+   148	existing upstream PR (comments, reviews) is publication and needs owner
+   149	confirmation.
+   150	U1 HiSparse coordinator protocol and scheduler gating (align with open
+   151	#35488); U23 (one owner) prefix-cache lifecycle hooks on the reworked
+   152	upstream API (`checkpoint`, `on_release`, `claim_kv_row`; track
+   153	#42823/#42824/#42825/#42923) together with allocator free-group/release
+   154	callbacks and KV pool runtime attachment, because both meet in
+   155	`release_kv_cache` (inventory M03); its lifecycle contract (checkpoint, drain,
+   156	logical release, free-group flush, physical reuse) is frozen in the task
+   157	before code;
+   158	U4 pool fixed reservation + `full_kv_pool` factory; U5 decode CUDA graph
+   159	backend lifecycle hooks, widening the existing extend-only
+   160	`ForwardBatch.req_pool_indices_cpu`; U6 QSA backend extension points, FP8
+   161	descales, SM86/SM89 flash-attention fallback, `decode_score_width`;
+   162	U7 GPTQ MoE scale sizing/dtype incl. w13 `size_k` (align with open #35955),
+   163	AutoRound g64 split, INT8-row PLE (meta-device table is already upstream,
+   164	#39928); U8 deterministic Marlin whole-K, QSA stable top-k and stable HC
+   165	(align with open #42087); U9 monotonic `req_generation`, HiSparse decode batch
+   166	multimodal inputs. Track I's identity transport aligns with draft #41792
+   167	(`MultimodalDataItem.identity`). Each task works on its own branch from the
+   168	same `upstream/main` commit; U1 and U23 both touch scheduler release paths,
+   169	so U23 rebases onto U1 if both are prepared. The rest are independent. Gate G3-U per batch, then
+   170	owner confirmation per PR.
+   171	
+   172	## Phase 4: shrink REPLACE (after upstream merges)
+   173	
+   174	Each merged PR: new pin cycle, convert the matching REPLACE into a protocol
+   175	implementation, re-run Phase 1 CPU and Phase 2 GPU gates. Known break at the
+   176	next pin: upstream #42354 gives hybrid-SSM models (Qwen4-Exp) a
+   177	`UnifiedRadixCache` under `--disable-radix-cache` and rejects caches without
+   178	`supports_mamba()`, so the host prefix cache must become a registered radix
+   179	cache backend. Upstream test paths also moved (QSA tests to
+   180	`test/registered/kernels/ops/attention/qsa/`, `hc_mix_triton.py` to
+
+exec
+/bin/bash -lc 'git status --short; git rev-parse HEAD; git show --stat 797ae34; git diff 142b2f7 797ae34 -- docs/PLAN.md docs/DEVIATIONS.md docs/GOAL.md docs/patch-inventory.md docs/STATUS.md; rg --files tasks docs src tests | sort' in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+ M reviews/G0r.log
+797ae34b1fdd1563bc80e9b78f474d6b36df0dcc
+commit 797ae34b1fdd1563bc80e9b78f474d6b36df0dcc
+Author: zyk <zyk2333@gmail.com>
+Date:   Wed Oct 7 10:55:55 2026 -0700
+
+    Add Phase 1 task cards and the scope contract
+    
+    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+ docs/tasks/README.md             |   21 +
+ docs/tasks/W1.md                 |   30 +
+ docs/tasks/W2.md                 |   33 +
+ docs/tasks/W3.md                 |   29 +
+ docs/tasks/W4.md                 |   31 +
+ docs/tasks/W5.md                 |   33 +
+ docs/tasks/W6.md                 |   23 +
+ docs/tasks/W7.md                 |   32 +
+ docs/tasks/W8.md                 |   28 +
+ pyproject.toml                   |    6 +
+ reviews/G0r.log                  | 6506 ++++++++++++++++++++++++++++++++++++++
+ reviews/G0r.prompt.md            |   33 +
+ src/sglang_qsa_hisparse/scope.py |   28 +
+ 13 files changed, 6833 insertions(+)
+rg: tasks: No such file or directory (os error 2)
+docs/DEVIATIONS.md
+docs/GOAL.md
+docs/PLAN.md
+docs/STATUS.md
+docs/baseline.md
+docs/patch-inventory.md
+docs/tasks/README.md
+docs/tasks/W1.md
+docs/tasks/W2.md
+docs/tasks/W3.md
+docs/tasks/W4.md
+docs/tasks/W5.md
+docs/tasks/W6.md
+docs/tasks/W7.md
+docs/tasks/W8.md
+docs/upstream-status.md
+src/sglang_qsa_hisparse/__init__.py
+src/sglang_qsa_hisparse/errors.py
+src/sglang_qsa_hisparse/features.py
+src/sglang_qsa_hisparse/fingerprint.py
+src/sglang_qsa_hisparse/fingerprints/README.md
+src/sglang_qsa_hisparse/fingerprints/framework.json
+src/sglang_qsa_hisparse/hisparse/__init__.py
+src/sglang_qsa_hisparse/hisparse/config.py
+src/sglang_qsa_hisparse/hisparse/coordinator.py
+src/sglang_qsa_hisparse/hisparse/graph.py
+src/sglang_qsa_hisparse/hisparse/layout.py
+src/sglang_qsa_hisparse/hisparse/prefix.py
+src/sglang_qsa_hisparse/hisparse/prefix_cache.py
+src/sglang_qsa_hisparse/hisparse/runtime.py
+src/sglang_qsa_hisparse/hisparse/single_request.py
+src/sglang_qsa_hisparse/hisparse/slots.py
+src/sglang_qsa_hisparse/kernels/__init__.py
+src/sglang_qsa_hisparse/kernels/stable_align.py
+src/sglang_qsa_hisparse/patches/__init__.py
+src/sglang_qsa_hisparse/patches/framework.py
+src/sglang_qsa_hisparse/patches/hisparse/__init__.py
+src/sglang_qsa_hisparse/patches/model_compat/__init__.py
+src/sglang_qsa_hisparse/patching.py
+src/sglang_qsa_hisparse/plugin.py
+src/sglang_qsa_hisparse/scope.py
+tests/test_framework.py
+
+exec
+/bin/bash -lc 'nl -ba docs/tasks/README.md; nl -ba docs/tasks/W2.md; nl -ba docs/tasks/W6.md; nl -ba docs/tasks/W7.md; nl -ba docs/tasks/W8.md; nl -ba src/sglang_qsa_hisparse/scope.py; nl -ba pyproject.toml' in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+     1	# Phase 1 task cards
+     2	
+     3	Each card is the complete brief for one parallel agent. Shared rules,
+     4	layout and import mapping: [PLAN.md](../PLAN.md). Row IDs refer to
+     5	[patch-inventory.md](../patch-inventory.md); deviations:
+     6	[DEVIATIONS.md](../DEVIATIONS.md).
+     7	
+     8	Common to every card:
+     9	- Work only in your own git worktree/branch of this repository; commit there
+    10	  with clear messages ending with the `Co-Authored-By` line given by the
+    11	  orchestrator. Do not merge into `main`.
+    12	- Implement exactly your rows. If an inventory equivalence argument for a
+    13	  narrow hook fails, use the listed fallback REPLACE and report it.
+    14	- Fingerprints: `tools/fingerprint.py write <your-module> <targets...>` for
+    15	  every target and `depends` name, against the pin only.
+    16	- Run `tools/run_cpu_tests.sh` (all tests, including the framework suite).
+    17	  A ported test that needs another workstream's patches stays unchanged,
+    18	  gets `@pytest.mark.integration`, and is listed in your report; the
+    19	  orchestrator runs those after merging.
+    20	- Prohibited actions: PLAN.md rule 6. Use `-k 'not ServiceLifecycleTests'`
+    21	  when running fork service tests (rule 8).
+     1	# W2 scheduler and lifecycle
+     2	
+     3	Rows: S01–S09, B01–B06, P01, P02, M01–M04 (S01, B06, P01, P02, M01, M03 are
+     4	the host-prefix call sites W6 verifies; you implement them).
+     5	
+     6	Fork files: `managers/scheduler.py`, `managers/schedule_policy.py`,
+     7	`managers/scheduler_components/{batch_result_processor,weight_updater}.py`,
+     8	`mem_cache/{allocation,common,memory_pool}.py`, `mem_cache/allocator/paged.py`.
+     9	
+    10	1. Implement each row in `src/sglang_qsa_hisparse/patches/hisparse/scheduler.py`,
+    11	   `patches/hisparse/lifecycle.py`, and (for model_compat rows such as M04)
+    12	   `patches/model_compat/lifecycle.py`, with fingerprints in matching
+    13	   `fingerprints/<module>.json`. Generic model_compat rows obey the
+    14	   target-model scope (PLAN.md rule 9; call
+    15	   `sglang_qsa_hisparse.scope.target_model_active()`, monkeypatched in tests).
+    16	2. Preserve the release order exactly: prefix capture/`before_release` →
+    17	   runtime release (drain GPU and copy events) → `cache_finished_req`
+    18	   (logical free inside the free group) → `req_to_token_pool.free` →
+    19	   `mark_kv_released` → `after_release(lease)` → allocator free-group end →
+    20	   `after_logical_flush` (physical slot reuse). Add
+    21	   `tests/lifecycle/test_release_order.py` that records the call order with
+    22	   independent fakes for each path (finish, abort, rollback of a failed
+    23	   restore, flush) and asserts it, plus a negative test that a physical slot
+    24	   is never reusable before the logical flush.
+    25	3. Port the fork's edits to the pinned upstream tests it touched
+    26	   (`test_batch_result_processor_hidden_states.py`,
+    27	   `test_scheduler_chunked_req_gate.py`) as plugin tests run with the hisparse
+    28	   patches active; the pinned originals must still pass with the plugin off.
+    29	4. With the plugin off, every hooked function must be the pinned original
+    30	   (test via `inspect.unwrap` identity after a no-switch `plugin.load()`).
+    31	
+    32	Owned paths: `patches/*/scheduler.py`, `patches/*/lifecycle.py`, their
+    33	fingerprint files, `tests/lifecycle/`.
+     1	# W6 prefix cache
+     2	
+     3	Rows: N02 behavior; verifies S01, B06, P01, P02, M01, M03 (implemented by W2).
+     4	
+     5	1. Port `test/qsa_hisparse/test_prefix_cache.py` into `tests/prefix/` with
+     6	   only import changes. Tests that need W2's scheduler/allocation patches are
+     7	   `integration`.
+     8	2. Write `docs/prefix-cache.md`: for each scheduler/allocation call site the
+     9	   host prefix cache relies on, the inventory row, the exact call order and
+    10	   ownership transfer (match → admission charge → prepare → note allocation →
+    11	   restore → capture → publish → release/rollback), and the TP convergence
+    12	   points.
+    13	3. Evaluate, without implementing, building `QSAHostPrefixCache` through the
+    14	   pin's `register_radix_cache_backend` / `--radix-cache-backend` instead of
+    15	   row S01's scheduler patch, and the next-pin constraint from upstream #42354
+    16	   (`UnifiedRadixCache`, `supports_mamba()`). Report feasibility, what it
+    17	   would remove, and risks, in `docs/prefix-cache.md`.
+    18	4. Design note for Track I (no code): where image identity records and the
+    19	   M-RoPE page digest would enter `PrefixSnapshot`, `HostPrefixCache.acquire`
+    20	   and the TP signatures, given that hits must work at every page64 boundary
+    21	   including inside images.
+    22	
+    23	Owned paths: `tests/prefix/`, `docs/prefix-cache.md`.
+     1	# W7 launch, scope and regression
+     2	
+     3	1. `src/sglang_qsa_hisparse/scope.py`: implement the fixed contract in the
+     4	   module docstring (read the served model's architectures the way SGLang's
+     5	   `ModelConfig` does from the published model configuration, including
+     6	   override arguments; cache per process; raise `ScopeUndecidable`). Tests
+     7	   with temporary model directories.
+     8	2. `src/sglang_qsa_hisparse/launch.py` (`python -m sglang_qsa_hisparse.launch
+     9	   -- <sglang launch_server args>`): create a private directory with this
+    10	   package's dist-info (entry point `qsa_hisparse`), put it on `PYTHONPATH`
+    11	   for the server and every spawned process, refuse to start if
+    12	   `SGLANG_PLUGINS` excludes `qsa_hisparse` or the entry point is not
+    13	   discoverable in a child interpreter, set `SGLANG_QSA_ACTIVATION_DIR`, start
+    14	   the server, and report readiness only after activation records exist for
+    15	   every scheduler/TP rank (tp size from the arguments) with the requested
+    16	   features; otherwise stop the server it started and exit non-zero. Never
+    17	   stop processes it did not start. CPU tests with a fake server process.
+    18	3. Port the fork's `scripts/qsa_service.py` and
+    19	   `test/qsa_hisparse/test_service_control.py` to use the launcher
+    20	   (`tools/qsa_service.py`, `tests/service/`). Deselect
+    21	   `ServiceLifecycleTests` in automated runs (rule 8); keep them runnable on
+    22	   request.
+    23	4. `tests/regression/`: plugin installed but off ⇒ `HookRegistry` empty and
+    24	   the pinned upstream subset from `docs/baseline.md` passes in-process with
+    25	   the plugin loaded; compat on with a non-target architecture ⇒ scoped hooks
+    26	   delegate to the originals (use the hooks merged from other workstreams;
+    27	   write the test against the `scope` contract now and mark it
+    28	   `integration`); inventory completeness: parse Appendix A and the fork diff
+    29	   and fail on any unmapped hunk.
+    30	
+    31	Owned paths: `scope.py`, `launch.py`, `tools/qsa_service.py`,
+    32	`tests/{scope,launch,service,regression}/`.
+     1	# W8 evidence tooling
+     2	
+     3	Inputs: `docs/baseline.md` (gaps 5–7, the G2 job list), fork
+     4	`test/manual/qsa_hisparse_prefix_*.py`.
+     5	
+     6	1. Neutral checkpoint-byte observer `tools/evidence/observer.py`: enabled by
+     7	   an environment variable, it records SHA-256 of restored and captured raw
+     8	   K/V bytes, compressed index, pending C4 ring and rope positions, and every
+     9	   Mamba/PLE state tensor, per request, layer group and TP rank, to JSONL. It
+    10	   must produce identical records for the fork and the plugin, so it attaches
+    11	   to definitions that exist in both (e.g. via a `sitecustomize`-loaded wrapper
+    12	   around the runtime's `capture_prefix`/`restore_prefix` found by import
+    13	   path in either tree) and must not change computation or synchronization
+    14	   beyond what hashing requires (document the extra syncs).
+    15	2. Offline comparator `tools/evidence/compare.py`: F vs P for token IDs,
+    16	   `cached_tokens`, normalized ledgers (strip time-based rids/salts), observer
+    17	   hashes, and memory figures; exits non-zero on any difference and prints
+    18	   the first divergence.
+    19	3. Reduced deterministic compat-only profile (`tools/evidence/compat_profile.json`
+    20	   and a run script): TP2, deterministic inference, a context and
+    21	   `--max-total-tokens` that fit raw KV without offload on 2x48 GB, fixtures
+    22	   derived from the frozen fixture file by truncation rule fixed in advance
+    23	   (no selection by results). Fork arm: V3 unset; plugin arm:
+    24	   `SGLANG_QSA_MODEL_COMPAT=1`.
+    25	4. CPU tests for all three with synthetic inputs, including a comparator
+    26	   test that detects a single flipped byte and a reordered ledger.
+    27	
+    28	Owned paths: `tools/evidence/`, `tests/evidence/`.
+     1	"""Target-model scope for generic ``model_compat`` hooks (PLAN.md rule 9).
+     2	
+     3	Contract (fixed; implementation owned by W7):
+     4	
+     5	- ``TARGET_ARCHITECTURES`` is the fork's validated model set.
+     6	- ``target_model_active()`` returns True iff the model this process serves
+     7	  has an architecture in that set, as resolved from SGLang's published model
+     8	  configuration (``get_model().model_path`` and any architecture override in
+     9	  the published model arguments, read the way SGLang's ``ModelConfig`` does).
+    10	  The answer is computed once per process and cached.
+    11	- If the published configuration is unavailable or ambiguous, it raises
+    12	  ``ScopeUndecidable``; it never guesses.
+    13	
+    14	Generic hooks call the original SGLang code when this returns False.
+    15	Unit tests of hooks monkeypatch ``target_model_active``.
+    16	"""
+    17	
+    18	from sglang_qsa_hisparse.errors import PluginActivationError
+    19	
+    20	TARGET_ARCHITECTURES = frozenset({"Qwen4ExpForConditionalGeneration"})
+    21	
+    22	
+    23	class ScopeUndecidable(PluginActivationError):
+    24	    """The served model's architecture cannot be determined."""
+    25	
+    26	
+    27	def target_model_active() -> bool:
+    28	    raise ScopeUndecidable("target_model_active is not implemented yet (W7)")
+     1	[build-system]
+     2	requires = ["setuptools>=64"]
+     3	build-backend = "setuptools.build_meta"
+     4	
+     5	[project]
+     6	name = "sglang-qsa-hisparse"
+     7	version = "0.1.0.dev0"
+     8	description = "QSA HiSparse CPU KV offload and host prefix reuse as an SGLang general plugin."
+     9	requires-python = ">=3.10"
+    10	license = { text = "Apache-2.0" }
+    11	# SGLang itself is not declared: the supported revision is a pinned commit
+    12	# (see sglang_qsa_hisparse.PINNED_SGLANG_COMMIT), verified at activation by
+    13	# per-target source fingerprints rather than by a package version.
+    14	dependencies = []
+    15	
+    16	[project.entry-points."sglang.srt.plugins"]
+    17	qsa_hisparse = "sglang_qsa_hisparse.plugin:load"
+    18	
+    19	[tool.setuptools.packages.find]
+    20	where = ["src"]
+    21	
+    22	[tool.setuptools.package-data]
+    23	sglang_qsa_hisparse = ["fingerprints/*.json", "kernels/csrc/**/*"]
+    24	
+    25	[tool.pytest.ini_options]
+    26	markers = [
+    27	    "integration: needs patches owned by several workstreams; run after merging",
+    28	    "gpu: needs CUDA; skipped by the CPU runner",
+    29	]
+
+exec
+/bin/bash -lc 'nl -ba docs/tasks/W1.md; nl -ba docs/tasks/W3.md; nl -ba docs/tasks/W4.md; nl -ba docs/tasks/W5.md' in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+     1	# W1 runtime
+     2	
+     3	Rows: N01, N03, N04 (N02 code is moved; its behavior belongs to W6).
+     4	
+     5	The fork runtime package is already in `src/sglang_qsa_hisparse/hisparse/`
+     6	(verbatim, imports rewritten). Your job is to prove it.
+     7	
+     8	1. Port the fork tests `test/qsa_hisparse/test_runtime.py`, `test_slots.py`,
+     9	   `test_single_request.py`, `test_gather.py` into `tests/runtime/` with only
+    10	   import-path changes (mapping in PLAN.md). Keep every assertion.
+    11	2. Where a test reaches SGLang behavior that the fork changed (e.g. FP8
+    12	   descale kernels, `QSATokenToKVPool(full_kv_pool=...)`, scheduler hooks),
+    13	   do not reimplement it: mark the test `integration` and name the inventory
+    14	   rows it needs.
+    15	3. Add `tests/runtime/test_moved_sources.py`: for every moved module, assert
+    16	   that its text equals the fork file at `ee8fe158d6` after applying exactly
+    17	   the documented import rewrites (read the fork with `git show`).
+    18	4. Document in `docs/runtime.md` every private SGLang definition the runtime
+    19	   relies on (e.g. `mamba_pool._slot_siblings`, `qsa_rope_position_buffer`,
+    20	   `ReqToTokenPool.req_generation`) with the pinned definition providing it.
+    21	   Put their dotted names in `RUNTIME_DEPENDS` in a new module
+    22	   `src/sglang_qsa_hisparse/hisparse/depends.py` (moved modules stay
+    23	   verbatim) and pin them with `tools/fingerprint.py write runtime ...`.
+    24	   W4's runtime-construction hook (row Q03) passes `depends=RUNTIME_DEPENDS`,
+    25	   so drift in any of them fails activation. Entries must be functions or
+    26	   classes; for an instance attribute, name the method that creates it.
+    27	
+    28	Owned paths: `src/sglang_qsa_hisparse/hisparse/` (except W6's prefix behavior),
+    29	`tests/runtime/`, `docs/runtime.md`, `src/sglang_qsa_hisparse/fingerprints/runtime.json`
+    30	(`hisparse/depends.py` included).
+     1	# W3 pools, graph and model runner
+     2	
+     3	Rows: K01–K03, F01 (as reconciled: hisparse `after` on `ForwardBatch.init_new`,
+     4	deviation D3), R01, R02, C01–C03, G01–G03.
+     5	
+     6	Fork files: `model_executor/pool_configurator.py`,
+     7	`mem_cache/kv_cache_configurator.py`, `mem_cache/qsa_kv_pool.py`,
+     8	`model_executor/model_runner.py`, `model_executor/runner/decode_cuda_graph_runner.py`,
+     9	`model_executor/forward_batch_info.py`.
+    10	
+    11	1. Implement in `patches/hisparse/pools.py` and `patches/hisparse/graph.py`
+    12	   (model_compat rows, if any, in `patches/model_compat/graph.py`).
+    13	2. Pool sizing must reproduce the fork's numbers exactly: add
+    14	   `tests/pools/test_pool_sizing.py` that computes the fork's fixed bias,
+    15	   logical bytes per token and raw staging size for the B2/B4/B8 x 262,144
+    16	   geometry from independent arithmetic (not by calling the patched code) and
+    17	   compares them with the patched configurator; port the fork's added
+    18	   `test_pool_configurator.py` case.
+    19	3. Graph capture/replay hooks: test with fakes that capture enters
+    20	   `graph_capture`, warmup calls `after_graph_warmup` after the attention
+    21	   backend hook, replay calls `prepare_graph_replay` before buffer filling and
+    22	   `finish_graph_replay` after replay, eager fallback raises when
+    23	   `graph_enabled`, and external preplanning raises.
+    24	4. F01: set `req_pool_indices_cpu` only when the KV pool has a
+    25	   `qsa_hisparse` runtime; confirm `TboForwardBatchPreparer.filter_batch` is
+    26	   unaffected with the plugin on and the runtime absent.
+    27	
+    28	Owned paths: `patches/*/pools.py`, `patches/*/graph.py`, fingerprints,
+    29	`tests/pools/`, `tests/graph/`.
+     1	# W4 QSA attention
+     2	
+     3	Rows: Q01–Q12, T01–T04, A01–A10.
+     4	
+     5	Fork files: `layers/attention/qwen_sparse_attn_backend.py`,
+     6	`layers/attention/qsa/{kernel,metadata,qsa_indexer,sparse_attn}.py`.
+     7	
+     8	1. Shared-path behavior (FP8 descale on store and extraction, SM86/SM89
+     9	   flash-attention fallback, `decode_score_width`, deterministic stable
+    10	   top-k, FP8 sparse GQA kernels) goes to `patches/model_compat/qsa_attention.py`
+    11	   and `kernels/qsa_*.py`; runtime construction and hooks to
+    12	   `patches/hisparse/qsa_backend.py`. Rule 2: model_compat owns the verbatim
+    13	   REPLACE bodies; hisparse adds only before/after/around. New members via
+    14	   `attach` (Q04, Q09). Row Q03's hook declares
+    15	   `depends=sglang_qsa_hisparse.hisparse.depends.RUNTIME_DEPENDS` (W1 provides
+    16	   the constant; import it lazily if W1 has not merged yet and note it).
+    17	2. The compat `__init__` after-hook sets `qsa_hisparse = None` only when the
+    18	   attribute is absent, so hook order cannot matter.
+    19	3. Port `test/qsa_hisparse/test_deterministic_topk.py`,
+    20	   `test_flash_attention.py` and the fork's additions to
+    21	   `test/registered/kernel/qsa/test_qsa.py` into `tests/qsa/`. Keep the known
+    22	   fork failure `test_qsa_paged_extend_trims_padding_rows_and_restores_output`
+    23	   as an expected failure (`xfail(strict=True)` with the reason from
+    24	   `docs/baseline.md`); do not fix it silently. GPU-only tests get
+    25	   `@pytest.mark.gpu`.
+    26	4. Scope: QSA kernel changes apply to every QSA model in the fork; record in
+    27	   each patch `reason` whether it is scoped by rule 9 or applies to all QSA
+    28	   models, with the argument.
+    29	
+    30	Owned paths: `patches/model_compat/qsa_attention.py`,
+    31	`patches/hisparse/qsa_backend.py`, `kernels/qsa_*.py`, fingerprints, `tests/qsa/`.
+     1	# W5 model compatibility
+     2	
+     3	Rows: J01–J04, Z01–Z05, H01–H08, E01–E08, U01 (Z05 and U01 are drops: D1,
+     4	D2).
+     5	
+     6	Fork files: `layers/quantization/{auto_round,gptq/schemes/gptq_moe}.py`,
+     7	`hardware_backend/gpu/quantization/gptq_kernels.py`,
+     8	`layers/moe/fused_moe_triton/{fused_marlin_moe,layer}.py`, Marlin JIT
+     9	`kernels/jit/csrc/gemm/marlin_moe/*` and `kernels/ops/moe/moe_wna16_marlin.py`,
+    10	`layers/hc_mix_triton.py`, `layers/hyperconnection.py`, `models/qwen4_exp.py`.
+    11	
+    12	1. Patches in `patches/model_compat/{quantization,marlin,hyperconnection,qwen4_exp}.py`;
+    13	   kernels in `kernels/{marlin_moe,hc_mix,ple_gather}.py` and
+    14	   `kernels/csrc/marlin_moe/` (copy of the fork's four headers;
+    15	   `load_jit("qsa_hisparse_moe_wna16_marlin", ...)` with absolute paths,
+    16	   `extra_include_paths` to the installed in-tree marlin headers, a distinct
+    17	   export name, and a distinct custom-op name for the copied
+    18	   `fused_marlin_moe`; see inventory §3).
+    19	2. Every generic hook (GPTQ/AutoRound MoE loading, Marlin deterministic
+    20	   path, HC stable mixing) obeys rule 9 and calls the original outside the
+    21	   target model.
+    22	3. Port `test/qsa_hisparse/test_marlin_deterministic_alignment.py`,
+    23	   `test_model_compatibility.py`, and the fork's `test_hc_mix_triton.py`
+    24	   additions into `tests/model_compat/`. CPU parts must pass; GPU-only parts
+    25	   get `@pytest.mark.gpu`. Add a CPU test that the copied Marlin sources
+    26	   equal the fork's files byte for byte, and that the JIT module name, cache
+    27	   key and export differ from the in-tree module (without compiling).
+    28	4. Qwen4Exp: INT8-row PLE loading and the meta-device n-gram table (E-rows),
+    29	   `load_weights` copy (E08, the largest REPLACE): list every mechanical
+    30	   edit in the patch `reason` and test each one.
+    31	
+    32	Owned paths: the files above under `src/sglang_qsa_hisparse/`, fingerprints,
+    33	`tests/model_compat/`.
+
+2026-10-07T17:57:45.402230Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+exec
+/bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/src" ../service/runtime-env-sglang-20260923/bin/python -B - <<'"'PY'
+import re
+from pathlib import Path
+from sglang_qsa_hisparse import fingerprint
+root=Path('../.worktrees/sglang-pin-76e06febab/python')
+text=Path('docs/patch-inventory.md').read_text()
+rows=[]
+for line in text.splitlines():
+    columns=[c.strip() for c in line.split('|')]
+    if len(columns)>6 and re.fullmatch(r'[A-Z]\\d\\d',columns[1]):
+        for name in re.findall(r'"'`(sglang'"\\.[A-Za-z0-9_.]+)"'`'"',columns[5]): rows.append((columns[1],name))
+errors=[]
+for row,target in rows:
+    try: fingerprint.record(root,target)
+    except Exception as e: errors.append((row,target,str(e)))
+print('inventory explicit targets:',len(rows),'unique:',len(set(t for _,t in rows)),'errors:',errors)
+# Regenerate raw module records in memory and compare the manifest.
+pinned=fingerprint.load_pinned()
+print('manifest re-record:', {name: fingerprint.record(root,name)==record for name,record in pinned.items()})
+PY" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 528ms:
+inventory explicit targets: 62 unique: 59 errors: []
+manifest re-record: {'sglang.srt.managers.scheduler.Scheduler.__init__': True}
+
+exec
+/bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/src" ../service/runtime-env-sglang-20260923/bin/python -B tools/fingerprint.py --source-root ../qsa-hisparse/python check' in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ exited 1 in 0ms:
+Traceback (most recent call last):
+  File "/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tools/fingerprint.py", line 55, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tools/fingerprint.py", line 49, in main
+    fingerprint.verify(sorted(pinned), source_root=args.source_root, pinned=pinned)
+  File "/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/fingerprint.py", line 191, in verify
+    raise FingerprintMismatch("; ".join(problems))
+sglang_qsa_hisparse.errors.FingerprintMismatch: sglang.srt.managers.scheduler.Scheduler.__init__: definition differs from the pinned revision
+
+exec
+/bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/src" ../service/runtime-env-sglang-20260923/bin/python -B - <<'"'PY'
+import ast, os, sys, types, __future__
+from pathlib import Path
+from unittest.mock import patch as mock_patch
+from sglang_qsa_hisparse import plugin, patching, fingerprint
+from sglang_qsa_hisparse.errors import PluginActivationError
+root=Path('../.worktrees/sglang-pin-76e06febab/python/sglang').resolve()
+for name, path in [('sglang',root),('sglang.srt',root/'srt'),('sglang.srt.managers',root/'srt/managers')]:
+    m=types.ModuleType(name); m.__path__=[str(path)]; m.__file__=str(path/'__init__.py'); sys.modules[name]=m
+from sglang.srt import plugins as loader
+from sglang.srt.plugins.hook_registry import HookRegistry
+sched_path=root/'srt/managers/scheduler.py'
+tree=ast.parse(sched_path.read_bytes())
+klass=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='Scheduler')
+init=next(n for n in klass.body if isinstance(n,ast.FunctionDef) and n.name=='__init__')
+namespace={}
+exec(compile(ast.Module(body=[init],type_ignores=[]),str(sched_path),'exec',flags=__future__.annotations.compiler_flag),namespace)
+m=types.ModuleType('sglang.srt.managers.scheduler'); m.__file__=str(sched_path)
+m.Scheduler=type('Scheduler',(),{'__init__':namespace['__init__']}); sys.modules[m.__name__]=m
+
+def reset():
+    HookRegistry.reset(); patching._declared.clear(); patching._attached.clear(); patching._activated=None; patching._applied.clear(); patching._attached_live.clear(); loader._plugins_loaded=False
+    sys.modules.pop('sglang_qsa_hisparse.patches.framework',None)
+    os.environ.pop('SGLANG_QSA_ACTIVATION_DIR',None)
+class EP:
+    name='qsa_hisparse'; value='sglang_qsa_hisparse.plugin:load'; dist=types.SimpleNamespace(name='sglang-qsa-hisparse')
+    def load(self): return plugin.load
+
+envs={'SGLANG_QSA_MODEL_COMPAT':'1','SGLANG_PLUGINS':'qsa_hisparse'}
+for label, eps, extra in [('missing entrypoint',[],{}),('excluded entrypoint',[EP()],{'SGLANG_PLUGINS':'other'}),('compat scaffolding',[EP()],{}),('compat+hisparse scaffolding',[EP()],{'SGLANG_QSA_HISPARSE_V3':'p2-offload'})]:
+    reset()
+    with mock_patch.dict(os.environ,{**envs,**extra},clear=True),mock_patch.object(loader,'entry_points',return_value=eps):
+        loader.load_plugins(); loader.load_plugins()
+        print('LOADER',label,'RETURNED; hooks=',sorted(HookRegistry._hooks),'features=',patching._activated)
+        if patching._activated:
+            patching.verify_final('probe')
+            print('VERIFY_FINAL PASS (original pin Scheduler body not executed)')
+reset()
+with mock_patch.dict(os.environ,envs,clear=True),mock_patch.object(loader,'entry_points',return_value=[EP()]),mock_patch.object(patching,'_import_feature_modules',side_effect=ModuleNotFoundError('injected')):
+    try: loader.load_plugins()
+    except PluginActivationError as e: print('IMPORT_FAILURE ESCAPED:',type(e).__name__,'ordinary Exception?',isinstance(e,Exception))
+from sglang_qsa_hisparse.patches import framework
+with mock_patch.object(framework,'verify_final') as spy:
+    framework._verify_scheduler_activation(object(),'server','port',2,3,4,5,6,7,8)
+    framework._verify_scheduler_activation(object(),server_args='s',port_args='p',gpu_id=2,tp_rank=3,moe_ep_rank=4,pp_rank=5,attn_cp_rank=6,moe_dp_rank=7,dp_rank=8)
+    print('RANK_EXTRACTION',spy.call_args_list)
+PY" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 91ms:
+LOADER missing entrypoint RETURNED; hooks= [] features= None
+LOADER excluded entrypoint RETURNED; hooks= [] features= None
+LOADER compat scaffolding RETURNED; hooks= ['sglang.srt.managers.scheduler.Scheduler.__init__'] features= Features(model_compat=True, hisparse_mode=None)
+VERIFY_FINAL PASS (original pin Scheduler body not executed)
+LOADER compat+hisparse scaffolding RETURNED; hooks= ['sglang.srt.managers.scheduler.Scheduler.__init__'] features= Features(model_compat=True, hisparse_mode='p2-offload')
+VERIFY_FINAL PASS (original pin Scheduler body not executed)
+IMPORT_FAILURE ESCAPED: PluginActivationError ordinary Exception? False
+RANK_EXTRACTION [call('scheduler', tp_rank=3, pp_rank=5),
+ call('scheduler', tp_rank=3, pp_rank=5)]
+
+codex
+The probes confirmed two silent acceptance paths: an untracked `functools.wraps` wrapper passes the live-binding check, and both requested feature modes currently pass final verification with only the scheduler verification hook installed. The registry also accepts a property hook that breaks property access, while QSA’s early global hook application can skip another plugin’s later hooks.
+
+A new commit appeared during the review with task cards and a scope stub. I’ve included those in the document check; the framework files are unchanged.
+exec
+/bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/src" ../service/runtime-env-sglang-20260923/bin/python -B - <<'"'PY'
+import ast, os, sys, types, __future__
+from pathlib import Path
+from unittest.mock import patch as mock_patch
+from sglang_qsa_hisparse import patching, plugin
+root=Path('../.worktrees/sglang-pin-76e06febab/python/sglang').resolve()
+for name,path in [('sglang',root),('sglang.srt',root/'srt'),('sglang.srt.managers',root/'srt/managers')]:
+    m=types.ModuleType(name); m.__path__=[str(path)]; m.__file__=str(path/'__init__.py'); sys.modules[name]=m
+from sglang.srt import plugins as loader
+from sglang.srt.plugins.hook_registry import HookRegistry,HookType,HookSource
+sched_path=root/'srt/managers/scheduler.py'; tree=ast.parse(sched_path.read_bytes())
+klass=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='Scheduler'); init=next(n for n in klass.body if isinstance(n,ast.FunctionDef) and n.name=='__init__')
+namespace={}; exec(compile(ast.Module(body=[init],type_ignores=[]),str(sched_path),'exec',flags=__future__.annotations.compiler_flag),namespace)
+module=types.ModuleType('sglang.srt.managers.scheduler'); module.__file__=str(sched_path); module.Scheduler=type('Scheduler',(),{'__init__':namespace['__init__']}); sys.modules[module.__name__]=module
+class EP:
+    def __init__(self,name,func): self.name=name; self.func=func; self.value=name; self.dist=types.SimpleNamespace(name=name)
+    def load(self): return self.func
+def foreign():
+    replacement=type('Replacement',(module.Scheduler,),{'__init__':lambda self,*args,**kwargs: setattr(self,'foreign_init_ran',True)})
+    HookRegistry.register(module.__name__+'.Scheduler',replacement,HookType.REPLACE,source=HookSource('foreign','foreign-dist'))
+with mock_patch.dict(os.environ,{'SGLANG_QSA_MODEL_COMPAT':'1','SGLANG_PLUGINS':'qsa_hisparse,foreign'},clear=True),mock_patch.object(loader,'entry_points',return_value=[EP('qsa_hisparse',plugin.load),EP('foreign',foreign)]):
+    loader.load_plugins()
+    from sglang_qsa_hisparse.patches import framework
+    with mock_patch.object(framework,'verify_final') as spy:
+        scheduler=module.Scheduler('server','port',0,0,0,0,0,0,None)
+        print('LATER_CLASS_REPLACE loader and construction RETURNED; final verifier calls=',spy.call_count,'foreign initializer ran=',scheduler.foreign_init_ran)
+    try: patching.verify_final('probe')
+    except BaseException as e: print('EXPLICIT_FINAL_CHECK (not called by replaced ctor) WOULD FAIL:',type(e).__name__,str(e))
+PY" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 62ms:
+LATER_CLASS_REPLACE loader and construction RETURNED; final verifier calls= 0 foreign initializer ran= True
+EXPLICIT_FINAL_CHECK (not called by replaced ctor) WOULD FAIL: PluginActivationError Other plugins registered overlapping hooks after activation: ['sglang.srt.managers.scheduler.Scheduler']
+
+exec
+/bin/bash -lc 'git diff 142b2f7 HEAD -- src/sglang_qsa_hisparse/plugin.py src/sglang_qsa_hisparse/patching.py src/sglang_qsa_hisparse/fingerprint.py src/sglang_qsa_hisparse/patches/framework.py src/sglang_qsa_hisparse/fingerprints/framework.json tests/test_framework.py tools/run_cpu_tests.sh; git status --short; git rev-parse HEAD' in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+ M reviews/G0r.log
+797ae34b1fdd1563bc80e9b78f474d6b36df0dcc
+
+exec
+/bin/bash -lc "rg -n 'Done means|tail|divergent|complete recurrent|C4|position|ImagePrefixIdentity|owner|W8|U23' docs/PLAN.md docs/tasks docs/GOAL.md docs/DEVIATIONS.md; nl -ba ../qsa-hisparse/test/manual/marlin_batch_invariance.py | sed -n '340,405p;450,466p'; nl -ba docs/patch-inventory.md | sed -n '434,448p'; nl -ba ../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/scheduler.py | sed -n '410,436p'" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+docs/DEVIATIONS.md:5:Only the orchestrator adds items; the owner may revert any of them.
+docs/DEVIATIONS.md:14:by the owner on 2026-10-07.
+docs/GOAL.md:7:Set 2026-10-07. Owner decisions are final unless the owner changes them.
+docs/GOAL.md:20:   or opening a PR waits for explicit owner confirmation each time.
+docs/GOAL.md:25:## Done means
+docs/GOAL.md:38:  prefix M-RoPE positions, without a whole-prompt digest; page64, complete
+docs/GOAL.md:39:  recurrent/PLE/C4 state and the logits tail are preserved. Cold, warm and
+docs/GOAL.md:40:  divergent-suffix outputs are identical under the deterministic profile.
+docs/GOAL.md:46:- Do not start, stop, or replace the production service. The owner approved
+docs/PLAN.md:3:Goal and owner decisions: [GOAL.md](GOAL.md). This file assigns parallel
+docs/PLAN.md:4:tasks, file ownership, interfaces, and gates. Paths without a prefix are in
+docs/PLAN.md:36:   ordering/ownership tests use independent reference construction.
+docs/PLAN.md:64:| `tools/evidence/` | Byte observer, F-vs-P comparator, compat-only reduced profile | W8 |
+docs/PLAN.md:69:| `src/sglang_qsa_hisparse/fingerprints/<module>.json` | One file per patch module | that module's owner |
+docs/PLAN.md:99:| W8 evidence tooling | fork `test/manual/qsa_hisparse_prefix_*.py`, baseline gaps 5–7 | `tools/evidence/`: a neutral checkpoint-byte observer (hashes of restored/captured raw K/V, index, pending ring, Mamba/PLE state per request and rank, enabled by env, identical in F and P), an offline F-vs-P comparator (rid-normalized ledgers, token IDs, hashes), and the reduced deterministic compat-only profile (context, `--max-total-tokens`, fixtures) with its run script; all CPU-tested |
+docs/PLAN.md:114:## Phase 2: GPU equivalence (serial, owner-approved window)
+docs/PLAN.md:116:Approved by the owner on 2026-10-07 (interpreter
+docs/PLAN.md:122:(W8 observer), and fork (V3 unset) vs plugin `compat` on W8's reduced
+docs/PLAN.md:138:(window). I1 and I2 run in parallel against an `ImagePrefixIdentity` contract
+docs/PLAN.md:148:existing upstream PR (comments, reviews) is publication and needs owner
+docs/PLAN.md:151:#35488); U23 (one owner) prefix-cache lifecycle hooks on the reworked
+docs/PLAN.md:168:same `upstream/main` commit; U1 and U23 both touch scheduler release paths,
+docs/PLAN.md:169:so U23 rebases onto U1 if both are prepared. The rest are independent. Gate G3-U per batch, then
+docs/PLAN.md:170:owner confirmation per PR.
+docs/tasks/W6.md:10:   ownership transfer (match → admission charge → prepare → note allocation →
+docs/tasks/W8.md:1:# W8 evidence tooling
+docs/tasks/W8.md:8:   K/V bytes, compressed index, pending C4 ring and rope positions, and every
+docs/tasks/W1.md:19:   relies on (e.g. `mamba_pool._slot_siblings`, `qsa_rope_position_buffer`,
+   340	                )
+   341	                moe_sum_reduce(pipeline.view(m, 10, 2560), reduced, 1.0)
+   342	                return {
+   343	                    "gate_up": up.view(m, 10, 640)[row],
+   344	                    "down_isolated": isolated.view(m, 10, 2560)[row],
+   345	                    "silu_mul": activated.view(m, 10, 320)[row],
+   346	                    "pipeline_down": pipeline.view(m, 10, 2560)[row],
+   347	                    "pipeline_sum": reduced[row],
+   348	                }
+   349	
+   350	            graph = None
+   351	            if args.cuda_graphs:
+   352	                # Initialize JIT/modules before capture. Capture alone does not
+   353	                # execute kernels, so the first inspected values follow replay.
+   354	                execute()
+   355	                torch.cuda.synchronize()
+   356	                graph = torch.cuda.CUDAGraph()
+   357	                with torch.cuda.graph(graph):
+   358	                    captured = execute()
+   359	            for repeat in range(args.repeats):
+   360	                if graph is not None:
+   361	                    graph.replay()
+   362	                    device_values = captured
+   363	                else:
+   364	                    device_values = execute()
+   365	                values = {name: value.cpu() for name, value in device_values.items()}
+   366	                for name, value in values.items():
+   367	                    assert bool(torch.isfinite(value).all()), (m, row, pattern, name)
+   368	                    digests.setdefault(name, []).append(digest(value))
+   369	                if first is None:
+   370	                    first = values
+   371	                assert not bool(workspace.any()), "Marlin workspace locks not zero"
+   372	            if references is None:
+   373	                references = first
+   374	            stats = {
+   375	                name: {
+   376	                    **delta(value, references[name]),
+   377	                    "distinct_repeated_outputs": len(set(digests[name])),
+   378	                    "sha256": digests[name][0],
+   379	                }
+   380	                for name, value in first.items()
+   381	            }
+   382	            stats["gate_up"]["cpu_float64_dequant_max_abs"] = float(
+   383	                (first["gate_up"].double() - expected_up).abs().max()
+   384	            )
+   385	            stats["down_isolated"]["cpu_float64_dequant_max_abs"] = float(
+   386	                (first["down_isolated"].double() - expected_down).abs().max()
+   387	            )
+   388	            graph_changed_background_equal = None
+   389	            if graph is not None:
+   390	                changed_ids = ((ids.cpu().long() + 79) % args.experts).int()
+   391	                changed_ids[row] = target_ids
+   392	                ids.copy_(changed_ids.to(args.device))
+   393	                graph.replay()
+   394	                graph_changed_background_equal = all(
+   395	                    digest(value.cpu()) == digest(first[name])
+   396	                    for name, value in captured.items()
+   397	                )
+   398	                if not args.native:
+   399	                    assert graph_changed_background_equal, (
+   400	                        m,
+   401	                        row,
+   402	                        pattern,
+   403	                        "graph changed routing",
+   404	                    )
+   405	                assert not bool(workspace.any()), "Marlin graph locks not zero"
+   450	                key: value
+   451	                for key, value in report.items()
+   452	                if key not in ("results", "contract")
+   453	            },
+   454	            indent=2,
+   455	        )
+   456	    )
+   457	    if not args.cpu_only:
+   458	        assert report["fixed_case_repeatable"], (
+   459	            "Fixed-input repeatability confound; inspect digests"
+   460	        )
+   461	        if not args.native:
+   462	            assert report["differing_cases"] == 0, (
+   463	                "Whole-K target differs by batch placement; inspect stage vectors"
+   464	            )
+   465	
+   466	
+   434	- `test/manual/*` (GPU scripts: Marlin batch invariance and alignment, top-k
+   435	  probe, prefix acceptance, concurrency, latency, ledger, lifecycle) are
+   436	  Phase 2 inputs (P0-B).
+   437	- `scripts/qsa_service.py`, `scripts/test_qsa_hisparse_cpu.sh`,
+   438	  `examples/qsa_hisparse/*`: service tooling; not plugin code.
+   439	- `python/pyproject.toml`: description and URLs only. `python/LICENSE` and
+   440	  `python/README.md` are added.
+   441	- Top-level docs and `archive/` (design notes, experiments, results): no code
+   442	  impact.
+   443	
+   444	## Appendix A. Hunk → row map (generated; every hunk exactly once)
+   445	
+   446	Generated from `git diff -U0 76e06febab ee8fe158d6 -- python/sglang`: 31 modified files, 196 hunks, 15 new files, 89 rows. Hunk = new-side `+start,count`.
+   447	
+   448	| File (under python/sglang/) | Hunk | Row |
+   410	) -> None:
+   411	    if batch_size <= 0 or step_us <= 0:
+   412	        return
+   413	    b = float(batch_size)
+   414	    t = float(step_us)
+   415	    g = float(generated)
+   416	    totals[0] += 1.0
+   417	    totals[1] += b
+   418	    totals[2] += t
+   419	    totals[3] += b * b
+   420	    totals[4] += b * t
+   421	    totals[5] += g
+   422	
+   423	
+   424	_is_npu = is_npu()
+   425	_is_hip = is_hip()
+   426	
+   427	
+   428	class Scheduler(
+   429	    SchedulerDisaggregationDecodeMixin,
+   430	    SchedulerDisaggregationPrefillMixin,
+   431	    SchedulerMultiplexMixin,
+   432	    SchedulerPPMixin,
+   433	    SchedulerDllmMixin,
+   434	    SchedulerMlxOverlapMixin,
+   435	):
+   436	    """A scheduler that manages a tensor parallel GPU worker."""
+
+exec
+/bin/bash -lc "QSA_PYTHON=/bin/echo bash tools/run_cpu_tests.sh; rg -n 'ServiceLifecycleTests|register_cpu_ci|pytestmark|mark.skip|skipUnless|SGLANG_TEST_MARLIN_GPU|mark.gpu|torch.cuda' ../qsa-hisparse/test/qsa_hisparse/test_service_control.py ../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py | head -60; nl -ba ../qsa-hisparse/test/qsa_hisparse/test_service_control.py | sed -n '395,440p'; nl -ba ../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py | sed -n '18,48p'" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+-m pytest -q -p no:cacheprovider tests
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:3:GPU graph checks are explicitly root-run: SGLANG_TEST_MARLIN_GPU=1. The
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:172:    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda _: (capability, 0))
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:175:        torch.cuda, "_lazy_init", lambda: pytest.fail("GPU initialization forbidden")
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:343:        torch.cuda, "_lazy_init", lambda: pytest.fail("GPU initialization forbidden")
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:382:@pytest.mark.skipif(
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:383:    os.environ.get("SGLANG_TEST_MARLIN_GPU") != "1", reason="root-only GPU execution"
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:391:    torch.cuda.synchronize()
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:392:    graph = torch.cuda.CUDAGraph()
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:393:    with torch.cuda.graph(graph):
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:404:@pytest.mark.skipif(
+../qsa-hisparse/test/qsa_hisparse/test_marlin_deterministic_alignment.py:405:    os.environ.get("SGLANG_TEST_MARLIN_GPU") != "1", reason="root-only GPU execution"
+../qsa-hisparse/test/qsa_hisparse/test_service_control.py:89:@unittest.skipUnless(
+../qsa-hisparse/test/qsa_hisparse/test_service_control.py:97:class ServiceLifecycleTests(unittest.TestCase):
+    18	ROOT = Path(__file__).resolve().parents[2]
+    19	HELPER = ROOT / "python/sglang/srt/layers/moe/fused_moe_triton/stable_align.py"
+    20	# Load the actual pure helper without importing the model/GPU package tree.
+    21	spec = importlib.util.spec_from_file_location("marlin_stable_align_test", HELPER)
+    22	module = importlib.util.module_from_spec(spec)
+    23	spec.loader.exec_module(module)
+    24	align = module.moe_align_block_size_stable
+    25	
+    26	
+    27	def oracle(ids, block, experts):
+    28	    values = ids.reshape(-1).tolist()
+    29	    buckets = [[] for _ in range(experts + 1)]
+    30	    for pair, expert in enumerate(values):
+    31	        buckets[expert + 1].append(pair)
+    32	    sorted_ids, expert_ids = [], []
+    33	    for bucket, matching in enumerate(buckets):
+    34	        sorted_ids.extend(matching)
+    35	        sorted_ids.extend([len(values)] * (-len(matching) % block))
+    36	        expert_ids.extend([bucket - 1] * ((len(matching) + block - 1) // block))
+    37	    return sorted_ids, expert_ids
+    38	
+    39	
+    40	def assert_contract(ids, result, block, experts):
+    41	    sorted_ids, expert_ids, total = (tensor.cpu() for tensor in result)
+    42	    expected, expected_experts = oracle(ids.cpu(), block, experts)
+    43	    assert int(total[0]) == len(expected)
+    44	    assert sorted_ids[: len(expected)].tolist() == expected
+    45	    assert expert_ids[: len(expected_experts)].tolist() == expected_experts
+    46	    assert bool((sorted_ids[len(expected) :] == ids.numel()).all())
+    47	    assert bool((expert_ids[len(expected_experts) :] == -1).all())
+    48	    assert sorted(sorted_ids[sorted_ids < ids.numel()].tolist()) == list(
+
+exec
+/bin/bash -lc "rg -n 'req_pool_indices_cpu|class ScheduleBatch|class ForwardBatch|def init_new|def filter_batch' ../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py ../.worktrees/sglang-pin-76e06febab/python/sglang/srt/model_executor/forward_batch_info.py; nl -ba ../.worktrees/sglang-pin-76e06febab/python/sglang/srt/model_executor/forward_batch_info.py | sed -n '610,640p'; nl -ba ../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py | sed -n '1450,1485p'; nl -ba ../qsa-hisparse/test/qsa_hisparse/test_service_control.py | sed -n '83,103p'" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:2258:class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:2304:    req_pool_indices_cpu: torch.Tensor = None  # shape: [b], int64
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:2453:    def init_new(
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:2677:        out_cache_loc, req_pool_indices_tensor, req_pool_indices_cpu = alloc_for_extend(
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:2830:        self.req_pool_indices_cpu = req_pool_indices_cpu
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:3036:        self.mix_running_indices_cpu = running_batch.req_pool_indices_cpu
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:3323:        self.req_pool_indices_cpu = torch.empty(0, dtype=torch.int64)
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:3483:                self.req_pool_indices_cpu,
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:3518:    def filter_batch(
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:3562:        self.req_pool_indices_cpu = self.req_pool_indices_cpu[keep_indices]
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:3620:        self.req_pool_indices_cpu = torch.cat(
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py:3621:            [self.req_pool_indices_cpu, other.req_pool_indices_cpu]
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/model_executor/forward_batch_info.py:399:class ForwardBatch(ForwardBatchDeepSeekMHAMixin):
+../.worktrees/sglang-pin-76e06febab/python/sglang/srt/model_executor/forward_batch_info.py:764:    def init_new(
+   610	    mrope_positions: torch.Tensor = None
+   611	
+   612	    # For two-batch overlap
+   613	    tbo_parent_token_range: Optional[Tuple[int, int]] = None
+   614	    tbo_padded_len: Optional[int] = None
+   615	    tbo_children: Optional[List[ForwardBatch]] = None
+   616	
+   617	    attn_cp_metadata: Optional[BaseContextParallelMetadata] = None
+   618	
+   619	    # For decode context parallel.
+   620	    # NOTE: DecodeContextParallelMetadata is imported under TYPE_CHECKING only (see the
+   621	    # import block above) — available for annotations but NOT bound at runtime in this
+   622	    # module. Import it from sglang.srt.layers.dcp.metadata if a runtime use is added.
+   623	    attn_dcp_metadata: Optional[DecodeContextParallelMetadata] = None
+   624	
+   625	    # Decode context parallel KV write mask.
+   626	    dcp_kv_mask: Optional[torch.Tensor] = None
+   627	
+   628	    # For ngram embedding
+   629	    ngram_embedding_info: Optional[NgramEmbeddingInfo] = None
+   630	
+   631	    # For dumper: int-hashed request / bootstrap-room IDs (derived from rids)
+   632	    rids_int: Optional[torch.Tensor] = None
+   633	    bootstrap_room_ids_int: Optional[torch.Tensor] = None
+   634	
+   635	    # kv-canary token-id validator snapshot
+   636	    req_all_ids_flat: Optional[torch.Tensor] = None
+   637	    req_all_ids_lens: Optional[torch.Tensor] = None
+   638	
+   639	    # Attention planning state. True iff attention metadata for this batch has
+   640	    # already been planned outside ModelRunner.forward (multi-step draft
+  1450	                prefix = positions.new_empty((3, 0))
+  1451	            prefix = prefix[:, :prefix_len]
+  1452	            next_position = prefix.max() + 1 if prefix.numel() else 0
+  1453	            text_len = prefix_len - prefix.shape[1]
+  1454	            text_positions = (
+  1455	                torch.arange(
+  1456	                    text_len, dtype=positions.dtype, device=positions.device
+  1457	                ).expand(3, -1)
+  1458	                + next_position
+  1459	            )
+  1460	            # Fill the reply/text gap, then shift the new turn's media coordinates.
+  1461	            positions = torch.cat(
+  1462	                [prefix, text_positions, positions + next_position + text_len], dim=1
+  1463	            )
+  1464	
+  1465	        if self.multimodal_inputs is None:
+  1466	            self.multimodal_inputs = image_inputs
+  1467	        else:
+  1468	            # Use the full table above, or let the scheduler compute missing positions.
+  1469	            self.multimodal_inputs.mrope_positions = None
+  1470	            self.multimodal_inputs.mrope_position_delta = None
+  1471	            self.multimodal_inputs.merge(image_inputs)
+  1472	
+  1473	        self.multimodal_inputs.mrope_position_delta_repeated_cache = None
+  1474	        if positions is not None:
+  1475	            self.multimodal_inputs.mrope_positions = positions
+  1476	            self.multimodal_inputs.mrope_position_delta = (
+  1477	                positions.max() + 1 - positions.shape[1]
+  1478	            ).reshape(1, 1)
+  1479	
+  1480	    def finished(self) -> bool:
+  1481	        # Whether request reached finished condition
+  1482	        return self.finished_reason is not None
+  1483	
+  1484	    def set_extend_range(self, start: int, end: int) -> None:
+  1485	        self.extend_range = Range(start, end)
+    83	            profile["environment"] = {"QSA_SERVICE_INSTANCE": "not-controller-owned"}
+    84	            path.write_text(json.dumps(profile))
+    85	            with self.assertRaisesRegex(control.ServiceError, "reserved"):
+    86	                control.load_profile(path)
+    87	
+    88	
+    89	@unittest.skipUnless(
+    90	    Path("/sys/fs/cgroup/cgroup.controllers").exists()
+    91	    and subprocess.run(
+    92	        ["systemctl", "--user", "show", "--property=Version"], capture_output=True
+    93	    ).returncode
+    94	    == 0,
+    95	    "Requires Linux cgroup v2 and a working systemd user manager",
+    96	)
+    97	class ServiceLifecycleTests(unittest.TestCase):
+    98	    def setUp(self):
+    99	        self.temporary = tempfile.TemporaryDirectory(prefix="qsa-service-test-")
+   100	        self.directory = Path(self.temporary.name)
+   101	        self.fake = self.directory / "fake.py"
+   102	        self.fake.write_text(FAKE_SERVICE)
+   103	        with socket.socket() as socket_probe:
+
+exec
+/bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/src" ../service/runtime-env-sglang-20260923/bin/python -B - <<'"'PY'
+from sglang_qsa_hisparse import fingerprint
+try: fingerprint.record('../.worktrees/sglang-pin-76e06febab/python','sglang.srt.managers.schedule_batch.ScheduleBatch.req_pool_indices_cpu')
+except LookupError as e: print('F01 DEPENDENCY FAIL:',str(e))
+PY" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+F01 DEPENDENCY FAIL: ScheduleBatch.req_pool_indices_cpu: 'req_pool_indices_cpu' must have exactly one binding, a direct definition; found 1 binding(s), 0 direct
+
+exec
+/bin/bash -lc "nl -ba ../.worktrees/sglang-pin-76e06febab/python/sglang/srt/model_executor/forward_batch_info.py | sed -n '758,825p'; nl -ba ../qsa-hisparse/python/sglang/srt/model_executor/forward_batch_info.py | sed -n '758,848p'; rg -n 'class ModelWorkerBatch|req_pool_indices_cpu|get_model_worker_batch' ../.worktrees/sglang-pin-76e06febab/python/sglang/srt/managers/schedule_batch.py | tail -20" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+   758	            dtype=torch.int64,
+   759	            pin_memory=pin_memory,
+   760	        ).to(device, non_blocking=True)
+   761	        self.can_run_decode_cuda_graph = batch.can_run_decode_cuda_graph
+   762	
+   763	    @classmethod
+   764	    def init_new(
+   765	        cls,
+   766	        batch: ScheduleBatch,
+   767	        model_runner: ModelRunner,
+   768	        *,
+   769	        capture_hidden_mode: Optional[CaptureHiddenMode] = None,
+   770	        return_hidden_states_before_norm: bool,
+   771	    ):
+   772	        # init_new must not mutate the input ScheduleBatch; per-forward
+   773	        # overrides go through explicit keyword arguments.
+   774	
+   775	        # capture_hidden_mode=None means no override: capture the server's
+   776	        # configured maximum so lower-mode requests can share one graph.
+   777	        if capture_hidden_mode is None:
+   778	            request_capture_hidden_mode = (
+   779	                CaptureHiddenMode.NULL
+   780	                if model_runner.is_draft_worker
+   781	                else max(
+   782	                    batch.return_hidden_states_mode,
+   783	                    get_server_return_hidden_states_mode(),
+   784	                )
+   785	            )
+   786	            capture_hidden_mode = get_required_capture_hidden_mode(
+   787	                request_capture_hidden_mode,
+   788	                batch.spec_info,
+   789	            )
+   790	
+   791	        # extend-mode-only fields are None on decode/idle
+   792	        if batch.forward_mode.is_decode_or_idle():
+   793	            extend_seq_lens = extend_prefix_lens = extend_logprob_start_lens = None
+   794	        else:
+   795	            extend_seq_lens = batch.extend_lens
+   796	            extend_prefix_lens = batch.prefix_lens
+   797	            extend_logprob_start_lens = batch.extend_logprob_start_lens
+   798	
+   799	        # Mirror the grammars-population behavior previously done in
+   800	        # ScheduleBatch.get_model_worker_batch.
+   801	        if batch.sampling_info is not None:
+   802	            if batch.has_grammar:
+   803	                batch.sampling_info.grammars = [req.grammar for req in batch.reqs]
+   804	            else:
+   805	                batch.sampling_info.grammars = None
+   806	
+   807	        # ScheduleBatch.sampling_info is already swapped to the forward-only
+   808	        # copy by Scheduler.run_batch under overlap mode (see save/restore
+   809	        # block there). Use it directly.
+   810	        seq_lens_cpu = batch.seq_lens_cpu
+   811	
+   812	        # TODO(seq-lens-removal): the whole ScheduleBatch seq_lens family
+   813	        # (incl. seq_lens_sum) is slated for removal in favor of kv-committed
+   814	        # lengths, so this init_new-time backfill onto the ScheduleBatch is
+   815	        # tolerated for now despite the init_new-must-not-mutate-SB rule.
+   816	        if batch.seq_lens_sum is None and seq_lens_cpu is not None:
+   817	            batch.seq_lens_sum = int(seq_lens_cpu.sum())
+   818	
+   819	        ret = cls(
+   820	            # Required core inputs
+   821	            forward_mode=batch.forward_mode,
+   822	            batch_size=len(batch.seq_lens),
+   823	            input_ids=batch.input_ids,
+   824	            req_pool_indices=batch.req_pool_indices,
+   825	            seq_lens=batch.seq_lens,
+   758	        ).to(device, non_blocking=True)
+   759	        self.global_num_tokens_for_logprob_cpu = global_num_tokens_for_logprob
+   760	        self.global_num_tokens_for_logprob_gpu = torch.tensor(
+   761	            global_num_tokens_for_logprob,
+   762	            dtype=torch.int64,
+   763	            pin_memory=pin_memory,
+   764	        ).to(device, non_blocking=True)
+   765	        self.can_run_decode_cuda_graph = batch.can_run_decode_cuda_graph
+   766	
+   767	    @classmethod
+   768	    def init_new(
+   769	        cls,
+   770	        batch: ScheduleBatch,
+   771	        model_runner: ModelRunner,
+   772	        *,
+   773	        capture_hidden_mode: Optional[CaptureHiddenMode] = None,
+   774	        return_hidden_states_before_norm: bool,
+   775	    ):
+   776	        # init_new must not mutate the input ScheduleBatch; per-forward
+   777	        # overrides go through explicit keyword arguments.
+   778	
+   779	        # capture_hidden_mode=None means no override: capture the server's
+   780	        # configured maximum so lower-mode requests can share one graph.
+   781	        if capture_hidden_mode is None:
+   782	            request_capture_hidden_mode = (
+   783	                CaptureHiddenMode.NULL
+   784	                if model_runner.is_draft_worker
+   785	                else max(
+   786	                    batch.return_hidden_states_mode,
+   787	                    get_server_return_hidden_states_mode(),
+   788	                )
+   789	            )
+   790	            capture_hidden_mode = get_required_capture_hidden_mode(
+   791	                request_capture_hidden_mode,
+   792	                batch.spec_info,
+   793	            )
+   794	
+   795	        # extend-mode-only fields are None on decode/idle
+   796	        if batch.forward_mode.is_decode_or_idle():
+   797	            extend_seq_lens = extend_prefix_lens = extend_logprob_start_lens = None
+   798	        else:
+   799	            extend_seq_lens = batch.extend_lens
+   800	            extend_prefix_lens = batch.prefix_lens
+   801	            extend_logprob_start_lens = batch.extend_logprob_start_lens
+   802	
+   803	        # Mirror the grammars-population behavior previously done in
+   804	        # ScheduleBatch.get_model_worker_batch.
+   805	        if batch.sampling_info is not None:
+   806	            if batch.has_grammar:
+   807	                batch.sampling_info.grammars = [req.grammar for req in batch.reqs]
+   808	            else:
+   809	                batch.sampling_info.grammars = None
+   810	
+   811	        # ScheduleBatch.sampling_info is already swapped to the forward-only
+   812	        # copy by Scheduler.run_batch under overlap mode (see save/restore
+   813	        # block there). Use it directly.
+   814	        seq_lens_cpu = batch.seq_lens_cpu
+   815	        kv_allocated_lens_cpu = (
+   816	            [req.kv.kv_allocated_len for req in batch.reqs]
+   817	            if seq_lens_cpu is None
+   818	            and all(getattr(req, "kv", None) is not None for req in batch.reqs)
+   819	            else None
+   820	        )
+   821	
+   822	        # TODO(seq-lens-removal): the whole ScheduleBatch seq_lens family
+   823	        # (incl. seq_lens_sum) is slated for removal in favor of kv-committed
+   824	        # lengths, so this init_new-time backfill onto the ScheduleBatch is
+   825	        # tolerated for now despite the init_new-must-not-mutate-SB rule.
+   826	        if batch.seq_lens_sum is None and seq_lens_cpu is not None:
+   827	            batch.seq_lens_sum = int(seq_lens_cpu.sum())
+   828	
+   829	        ret = cls(
+   830	            # Required core inputs
+   831	            forward_mode=batch.forward_mode,
+   832	            batch_size=len(batch.seq_lens),
+   833	            input_ids=batch.input_ids,
+   834	            req_pool_indices=batch.req_pool_indices,
+   835	            seq_lens=batch.seq_lens,
+   836	            out_cache_loc=batch.out_cache_loc,
+   837	            seq_lens_sum=batch.seq_lens_sum,
+   838	            # Inputs aliased by reference from ScheduleBatch
+   839	            seq_lens_cpu=seq_lens_cpu,
+   840	            req_pool_indices_cpu=batch.req_pool_indices_cpu,
+   841	            kv_allocated_lens_cpu=kv_allocated_lens_cpu,
+   842	            orig_seq_lens=batch.orig_seq_lens,
+   843	            out_cache_loc_dsv4=batch.out_cache_loc_dsv4,
+   844	            mamba_track_indices=batch.mamba_track_indices,
+   845	            mamba_track_mask=batch.mamba_track_mask,
+   846	            mamba_track_seqlens=batch.mamba_track_seqlens,
+   847	            mamba_cow_src_indices=batch.mamba_cow_src_indices,
+   848	            mamba_cow_dst_indices=batch.mamba_cow_dst_indices,
+2304:    req_pool_indices_cpu: torch.Tensor = None  # shape: [b], int64
+2677:        out_cache_loc, req_pool_indices_tensor, req_pool_indices_cpu = alloc_for_extend(
+2830:        self.req_pool_indices_cpu = req_pool_indices_cpu
+3036:        self.mix_running_indices_cpu = running_batch.req_pool_indices_cpu
+3323:        self.req_pool_indices_cpu = torch.empty(0, dtype=torch.int64)
+3483:                self.req_pool_indices_cpu,
+3562:        self.req_pool_indices_cpu = self.req_pool_indices_cpu[keep_indices]
+3620:        self.req_pool_indices_cpu = torch.cat(
+3621:            [self.req_pool_indices_cpu, other.req_pool_indices_cpu]
+
+exec
+/bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/src" ../service/runtime-env-sglang-20260923/bin/python -B - <<'"'PY'
+import ast, os, re, subprocess
+from pathlib import Path
+from unittest.mock import patch
+from sglang_qsa_hisparse.plugin import load
+from sglang_qsa_hisparse.features import read_features
+from sglang_qsa_hisparse.errors import PluginConfigError
+for env in [{},{'SGLANG_QSA_MODEL_COMPAT':'0'},{'SGLANG_QSA_MODEL_COMPAT':'1'},{'SGLANG_QSA_MODEL_COMPAT':'1','SGLANG_QSA_HISPARSE_V3':'p2-offload'}]: print('VALID_CONFIG',env,read_features(env))
+for env in [{'SGLANG_QSA_MODEL_COMPAT':'yes'},{'SGLANG_QSA_HISPARSE_V3':'p2-offload'},{'SGLANG_QSA_MODEL_COMPAT':'1','SGLANG_QSA_HISPARSE_V3':'p3'}]:
+    try: read_features(env)
+    except PluginConfigError: print('INVALID_CONFIG rejected',env)
+import sys
+with patch.dict(os.environ,{},clear=True): load()
+print('OFF_MODE sglang imported?',any(k=='sglang' or k.startswith('sglang.') for k in sys.modules),'patching imported?','sglang_qsa_hisparse.patching' in sys.modules)
+text=Path('docs/patch-inventory.md').read_text()
+listed=[]
+for line in text.splitlines():
+    match=re.match(r'\\| (["'^| ]+) '"\\| \\+(\\d+),(\\d+) ',line)
+    if match: listed.append((match[1],int(match[2]),int(match[3])))
+diff=subprocess.check_output(['git','-C','../qsa-hisparse','diff','--no-ext-diff','--diff-filter=M','-U0','76e06febab','ee8fe158d6','--','python/sglang'],text=True)
+actual=[]; name=None
+for line in diff.splitlines():
+    if line.startswith('+++ b/python/sglang/'): name=line[len('+++ b/python/sglang/'):]
+    elif line.startswith('@@ '):
+        match=re.search(r'\\+(\\d+)(?:,(\\d+))? @@',line)
+        actual.append((name,int(match[1]),int(match[2] or 1)))
+print('HUNK_MAP actual=',len(actual),'listed=',len(listed),'duplicates=',len(listed)-len(set(listed)),'missing=',sorted(set(actual)-set(listed)),'extra=',sorted(set(listed)-set(actual)))
+PY" in /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin
+ succeeded in 0ms:
+VALID_CONFIG {} Features(model_compat=False, hisparse_mode=None)
+VALID_CONFIG {'SGLANG_QSA_MODEL_COMPAT': '0'} Features(model_compat=False, hisparse_mode=None)
+VALID_CONFIG {'SGLANG_QSA_MODEL_COMPAT': '1'} Features(model_compat=True, hisparse_mode=None)
+VALID_CONFIG {'SGLANG_QSA_MODEL_COMPAT': '1', 'SGLANG_QSA_HISPARSE_V3': 'p2-offload'} Features(model_compat=True, hisparse_mode='p2-offload')
+INVALID_CONFIG rejected {'SGLANG_QSA_MODEL_COMPAT': 'yes'}
+INVALID_CONFIG rejected {'SGLANG_QSA_HISPARSE_V3': 'p2-offload'}
+INVALID_CONFIG rejected {'SGLANG_QSA_MODEL_COMPAT': '1', 'SGLANG_QSA_HISPARSE_V3': 'p3'}
+OFF_MODE sglang imported? False patching imported? False
+HUNK_MAP actual= 196 listed= 196 duplicates= 0 missing= [] extra= []
+
+codex
+The review remains incomplete at G0: six findings are resolved and six are partially resolved. The key new blocker is that a later class replacement can remove the scheduler initializer hook that performs final verification; the loader and replacement constructor then return without running the check.
+
+The raw fingerprint matches the pin and rejects the fork, and all 196 inventory hunks still map exactly once. The document gaps remain in stale replacement instructions, scope exceptions, compat-only acceptance wording, and ownership of the image acceptance work.
+codex
+G0 is **not cleared**: 6 findings are resolved and 6 are partially resolved. Review includes commit `797ae34`; the requested framework files are unchanged from `142b2f7`.
+
+| # | Verdict | Evidence and remaining work |
+|---|---|---|
+| 1 | **Resolved** | [plugin.py:17](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/plugin.py:17) wraps enabled activation, including patch-module imports. An injected `ModuleNotFoundError` escaped the isolated pinned loader as `PluginActivationError`, outside `Exception`. |
+| 2 | **Partially resolved** | Raw module hashing correctly matches the pin and rejects the fork; the manifest also matches independently regenerated records. However, [patching.py:222](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:222) blindly unwraps live functions, allowing foreign wrappers through. Binding uniqueness also misses several Python bindings. See new findings 2 and 8. |
+| 3 | **Partially resolved** | [patching.py:255](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:255) checks registered foreign overlaps. Final verification can be bypassed by replacing its scheduler owner, and early registry-wide application still skips later foreign hooks. See findings 1 and 3. |
+| 4 | **Resolved** | [patching.py:188](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:188) rejects hooks inside QSA-replaced classes; line 233 rejects inherited members; line 337 attaches to final owners. Direct staticmethod/classmethod probes preserved descriptors and returned correct results. Property handling has a separate defect below. |
+| 5 | **Partially resolved** | Scheduler records exist, and [W7.md:8](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/tasks/W7.md:8) assigns launcher preflight and rank readiness checks. `launch.py` remains absent. Missing/excluded entry-point probes still returned successfully with zero hooks. Successful spawned scheduler/TP activation and failed discovery are not tested. |
+| 6 | **Partially resolved** | F01, U01 and Z05’s primary rows were updated. But [patch-inventory.md:171](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/patch-inventory.md:171) still prescribes the `ForwardBatch` class replacement; §5 and Appendix B retain old replacements/targets. Service ownership and U2/U3 references are also stale. The current table implies **37 REPLACEs: 36 functions/methods and 1 class**. F01’s new dependency is unpinnable; see finding 6. |
+| 7 | **Partially resolved** | PLAN rule 9 defines scope, but [scope.py:27](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/scope.py:27) is a raising stub. [W4.md:26](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/tasks/W4.md:26) permits changes applying to all QSA models, contrary to rule 9’s delegation requirement. DEVIATIONS contains no corresponding scope exception. |
+| 8 | **Partially resolved** | G2-2 and W8 now require compat-only HTTP parity. But [baseline.md:358](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/baseline.md:358) still offers dropping that comparison, and the reduced profile/fixtures are not yet frozen. Remove the opt-out and complete W8’s profile. |
+| 9 | **Resolved — assignment** | [W8.md:6](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/tasks/W8.md:6) assigns observer/comparator paths and discriminating CPU tests; [W7.md:18](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/tasks/W7.md:18) assigns the service helper/test port and lifecycle deselection. These deliverables remain future implementation work. |
+| 10 | **Resolved** | [baseline.md:293](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/baseline.md:293) now compares fresh same-environment runs and makes historical hashes informational. The referenced native harness also asserts fixed-input repeatability. GPU evidence has not yet been produced. |
+| 11 | **Resolved — planning** | [PLAN.md:150](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/PLAN.md:150) consolidates U2/U3 under U23, requires the shared lifecycle contract before code, and specifies common branch bases plus U23’s rebase onto U1. Inventory identifiers still need reconciliation under #6. |
+| 12 | **Resolved** | [run_cpu_tests.sh:17](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tools/run_cpu_tests.sh:17) exports `PYTHONDONTWRITEBYTECODE=1`. |
+
+The new findings, ordered by severity, are:
+
+1. **Blocker — final verification can remove itself.**  
+   [framework.py:15](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patches/framework.py:15), [test_framework.py:324](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tests/test_framework.py:324).
+
+   A later plugin replaces `Scheduler` with a class defining its own initializer. That removes the BEFORE hook responsible for detecting the replacement. My isolated pinned-loader probe returned successfully, constructed the replacement, and recorded **zero verifier calls**. An explicit `verify_final()` would fail, but the real constructor path never calls it. The existing test invokes verification manually and misses this escape.
+
+   **Smallest fix:** run scheduler final verification at the pinned `configure_scheduler_process` call after `load_plugins()`, outside the replaceable class; test replacement followed by construction.
+
+2. **Blocker — `functools.wraps` hides foreign live behavior.**  
+   [patching.py:222](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:222).
+
+   Replacing pinned `f(x)=2*x` with an unregistered wrapper using `@wraps(f)` passes binding checks. Adding QSA’s `+1` hook then passes activation and final verification, but `f(2)` returns **100 instead of 5**. Unwrapping validates the inner function while accepting arbitrary outer behavior.
+
+   **Smallest fix:** validate the complete permitted decoration/descriptor chain. Reject unexpected outer wrappers; retain explicit support for pinned decorators such as `lru_cache`.
+
+3. **Major — activation prematurely applies other plugins’ hooks.**  
+   [patching.py:327](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:327).
+
+   An earlier plugin registers `+1` on an unrelated function; QSA applies it globally; a later plugin registers `+10` on that function. The loader skips it because `_patched` already contains the target. Final verification passes, and the result is **2 instead of 12**. A late same-source QSA hook likewise remained unapplied while verification passed.
+
+   **Smallest fix:** apply only QSA-owned targets during activation, leaving unrelated entries for the loader’s final application. Freeze and validate the expected QSA hook set.
+
+4. **Major — empty features receive successful activation status.**  
+   [patching.py:173](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:173), [test_framework.py:446](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tests/test_framework.py:446).
+
+   Both `compat` and `compat+hisparse` currently succeed with only `Scheduler.__init__` verification installed. Final verification accepts them although neither feature has implementation patches. Missing feature modules can therefore produce records claiming activation while upstream behavior remains.
+
+   **Smallest fix:** reject requested features without implementations, then validate their required declarations against a completeness manifest. Assert feature coverage in the success test.
+
+5. **Major — property hooks pass verification but destroy property behavior.**  
+   [patching.py:225](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:225).
+
+   The binding check accepts a property through its getter, but the pinned registry wraps the property object as a callable. My probe passed activation/final verification; property access became a bound method, and calling it raised `TypeError("'property' object is not callable")`.
+
+   **Smallest fix:** reject properties as hook targets before registration, while allowing getters to establish dependency provenance. Supporting property hooks requires descriptor-preserving application.
+
+6. **Major — reconciled F01 declares an invalid fingerprint dependency.**  
+   [patch-inventory.md:77](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/patch-inventory.md:77).
+
+   `ScheduleBatch.req_pool_indices_cpu` is an annotated field, not a function/class definition. Pinning it fails: **“found 1 binding(s), 0 direct”**. Following the row literally blocks fingerprint generation and activation.
+
+   **Smallest fix:** depend on `ScheduleBatch` or the methods producing that field, then generate the records.
+
+7. **Major — GOAL coverage still lacks complete ownership and acceptance mapping.**  
+   [PLAN.md:109](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/PLAN.md:109), [PLAN.md:129](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/PLAN.md:129).
+
+   Parity implementation has W1–W6 owners, off/non-target regression has W7, evidence tooling has W8, fingerprints have the orchestrator, and release ordering has W2. However, integration still merges only W1–W7. Image implementation and acceptance are not assigned to W1–W8; W6’s card explicitly limits Track I to a design note. PLAN does not explicitly gate preservation of the logits tail or deterministic divergent-suffix image outputs.
+
+   **Smallest fix:** include W8 in integration and assign explicit image implementation/evidence ownership, with acceptance criteria covering every GOAL image obligation.
+
+8. **Minor — binding uniqueness counts references and misses bindings.**  
+   [fingerprint.py:36](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/fingerprint.py:36).
+
+   Probes correctly rejected definitions inside `if`, `try` and match bodies, and ignored nested local bindings. They incorrectly accepted exception aliases, match captures and walrus rebinding in module/class scopes. Conversely, `f.extra = 1` and annotation-only `f: object` incorrectly counted as rebinding `f`.
+
+   **Smallest fix:** count actual bound names, including exception/pattern/named-expression bindings in their proper scopes; exclude attribute/subscript references and annotation-only declarations.
+
+9. **Minor — the CPU runner does not enforce documented exclusions.**  
+   [run_cpu_tests.sh:21](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tools/run_cpu_tests.sh:21).
+
+   An echo-interpreter probe showed plain `pytest … tests`, without GPU-marker or `ServiceLifecycleTests` deselection. Registering a `gpu` marker does not skip it. After the planned ports, automated runs can execute the explicitly excluded lifecycle class or GPU tests enabled by inherited switches.
+
+   **Smallest fix:** enforce the automated exclusions in the runner and clear inherited GPU-test switches.
+
+Verification was read-only and used in-memory probes. The scheduler positional/keyword rank extraction is correct. All **196 hunks map exactly once**. Full pytest and GPU suites were not run; full SGLang import was blocked by a dependency’s writable-temporary-directory probe. No files were modified by this review.
+tokens used
+169,546
+G0 is **not cleared**: 6 findings are resolved and 6 are partially resolved. Review includes commit `797ae34`; the requested framework files are unchanged from `142b2f7`.
+
+| # | Verdict | Evidence and remaining work |
+|---|---|---|
+| 1 | **Resolved** | [plugin.py:17](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/plugin.py:17) wraps enabled activation, including patch-module imports. An injected `ModuleNotFoundError` escaped the isolated pinned loader as `PluginActivationError`, outside `Exception`. |
+| 2 | **Partially resolved** | Raw module hashing correctly matches the pin and rejects the fork; the manifest also matches independently regenerated records. However, [patching.py:222](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:222) blindly unwraps live functions, allowing foreign wrappers through. Binding uniqueness also misses several Python bindings. See new findings 2 and 8. |
+| 3 | **Partially resolved** | [patching.py:255](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:255) checks registered foreign overlaps. Final verification can be bypassed by replacing its scheduler owner, and early registry-wide application still skips later foreign hooks. See findings 1 and 3. |
+| 4 | **Resolved** | [patching.py:188](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:188) rejects hooks inside QSA-replaced classes; line 233 rejects inherited members; line 337 attaches to final owners. Direct staticmethod/classmethod probes preserved descriptors and returned correct results. Property handling has a separate defect below. |
+| 5 | **Partially resolved** | Scheduler records exist, and [W7.md:8](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/tasks/W7.md:8) assigns launcher preflight and rank readiness checks. `launch.py` remains absent. Missing/excluded entry-point probes still returned successfully with zero hooks. Successful spawned scheduler/TP activation and failed discovery are not tested. |
+| 6 | **Partially resolved** | F01, U01 and Z05’s primary rows were updated. But [patch-inventory.md:171](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/patch-inventory.md:171) still prescribes the `ForwardBatch` class replacement; §5 and Appendix B retain old replacements/targets. Service ownership and U2/U3 references are also stale. The current table implies **37 REPLACEs: 36 functions/methods and 1 class**. F01’s new dependency is unpinnable; see finding 6. |
+| 7 | **Partially resolved** | PLAN rule 9 defines scope, but [scope.py:27](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/scope.py:27) is a raising stub. [W4.md:26](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/tasks/W4.md:26) permits changes applying to all QSA models, contrary to rule 9’s delegation requirement. DEVIATIONS contains no corresponding scope exception. |
+| 8 | **Partially resolved** | G2-2 and W8 now require compat-only HTTP parity. But [baseline.md:358](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/baseline.md:358) still offers dropping that comparison, and the reduced profile/fixtures are not yet frozen. Remove the opt-out and complete W8’s profile. |
+| 9 | **Resolved — assignment** | [W8.md:6](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/tasks/W8.md:6) assigns observer/comparator paths and discriminating CPU tests; [W7.md:18](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/tasks/W7.md:18) assigns the service helper/test port and lifecycle deselection. These deliverables remain future implementation work. |
+| 10 | **Resolved** | [baseline.md:293](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/baseline.md:293) now compares fresh same-environment runs and makes historical hashes informational. The referenced native harness also asserts fixed-input repeatability. GPU evidence has not yet been produced. |
+| 11 | **Resolved — planning** | [PLAN.md:150](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/PLAN.md:150) consolidates U2/U3 under U23, requires the shared lifecycle contract before code, and specifies common branch bases plus U23’s rebase onto U1. Inventory identifiers still need reconciliation under #6. |
+| 12 | **Resolved** | [run_cpu_tests.sh:17](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tools/run_cpu_tests.sh:17) exports `PYTHONDONTWRITEBYTECODE=1`. |
+
+The new findings, ordered by severity, are:
+
+1. **Blocker — final verification can remove itself.**  
+   [framework.py:15](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patches/framework.py:15), [test_framework.py:324](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tests/test_framework.py:324).
+
+   A later plugin replaces `Scheduler` with a class defining its own initializer. That removes the BEFORE hook responsible for detecting the replacement. My isolated pinned-loader probe returned successfully, constructed the replacement, and recorded **zero verifier calls**. An explicit `verify_final()` would fail, but the real constructor path never calls it. The existing test invokes verification manually and misses this escape.
+
+   **Smallest fix:** run scheduler final verification at the pinned `configure_scheduler_process` call after `load_plugins()`, outside the replaceable class; test replacement followed by construction.
+
+2. **Blocker — `functools.wraps` hides foreign live behavior.**  
+   [patching.py:222](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:222).
+
+   Replacing pinned `f(x)=2*x` with an unregistered wrapper using `@wraps(f)` passes binding checks. Adding QSA’s `+1` hook then passes activation and final verification, but `f(2)` returns **100 instead of 5**. Unwrapping validates the inner function while accepting arbitrary outer behavior.
+
+   **Smallest fix:** validate the complete permitted decoration/descriptor chain. Reject unexpected outer wrappers; retain explicit support for pinned decorators such as `lru_cache`.
+
+3. **Major — activation prematurely applies other plugins’ hooks.**  
+   [patching.py:327](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:327).
+
+   An earlier plugin registers `+1` on an unrelated function; QSA applies it globally; a later plugin registers `+10` on that function. The loader skips it because `_patched` already contains the target. Final verification passes, and the result is **2 instead of 12**. A late same-source QSA hook likewise remained unapplied while verification passed.
+
+   **Smallest fix:** apply only QSA-owned targets during activation, leaving unrelated entries for the loader’s final application. Freeze and validate the expected QSA hook set.
+
+4. **Major — empty features receive successful activation status.**  
+   [patching.py:173](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:173), [test_framework.py:446](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tests/test_framework.py:446).
+
+   Both `compat` and `compat+hisparse` currently succeed with only `Scheduler.__init__` verification installed. Final verification accepts them although neither feature has implementation patches. Missing feature modules can therefore produce records claiming activation while upstream behavior remains.
+
+   **Smallest fix:** reject requested features without implementations, then validate their required declarations against a completeness manifest. Assert feature coverage in the success test.
+
+5. **Major — property hooks pass verification but destroy property behavior.**  
+   [patching.py:225](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/patching.py:225).
+
+   The binding check accepts a property through its getter, but the pinned registry wraps the property object as a callable. My probe passed activation/final verification; property access became a bound method, and calling it raised `TypeError("'property' object is not callable")`.
+
+   **Smallest fix:** reject properties as hook targets before registration, while allowing getters to establish dependency provenance. Supporting property hooks requires descriptor-preserving application.
+
+6. **Major — reconciled F01 declares an invalid fingerprint dependency.**  
+   [patch-inventory.md:77](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/patch-inventory.md:77).
+
+   `ScheduleBatch.req_pool_indices_cpu` is an annotated field, not a function/class definition. Pinning it fails: **“found 1 binding(s), 0 direct”**. Following the row literally blocks fingerprint generation and activation.
+
+   **Smallest fix:** depend on `ScheduleBatch` or the methods producing that field, then generate the records.
+
+7. **Major — GOAL coverage still lacks complete ownership and acceptance mapping.**  
+   [PLAN.md:109](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/PLAN.md:109), [PLAN.md:129](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/PLAN.md:129).
+
+   Parity implementation has W1–W6 owners, off/non-target regression has W7, evidence tooling has W8, fingerprints have the orchestrator, and release ordering has W2. However, integration still merges only W1–W7. Image implementation and acceptance are not assigned to W1–W8; W6’s card explicitly limits Track I to a design note. PLAN does not explicitly gate preservation of the logits tail or deterministic divergent-suffix image outputs.
+
+   **Smallest fix:** include W8 in integration and assign explicit image implementation/evidence ownership, with acceptance criteria covering every GOAL image obligation.
+
+8. **Minor — binding uniqueness counts references and misses bindings.**  
+   [fingerprint.py:36](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/fingerprint.py:36).
+
+   Probes correctly rejected definitions inside `if`, `try` and match bodies, and ignored nested local bindings. They incorrectly accepted exception aliases, match captures and walrus rebinding in module/class scopes. Conversely, `f.extra = 1` and annotation-only `f: object` incorrectly counted as rebinding `f`.
+
+   **Smallest fix:** count actual bound names, including exception/pattern/named-expression bindings in their proper scopes; exclude attribute/subscript references and annotation-only declarations.
+
+9. **Minor — the CPU runner does not enforce documented exclusions.**  
+   [run_cpu_tests.sh:21](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/tools/run_cpu_tests.sh:21).
+
+   An echo-interpreter probe showed plain `pytest … tests`, without GPU-marker or `ServiceLifecycleTests` deselection. Registering a `gpu` marker does not skip it. After the planned ports, automated runs can execute the explicitly excluded lifecycle class or GPU tests enabled by inherited switches.
+
+   **Smallest fix:** enforce the automated exclusions in the runner and clear inherited GPU-test switches.
+
+Verification was read-only and used in-memory probes. The scheduler positional/keyword rank extraction is correct. All **196 hunks map exactly once**. Full pytest and GPU suites were not run; full SGLang import was blocked by a dependency’s writable-temporary-directory probe. No files were modified by this review.

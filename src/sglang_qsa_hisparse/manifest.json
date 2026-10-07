@@ -1,0 +1,641 @@
+{
+  "source": "docs/patch-inventory.md",
+  "rows": {
+    "A03": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qsa.sparse_attn.sparse_gqa_fwd_interface_triton",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "A05": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qsa.sparse_attn.sparse_gqa_fwd_interface_triton_ck",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "A09": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qsa.sparse_attn.qwen_sparse_kv_extraction_compact_triton",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "B02": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor.process_batch_result_prebuilt",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "B03": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor.process_batch_result_prefill",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "B04": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._handle_sampling_mask_abort",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "B05": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._handle_finish_state_updated_req",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "B06": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager._observe_weight_load",
+          "hook_type": "before"
+        }
+      ],
+      "attach": []
+    },
+    "C01": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.model_executor.pool_configurator.DefaultPoolConfigurator.__init__",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "C02": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.model_executor.pool_configurator.DefaultPoolConfigurator.calculate_pool_sizes",
+          "hook_type": "before"
+        }
+      ],
+      "attach": []
+    },
+    "E03": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.models.qwen4_exp.Qwen4ExpNGramEmbedding.__init__",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "E06": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.__init__",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "E07": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.gather",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "E08": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.models.qwen4_exp.Qwen4ExpForConditionalGeneration.load_weights",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "F01": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.model_executor.forward_batch_info.ForwardBatch.init_new",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "FW1": {
+      "feature": "framework",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.configure_scheduler_process",
+          "hook_type": "before"
+        }
+      ],
+      "attach": []
+    },
+    "G01": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_one_shape",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "G02": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.load_batch",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "G03": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.execute",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "H05": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.hc_mix_triton.fused_hc_mix_supported",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "H06": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.hc_mix_triton.fused_hc_mix",
+          "hook_type": "around"
+        }
+      ],
+      "attach": []
+    },
+    "H08": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.hyperconnection.GatedResidual.mix",
+          "hook_type": "around"
+        }
+      ],
+      "attach": []
+    },
+    "J03": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.fused_marlin_moe",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "K01": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.kv_cache_configurator.KVCacheConfigurator._build_token_to_kv_pool",
+          "hook_type": "around"
+        }
+      ],
+      "attach": []
+    },
+    "K02": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.kv_cache_configurator.KVCacheConfigurator._build_hybrid_linear_kv_pool",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "K03": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool.__init__",
+          "hook_type": "around"
+        },
+        {
+          "target": "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.__init__",
+          "hook_type": "before"
+        }
+      ],
+      "attach": []
+    },
+    "M01": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.allocation.alloc_for_extend",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "M02": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free_group_end",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "M03": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.common.release_kv_cache",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "M04": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.clear",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "P01": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.schedule_policy.PrefillAdder.add_chunked_req",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "P02": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.schedule_policy.PrefillAdder.add_one_req",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Q01": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Q02": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "Q03": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "Q04": {
+      "feature": "model_compat",
+      "patches": [],
+      "attach": [
+        {
+          "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
+          "name": "_kv_descales"
+        },
+        {
+          "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
+          "name": "_store_kv"
+        }
+      ]
+    },
+    "Q05": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._metadata_from_forward_batch",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "Q06": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.init_forward_metadata",
+          "hook_type": "before"
+        }
+      ],
+      "attach": []
+    },
+    "Q07": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._capture_cuda_graph_metadata",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "Q08": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_extend",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Q09": {
+      "feature": "model_compat",
+      "patches": [],
+      "attach": [
+        {
+          "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
+          "name": "_qsa_local_head_shape"
+        },
+        {
+          "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
+          "name": "_ensure_fa2_graph_wrapper"
+        },
+        {
+          "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
+          "name": "_can_run_fa2_graph"
+        }
+      ]
+    },
+    "Q10": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_trtllm_sparse",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Q11": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_decode",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Q12": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_paged_attention",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "R01": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.model_executor.model_runner.ModelRunner.init_attention_backends",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "R02": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.model_executor.model_runner.ModelRunner._forward_raw",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "S01": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler.init_hisparse_coordinator",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "S02": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler.init_hisparse_coordinator",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "S03": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler._build_hisparse_decode_batch",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "S04": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler.get_next_batch_to_run",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "S05": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler.get_num_allocatable_reqs",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "S06": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler._get_new_batch_prefill_raw",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "S07": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler.on_idle",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "S08": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler.is_fully_idle",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "S09": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler.collect_inflight_reqs",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "T02": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qsa.kernel.qsa_fast_topk",
+          "hook_type": "around"
+        }
+      ],
+      "attach": []
+    },
+    "T03": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qsa.qsa_indexer.QSAIndexer.select_decode_tokens",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "T04": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qsa.metadata.QSAIndexerMetadata",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Z01": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.hardware_backend.gpu.quantization.gptq_kernels.GPTQMarlinMoEKernel.process_weights_after_loading",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Z02": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.quantization.gptq.schemes.gptq_moe.GPTQMarlinMoEScheme.create_weights",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Z03": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.apply_gptq_quant_layer",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Z04": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoE.weight_loader",
+          "hook_type": "before"
+        }
+      ],
+      "attach": []
+    }
+  }
+}

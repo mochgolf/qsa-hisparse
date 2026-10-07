@@ -357,12 +357,11 @@ restore.
    between arms and ledger sequences must be compared after normalizing rids.
 7. **Compat-only arm (decided after G0: reduced profile, owned by W8).** The fork has no qualified profile or fixture with
    `SGLANG_QSA_HISPARSE_V3` unset; at TP2/256K/B8 the raw KV would not fit
-   without offload. Two options:
-   - The owner picks a reduced deterministic profile (smaller context and
-     `--max-total-tokens`) and runs `acceptance.py baseline` (cold only; prefix
-     reuse requires `p2-offload`) with F (V3 unset) vs P (`SGLANG_QSA_MODEL_COMPAT=1` only).
-   - Phase 2 is scoped to `compat+hisparse`, and compat-only is covered by CPU
-     and kernel tests.
+   without offload. Decision (after G0): W8 freezes a reduced deterministic
+   profile (smaller context and `--max-total-tokens`, fixtures truncated by a
+   rule fixed before any run) and G2-2 compares F (V3 unset) with P
+   (`SGLANG_QSA_MODEL_COMPAT=1`) on it, cold only (prefix reuse requires
+   `p2-offload`). Dropping the compat-only comparison is not an option.
 8. **GPU window.** The owner approved GPU validation with
    `service/runtime-env-sglang-20260923` on 2026-10-07. The 46.7 GB figure
    comes from recorded profiles; a live check on 2026-10-07 showed the GPUs
