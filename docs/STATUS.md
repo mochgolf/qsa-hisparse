@@ -94,3 +94,31 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   Integration: activate before collection; Q10 must reach A09's replacement.
   `fingerprint.verify` now hashes each module file once (no AST parse on
   match).
+- W3 done (branch `worktree-agent-a6df9f10f64ad2d88`, `c13258b`): all rows, no
+  fallback REPLACE, 79 tests, pool sizing checked independently (B2/B4/B8).
+  D3 gap found: `EagerRunner.load_batch` copies `ForwardBatch` with
+  `dataclasses.replace`, dropping the instance attribute; fixed with a second
+  F01 `after` hook on `EagerRunner.load_batch`. At merge: add it to the
+  inventory F01 row and manifest (OVERRIDES), empty W3's `PENDING_MANIFEST`,
+  and extend D3's note.
+- W8 done (branch `worktree-agent-a0b7d8c70addb6962`, `37fc222`): observer
+  (sitecustomize import hook on capture/restore in either runtime module),
+  comparator, reduced compat profile (`--max-total-tokens 266304`, all 16
+  fixtures kept), 67 tests. At merge: report scheduling-dependent ledger
+  fields (`forward_id`, `req_pool_idx`, `generation`, `lease_slot`) without
+  gating on them; plugin-arm readiness must use the W7 launcher's
+  activation-record readiness, not only `/health`.
+- W5 done (branch `worktree-agent-a8a160f9d844c003c`, `3c46570`): all rows,
+  no fallback, 119 passed / 7 skipped (GPU), scoped REPLACE dispatchers,
+  Marlin JIT copy isolated (distinct module, cache, export; RTLD_LOCAL).
+  Phase 2 prep: port fork `test/manual/marlin_batch_invariance.py` to the
+  plugin op (orchestrator); seed the plugin Marlin JIT cache if
+  `SGLANG_CRASH_ON_JIT_COMPILE` is set. Accepted: in-tree `.cuh` headers not
+  fingerprinted (GPU gate covers them); two unreachable `stable=` edge cases.
+- W7 done (branch `worktree-agent-ac2436d649c5a1466`, `1a48f04`): scope via
+  SGLang `get_config`, launcher (preflight, exclusive plugins, version lock,
+  per-rank activation records before readiness), service controller ported,
+  plugin-off and inventory regressions; 104 passed. Open: lock file is not
+  package data (wheel installs would refuse to start; Phase 2 uses
+  `PYTHONPATH=src`); systemd lifecycle tests ported but not yet run (needs
+  owner OK).
