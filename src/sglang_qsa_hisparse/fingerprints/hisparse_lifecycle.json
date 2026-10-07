@@ -1,0 +1,182 @@
+{
+  "sglang.srt.hardware_backend.npu.dsv4.dsv4_common_hooks.maybe_write_dsv4_extend": {
+    "def_line": 35,
+    "file": "sglang/srt/hardware_backend/npu/dsv4/dsv4_common_hooks.py",
+    "first_line": 35,
+    "kind": "function",
+    "module_sha256": "f031f57501b7055b3164d1154e8b8ed4cf22e3d9fe84499e838814e63cb29e6f",
+    "qualname": "maybe_write_dsv4_extend",
+    "sha256": "a8faabde550cdfc1e800398d6009ec62cab95562739f4a66f77356d6cadaf744"
+  },
+  "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager._observe_weight_load": {
+    "def_line": 90,
+    "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
+    "first_line": 89,
+    "kind": "function",
+    "module_sha256": "753120e53a7ff15f5fad76585ae7451cf4cdcfc0d75b58ef33d4f55b38ed3793",
+    "qualname": "SchedulerWeightUpdaterManager._observe_weight_load",
+    "sha256": "c755051040bf51c3e0454cf1059cb2ebee16f322e7d89a141b04f9b9346cb861"
+  },
+  "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_disk": {
+    "def_line": 114,
+    "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
+    "first_line": 114,
+    "kind": "function",
+    "module_sha256": "753120e53a7ff15f5fad76585ae7451cf4cdcfc0d75b58ef33d4f55b38ed3793",
+    "qualname": "SchedulerWeightUpdaterManager.update_weights_from_disk",
+    "sha256": "f77782db0ef8f2a95c473b46bcf8323d24514c6ec62e314841360d75cc32efc7"
+  },
+  "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_distributed": {
+    "def_line": 144,
+    "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
+    "first_line": 144,
+    "kind": "function",
+    "module_sha256": "753120e53a7ff15f5fad76585ae7451cf4cdcfc0d75b58ef33d4f55b38ed3793",
+    "qualname": "SchedulerWeightUpdaterManager.update_weights_from_distributed",
+    "sha256": "1ae5f8c33f3223b86e5a9b37504c8df96c537327fd165e90afb009a906a771dd"
+  },
+  "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_ipc": {
+    "def_line": 176,
+    "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
+    "first_line": 176,
+    "kind": "function",
+    "module_sha256": "753120e53a7ff15f5fad76585ae7451cf4cdcfc0d75b58ef33d4f55b38ed3793",
+    "qualname": "SchedulerWeightUpdaterManager.update_weights_from_ipc",
+    "sha256": "0b04bd4831ff1cc8981d3550fea1d44b6a24abd0f280173f14315dd1af6b29f2"
+  },
+  "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_tensor": {
+    "def_line": 160,
+    "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
+    "first_line": 160,
+    "kind": "function",
+    "module_sha256": "753120e53a7ff15f5fad76585ae7451cf4cdcfc0d75b58ef33d4f55b38ed3793",
+    "qualname": "SchedulerWeightUpdaterManager.update_weights_from_tensor",
+    "sha256": "d815a6a6498c0cd1166ec8956e4fbd5e37c445fcec161e5679c026d86db424db"
+  },
+  "sglang.srt.mem_cache.allocation._alloc_extend_loc_with_kv_reuse": {
+    "def_line": 454,
+    "file": "sglang/srt/mem_cache/allocation.py",
+    "first_line": 454,
+    "kind": "function",
+    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "qualname": "_alloc_extend_loc_with_kv_reuse",
+    "sha256": "51cbf49d359b1c83a8cfd15a480530768b1e77167741dc312cdf87fc755459e8"
+  },
+  "sglang.srt.mem_cache.allocation._alloc_page_size": {
+    "def_line": 333,
+    "file": "sglang/srt/mem_cache/allocation.py",
+    "first_line": 333,
+    "kind": "function",
+    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "qualname": "_alloc_page_size",
+    "sha256": "8d64014215e85ca6237c05f743498f9a70deede0042e3b4961c29f2a86df22e9"
+  },
+  "sglang.srt.mem_cache.allocation.alloc_for_extend": {
+    "def_line": 344,
+    "file": "sglang/srt/mem_cache/allocation.py",
+    "first_line": 344,
+    "kind": "function",
+    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "qualname": "alloc_for_extend",
+    "sha256": "f24860c5cb1ab61d67368d3b4ab7dda1e29ebd1691c81f9f4fc0edfd4c0d0566"
+  },
+  "sglang.srt.mem_cache.allocation.alloc_paged_token_slots_extend": {
+    "def_line": 174,
+    "file": "sglang/srt/mem_cache/allocation.py",
+    "first_line": 174,
+    "kind": "function",
+    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "qualname": "alloc_paged_token_slots_extend",
+    "sha256": "2f861f9c03caccc234695442a998f9dea5173c3bf93e038fe4ba97da4665bbf3"
+  },
+  "sglang.srt.mem_cache.allocation.alloc_req_slots": {
+    "def_line": 289,
+    "file": "sglang/srt/mem_cache/allocation.py",
+    "first_line": 289,
+    "kind": "function",
+    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "qualname": "alloc_req_slots",
+    "sha256": "434235b9b71284cddfce433c72f498660e99e0c74cec4bf71b92937cda7b6144"
+  },
+  "sglang.srt.mem_cache.allocation.alloc_token_slots": {
+    "def_line": 151,
+    "file": "sglang/srt/mem_cache/allocation.py",
+    "first_line": 151,
+    "kind": "function",
+    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "qualname": "alloc_token_slots",
+    "sha256": "480fab57f51b7b0e9b44360096a0d055c774052ba35e766254c2118573b94488"
+  },
+  "sglang.srt.mem_cache.allocation.write_cache_indices": {
+    "def_line": 55,
+    "file": "sglang/srt/mem_cache/allocation.py",
+    "first_line": 55,
+    "kind": "function",
+    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "qualname": "write_cache_indices",
+    "sha256": "8ffefc8b52e60fa112a9a16c98507fe90669d3adaa8b48771e4b5da0a505ba8e"
+  },
+  "sglang.srt.mem_cache.allocator.base.BaseTokenToKVPoolAllocator.free_group_end": {
+    "def_line": 160,
+    "file": "sglang/srt/mem_cache/allocator/base.py",
+    "first_line": 160,
+    "kind": "function",
+    "module_sha256": "7c854623578d320e192987c661d987c4cfd9bd7b4494781681db86e5c9331d83",
+    "qualname": "BaseTokenToKVPoolAllocator.free_group_end",
+    "sha256": "42fe3de1613e05a1d094a56fae277c482d429a7209639ece0e3c21411d2edf76"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator._release_page_ids": {
+    "def_line": 317,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 317,
+    "kind": "function",
+    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "qualname": "PagedTokenToKVPoolAllocator._release_page_ids",
+    "sha256": "630f7e886cfcdbbc4967fcf31eba5f91c013368a782eb0a43ee7beee2d365917"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free_group_end": {
+    "def_line": 328,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 328,
+    "kind": "function",
+    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "qualname": "PagedTokenToKVPoolAllocator.free_group_end",
+    "sha256": "7839656afbb4fa52df2a9ff5514d908899a8272cc89c9736cb66202e9976567b"
+  },
+  "sglang.srt.mem_cache.common._release_overallocated_kv_indices": {
+    "def_line": 299,
+    "file": "sglang/srt/mem_cache/common.py",
+    "first_line": 299,
+    "kind": "function",
+    "module_sha256": "b0599a848d7df5ecfa028c2e4122a0db742625d62118254f47b34e44b3691d02",
+    "qualname": "_release_overallocated_kv_indices",
+    "sha256": "adfa0f66a76cb6364de147565b0bb1d892866d25a16545b4228c0af8bd863723"
+  },
+  "sglang.srt.mem_cache.common.release_kv_cache": {
+    "def_line": 254,
+    "file": "sglang/srt/mem_cache/common.py",
+    "first_line": 254,
+    "kind": "function",
+    "module_sha256": "b0599a848d7df5ecfa028c2e4122a0db742625d62118254f47b34e44b3691d02",
+    "qualname": "release_kv_cache",
+    "sha256": "b42c00c133cc6da8b5c798f4a8f50502c7809a7464616b81116cfc1d3c018459"
+  },
+  "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free": {
+    "def_line": 341,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 341,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "ReqToTokenPool.free",
+    "sha256": "bcb3e8b66ac0946229f33adb31fae30006e9aaf6ecd35653ccb3cdc6c8b27176"
+  },
+  "sglang.srt.utils.common.is_pin_memory_available": {
+    "def_line": 557,
+    "file": "sglang/srt/utils/common.py",
+    "first_line": 557,
+    "kind": "function",
+    "module_sha256": "0f6387b5ed3c1dcd8d822fe52fa5433dbb4eb29aed42a253bc9e7e968591a49d",
+    "qualname": "is_pin_memory_available",
+    "sha256": "336ea04caca89125dfe031b33ab47df8f467b8be7f894c9f7bb695a32b777e5b"
+  }
+}

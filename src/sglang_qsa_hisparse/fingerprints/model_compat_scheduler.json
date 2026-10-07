@@ -1,0 +1,29 @@
+{
+  "sglang.srt.managers.schedule_batch.ScheduleBatch.init_new": {
+    "def_line": 2453,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 2452,
+    "kind": "function",
+    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "qualname": "ScheduleBatch.init_new",
+    "sha256": "4c95fdd226fe9d5f5c839c1b4b6722a1ed25caeaf9e97e83b65f1727b91b540d"
+  },
+  "sglang.srt.managers.scheduler.Scheduler._build_hisparse_decode_batch": {
+    "def_line": 3533,
+    "file": "sglang/srt/managers/scheduler.py",
+    "first_line": 3533,
+    "kind": "function",
+    "module_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
+    "qualname": "Scheduler._build_hisparse_decode_batch",
+    "sha256": "32463cff490c0b40f013535c451359542971742a050a11c747030724d6f1afd4"
+  },
+  "sglang.srt.sampling.sampling_batch_info.SamplingBatchInfo.from_schedule_batch": {
+    "def_line": 93,
+    "file": "sglang/srt/sampling/sampling_batch_info.py",
+    "first_line": 92,
+    "kind": "function",
+    "module_sha256": "89d711f24f703774892e88f634641fe4ab1c6c890d852ea51d0f5c33ab18da04",
+    "qualname": "SamplingBatchInfo.from_schedule_batch",
+    "sha256": "301135bce8fe57c72a62806c65320ac9c3a107e3335da3e3e684e63f2e408b0b"
+  }
+}
