@@ -279,14 +279,15 @@ which includes one image case). That protocol is not bitwise evidence.
 ### Ordered serial GPU jobs
 
 Run F then P for each step. Commands are shown for F; P differs only in the
-environment above (and in plugin-arm probe wrappers, see Gaps).
+environment above, except G2-1 steps 2-8, whose P commands are listed under
+[G2-1 plugin arm](#g2-1-plugin-arm-p) below the table.
 
 | # | Job | Command | Artifacts | Pass criteria (exact, no tolerance) |
 | --- | --- | --- | --- | --- |
 | 0 | Pre-window, CPU only | Fork CPU suite and plugin `tools/run_cpu_tests.sh` in the chosen GPU interpreter; `tools/fingerprint.py check`; `sha256sum fixtures.json` | logs | Fork: 183/7/0, 20 subtests. Plugin: green. Fingerprints OK. Fixture hash `171231bd…`. |
 | 1 | Window open (owner) | Owner's procedure (see above); no other GPU process | `nvidia-smi`, saved production profile bytes | GPUs idle |
 | **G2-1** | | *single GPU `cuda:0`, no model load* | | |
-| 2 | Marlin GPU pytest | `SGLANG_TEST_MARLIN_GPU=1 python -m pytest -q test/qsa_hisparse/test_marlin_deterministic_alignment.py` (P: ported `tests/model_compat` equivalent) | log | 33 passed, 0 skipped; P has the same test IDs and outcomes |
+| 2 | Marlin GPU pytest | `SGLANG_TEST_MARLIN_GPU=1 python -m pytest -q test/qsa_hisparse/test_marlin_deterministic_alignment.py` (P: ported `tests/model_compat` file, see below) | log | 33 passed, 0 skipped; P has the same test IDs and outcomes |
 | 3 | Marlin alignment | `python test/manual/marlin_deterministic_alignment.py --output <arm>/marlin-align.json` | JSON + `.pt` | `fixed_alignment_repeatable: true`; `frozen_native` and `stable` have 1 distinct output each |
 | 4 | Marlin whole-K | `python test/manual/marlin_batch_invariance.py --output <arm>/marlin-whole-k.json` | JSON + `.pt` | `cases` 237, `differing_cases` 0, `fixed_case_repeatable` true; per-case output SHA256 F = P |
 | 5 | Marlin whole-K graphs | `... --cuda-graphs --batch-sizes 1 8 96 2048 --patterns identical spread_routes --output <arm>/marlin-graphs.json` | JSON + `.pt` | 43 cases, 0 differing; F = P |
@@ -312,6 +313,59 @@ capture about 3 min, and steps 10–13 about 25 min (qualification 23.4 min), so
 about 35 min per deterministic arm. A native/light arm takes about 13 min, and
 G2-1 about 15 min per arm. Allow about 3 h for F+P, plus production stop and
 restore.
+
+### G2-1 plugin arm (P)
+
+The fork's standalone probes import in-tree kernels, load `stable_align.py`
+next to themselves and never call `load_plugins()`, so on pristine pinned
+SGLang they would fail on fork-only arguments (`use_deterministic_reduce`,
+`deterministic=`) or test upstream code. Arm P runs the same unmodified
+`ref:` files through `tools/evidence/plugin_probe.py`, which activates
+`model_compat` in-process with the target-model scope forced on (HiSparse
+off), points `sglang.kernels.ops.moe.moe_wna16_marlin.moe_wna16_marlin_gemm`
+at the plugin's Marlin op, runs the script as a byte copy beside the plugin's
+`stable_align.py`, and leaves the top-k probe's `qsa_fast_topk(...,
+deterministic=True)` to the activated T02 hook. Assertions, oracles and output
+JSON are the fork script's own. It refuses `--source`, and prints one
+`QSA_PLUGIN_PROBE {...}` line to stderr recording the redirection (keep it with
+the arm's log). The report's `source` field names the temporary copy in P and
+`ref:` in F; compare the per-case results, not that field. P builds the
+plugin's own Marlin JIT modules (`sgl_kernel_jit_qsa_hisparse_moe_wna16_marlin_*`,
+inventory section 3) on first use, so `SGLANG_CRASH_ON_JIT_COMPILE` must be
+unset or their cache seeded.
+
+```bash
+PY=qwen:service/runtime-env-sglang-20260923/bin/python
+PLUGIN=<plugin checkout>; REF=<ref: path>; PIN=<pin: path>; OUT=<arm output dir>
+export CUDA_VISIBLE_DEVICES=0 PYTHONDONTWRITEBYTECODE=1
+export PYTHONPATH=$PLUGIN/src:$PIN/python   # P; no entry point is needed here
+unset TRITON_INTERPRET SGLANG_QSA_MODEL_COMPAT SGLANG_QSA_HISPARSE_V3 SGLANG_PLUGINS
+PROBE="$PY $PLUGIN/tools/evidence/plugin_probe.py"
+
+# 2: ported pytest (same 33 test IDs); its whole-K test runs
+#    $REF/test/manual/marlin_batch_invariance.py through the runner and fails
+#    if QSA_FORK_ROOT does not hold it.
+cd $PLUGIN && QSA_GPU_TESTS=1 QSA_FORK_ROOT=$REF $PY -m pytest -q -p no:cacheprovider \
+  tests/model_compat/test_marlin_deterministic_alignment.py
+# 3-7
+$PROBE $REF/test/manual/marlin_deterministic_alignment.py --output $OUT/marlin-align.json
+$PROBE $REF/test/manual/marlin_batch_invariance.py --output $OUT/marlin-whole-k.json
+$PROBE $REF/test/manual/marlin_batch_invariance.py --cuda-graphs --batch-sizes 1 8 96 2048 \
+  --patterns identical spread_routes --output $OUT/marlin-graphs.json
+$PROBE $REF/test/manual/marlin_batch_invariance.py --native --output $OUT/marlin-native.json
+$PROBE $REF/test/manual/qsa_deterministic_topk_probe.py --large-prefill --output $OUT/topk.json
+# 8: fork-edited files as ported (they activate their rows themselves) ...
+cd $PLUGIN && QSA_GPU_TESTS=1 $PY -m pytest -q -rA -p no:cacheprovider \
+  tests/qsa/test_qsa.py tests/model_compat/test_hc_mix_triton.py
+# ... and the files the fork left unmodified, run in place under the runner.
+cd $PIN/test && $PROBE -m pytest -q -rA -p no:cacheprovider \
+  registered/kernel/qsa/test_qsa_indexer.py registered/kernel/qsa/test_qsa_strided_zero_fill.py \
+  registered/kernel/hyperconnection/test_hc_mix_triton.py
+```
+
+Step 8 test IDs map by file and test name: the fork's `test_qsa.py` is
+`tests/qsa/test_qsa.py` in P, and the fork's `test_hc_mix_triton.py` is the
+pinned file plus `tests/model_compat/test_hc_mix_triton.py` (its one added test).
 
 ## Gaps
 
@@ -339,10 +393,9 @@ restore.
    `marlin_batch_invariance.py` load `stable_align.py` from the fork path
    (`python/sglang/srt/layers/moe/fused_moe_triton/`, `--source`). They and
    `qsa_deterministic_topk_probe.py` import `sglang` kernels directly and never
-   call `load_plugins()`. Arm P needs wrappers that set the switches, activate
-   the plugin before importing, and resolve `sglang_qsa_hisparse.kernels.*`,
-   with oracles and assertions unchanged (W4/W5). The `SGLANG_TEST_MARLIN_GPU`
-   tests need the same in the ported `tests/model_compat`.
+   call `load_plugins()`. Resolved (G1 finding 1): `tools/evidence/plugin_probe.py`
+   and the [G2-1 plugin arm](#g2-1-plugin-arm-p) commands; the ported whole-K
+   GPU test uses the runner and fails when the fork script is missing.
 5. **No tooling for cross-arm exact cached bytes.** The fork's
    exact-bytes checks run within one process (strict mode), and the ledger has
    no tensor digests. Proving that F and P cache the same bytes and state
