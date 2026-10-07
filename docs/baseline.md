@@ -290,7 +290,7 @@ environment above (and in plugin-arm probe wrappers, see Gaps).
 | 3 | Marlin alignment | `python test/manual/marlin_deterministic_alignment.py --output <arm>/marlin-align.json` | JSON + `.pt` | `fixed_alignment_repeatable: true`; `frozen_native` and `stable` have 1 distinct output each |
 | 4 | Marlin whole-K | `python test/manual/marlin_batch_invariance.py --output <arm>/marlin-whole-k.json` | JSON + `.pt` | `cases` 237, `differing_cases` 0, `fixed_case_repeatable` true; per-case output SHA256 F = P |
 | 5 | Marlin whole-K graphs | `... --cuda-graphs --batch-sizes 1 8 96 2048 --patterns identical spread_routes --output <arm>/marlin-graphs.json` | JSON + `.pt` | 43 cases, 0 differing; F = P |
-| 6 | Marlin native control | `... --native --output <arm>/marlin-native.json` | JSON + `.pt` | All 237 stage SHA256 equal to `repro-marlin-batch-invariance.json` (native path unchanged) in both arms |
+| 6 | Marlin native control | `... --native --output <arm>/marlin-native.json` | JSON + `.pt` | F = P: all 237 per-stage SHA256 equal between the fresh fork and plugin runs in the same window. Comparison with the historical `repro-marlin-batch-invariance.json` is informational only (different interpreter; not an acceptance criterion) |
 | 7 | QSA top-k probe | `python test/manual/qsa_deterministic_topk_probe.py --large-prefill --output <arm>/topk.json` | JSON | 36/36 `deterministic_exact`; Σ`cuda_graph_exact_replays` = 504; 36 `cuda_graph_dynamic_threshold_exact`; empty shapes exact; `large_prefill.deterministic_exact`. Time and peak are reported only. |
 | 8 | Registered GPU kernels | `python -m pytest -q -rA test/registered/kernel/qsa/test_qsa.py test/registered/kernel/qsa/test_qsa_indexer.py test/registered/kernel/qsa/test_qsa_strided_zero_fill.py test/registered/kernel/hyperconnection/test_hc_mix_triton.py` | log | F = P per test ID. All pass except the SM121 skip and the known fork failure `test_qsa_paged_extend_trims_padding_rows_and_restores_output`, which is reported, not waived. `hc_mix` and other tests keep their own upstream assertions. |
 | **G2-2** | | *TP2, deterministic profile, one server per arm* | | |
@@ -355,7 +355,7 @@ restore.
 6. **No cross-arm comparator yet.** An offline comparator for steps 9–17 is
    needed. Harness namespaces include `time_ns`, so rids and salts differ
    between arms and ledger sequences must be compared after normalizing rids.
-7. **Compat-only arm.** The fork has no qualified profile or fixture with
+7. **Compat-only arm (decided after G0: reduced profile, owned by W8).** The fork has no qualified profile or fixture with
    `SGLANG_QSA_HISPARSE_V3` unset; at TP2/256K/B8 the raw KV would not fit
    without offload. Two options:
    - The owner picks a reduced deterministic profile (smaller context and
@@ -363,8 +363,11 @@ restore.
      reuse requires `p2-offload`) with F (V3 unset) vs P (`SGLANG_QSA_MODEL_COMPAT=1` only).
    - Phase 2 is scoped to `compat+hisparse`, and compat-only is covered by CPU
      and kernel tests.
-8. **The GPU window needs the owner.** Production occupies about 46.7 GB per
-   GPU, so it must be stopped and restored by the owner. `--numa-node 3 2` in
+8. **GPU window.** The owner approved GPU validation with
+   `service/runtime-env-sglang-20260923` on 2026-10-07. The 46.7 GB figure
+   comes from recorded profiles; a live check on 2026-10-07 showed the GPUs
+   nearly idle. Each job re-checks GPU memory and ports first and never
+   stops a process it did not start. `--numa-node 3 2` in
    the profiles is specific to this host.
 9. **Fork baseline failure.** `test_qsa_paged_extend_trims_padding_rows_and_restores_output`
    fails at the fork (AttributeError above). W4 should port it unchanged and
@@ -381,3 +384,9 @@ restore.
     (`kernels/jit/utils/compile/loader.py`), but separate `SGLANG_CACHE_DIR`s
     per arm keep evidence attributable. The first-call JIT time is not part of
     any pass criterion.
+
+## Acceptance basis (after G0)
+
+Every GPU criterion compares fresh fork (F) and plugin (P) runs from the same
+window, interpreter and fixtures. Historical goldens and hashes from earlier
+environments are reported for information only and never decide a gate.

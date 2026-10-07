@@ -44,14 +44,24 @@ this repository; `fork:` is `../qsa-hisparse` at `ee8fe158d6`; `pin:` is
    [DEVIATIONS.md](DEVIATIONS.md) by the orchestrator.
 8. The fork's `test_service_control.py::ServiceLifecycleTests` starts systemd
    user units; deselect it (`-k 'not ServiceLifecycleTests'`).
-9. **Report** in your final message: files changed, tests run with results,
+9. **Target-model scope.** `model_compat` hooks on generic paths (GPTQ /
+   AutoRound MoE loading, Marlin MoE, request-row generations, QSA kernels
+   shared with other QSA models) call the original unless
+   `sglang_qsa_hisparse.scope.target_model_active()` is true. The target set
+   is the fork's validated model (`Qwen4ExpForConditionalGeneration` and the
+   text model it builds). The predicate reads SGLang's published model
+   configuration and raises if it cannot decide; it never guesses. Each
+   row's scope decision goes in the patch `reason`.
+10. **Report** in your final message: files changed, tests run with results,
    unresolved items, and any deviation from this plan.
 
 ## Layout
 
 | Path | Content | Owner |
 | --- | --- | --- |
-| `src/sglang_qsa_hisparse/{plugin,features,patching,fingerprint,errors}.py` | Framework (fixed contract) | orchestrator |
+| `src/sglang_qsa_hisparse/{plugin,features,patching,fingerprint,errors}.py`, `patches/framework.py` | Framework (fixed contract) | orchestrator |
+| `src/sglang_qsa_hisparse/{launch,scope}.py` | Launcher preflight/activation records; target-model scope (rule 9) | W7 |
+| `tools/evidence/` | Byte observer, F-vs-P comparator, compat-only reduced profile | W8 |
 | `src/sglang_qsa_hisparse/hisparse/` | Fork `mem_cache/qsa_hisparse/*` and `hisparse_graph.py` as `graph.py` (moved verbatim, imports rewritten) | W1 |
 | `src/sglang_qsa_hisparse/kernels/` | Plugin-owned kernels (`stable_align.py`, Marlin JIT copy, PLE gather, stable HC) | W4/W5 by file |
 | `src/sglang_qsa_hisparse/patches/model_compat/*.py` | Shared-path patches | W4, W5 by file |
@@ -85,7 +95,8 @@ Gate G0: Codex review of framework + three documents.
 | W4 QSA attention | `qwen_sparse_attn_backend.py`, `qsa/{kernel,metadata,qsa_indexer,sparse_attn}.py` | `patches/model_compat/qsa_attention.py`, `patches/hisparse/qsa_backend.py`, `kernels/qsa_*.py`, `tests/qsa/` ← `test_deterministic_topk.py`, `test_flash_attention.py`, registered `kernel/qsa/test_qsa.py` additions |
 | W5 model compat | `quantization/{auto_round,gptq/schemes/gptq_moe}.py`, `gptq_kernels.py`, `fused_marlin_moe.py`, `moe/.../layer.py`, Marlin JIT `.cuh/.h` + op wrapper, `hc_mix_triton.py`, `hyperconnection.py`, `models/qwen4_exp.py`, `utils/common.py` | `patches/model_compat/{quantization,marlin,qwen4_exp,hyperconnection}.py`, `kernels/csrc/marlin_moe/`, `kernels/{marlin_moe,hc_mix,ple_gather}.py`, `tests/model_compat/` ← `test_marlin_deterministic_alignment.py`, `test_model_compatibility.py`, hc mix test additions |
 | W6 prefix cache | `qsa_hisparse/{prefix,prefix_cache}.py` integration surface | `tests/prefix/` ← `test_prefix_cache.py`; `docs/prefix-cache.md`; verify every scheduler/allocation call site the prefix cache relies on is covered by W2 patches; evaluate building the host cache through the pin's `register_radix_cache_backend`/`--radix-cache-backend` instead of a scheduler patch (needed anyway at the next pin, see Phase 4) |
-| W7 off/scope regression | none | `tests/regression/`: plugin installed but off ⇒ zero hooks and pinned upstream tests pass; compat on with a non-target model config ⇒ scoped patches inert; patch-inventory completeness check (every fork-diff hunk mapped) |
+| W7 launch/regression | fork `scripts/qsa_service.py`, `test/qsa_hisparse/test_service_control.py` | `src/sglang_qsa_hisparse/launch.py`: preflight (entry point discoverable from a private dist-info path that spawned processes inherit, allowed by `SGLANG_PLUGINS`), sets `SGLANG_QSA_ACTIVATION_DIR`, starts the server, and fails unless every scheduler/TP rank wrote an activation record before readiness; `src/sglang_qsa_hisparse/scope.py` (rule 10) with tests; service-control port adapted to the launcher (lifecycle tests deselected per rule 8); `tests/regression/`: off ⇒ zero hooks and pinned upstream tests pass; non-target model ⇒ scoped hooks delegate; inventory completeness (every fork hunk mapped) |
+| W8 evidence tooling | fork `test/manual/qsa_hisparse_prefix_*.py`, baseline gaps 5–7 | `tools/evidence/`: a neutral checkpoint-byte observer (hashes of restored/captured raw K/V, index, pending ring, Mamba/PLE state per request and rank, enabled by env, identical in F and P), an offline F-vs-P comparator (rid-normalized ledgers, token IDs, hashes), and the reduced deterministic compat-only profile (context, `--max-total-tokens`, fixtures) with its run script; all CPU-tested |
 
 Row IDs in `docs/patch-inventory.md` assign each fork hunk to a workstream;
 a workstream implements exactly its rows. Use the inventory's equivalence
@@ -102,9 +113,14 @@ Gate G1: Codex review of the merged Phase 1.
 
 ## Phase 2: GPU equivalence (serial, owner-approved window)
 
+Approved by the owner on 2026-10-07 (interpreter
+`../service/runtime-env-sglang-20260923`). All criteria compare fresh fork and
+plugin runs from the same window; historical goldens are informational.
 G2-1 kernel and graph checks (Marlin deterministic, QSA FP8 extraction,
 deterministic top-k probe, B1–B8 capture). G2-2 frozen deterministic HTTP
-fixtures: fork vs plugin `compat+hisparse` token IDs and cached bytes/state.
+fixtures: fork vs plugin `compat+hisparse` token IDs and cached bytes/state
+(W8 observer), and fork (V3 unset) vs plugin `compat` on W8's reduced
+profile.
 G2-3 prefix acceptance, concurrency, latency, lifecycle scripts. G2-4 memory:
 identical `fixed_bytes` and static pools. Gate G2: Codex review of evidence.
 
@@ -132,9 +148,13 @@ containers, `model_runner.py` orchestration only, tests under
 existing upstream PR (comments, reviews) is publication and needs owner
 confirmation.
 U1 HiSparse coordinator protocol and scheduler gating (align with open
-#35488); U2 prefix-cache lifecycle hooks on the reworked upstream API
-(`checkpoint`, `on_release`, `claim_kv_row`; track #42823/#42824/#42825/#42923);
-U3 allocator free-group/release callbacks + KV pool runtime attachment;
+#35488); U23 (one owner) prefix-cache lifecycle hooks on the reworked
+upstream API (`checkpoint`, `on_release`, `claim_kv_row`; track
+#42823/#42824/#42825/#42923) together with allocator free-group/release
+callbacks and KV pool runtime attachment, because both meet in
+`release_kv_cache` (inventory M03); its lifecycle contract (checkpoint, drain,
+logical release, free-group flush, physical reuse) is frozen in the task
+before code;
 U4 pool fixed reservation + `full_kv_pool` factory; U5 decode CUDA graph
 backend lifecycle hooks, widening the existing extend-only
 `ForwardBatch.req_pool_indices_cpu`; U6 QSA backend extension points, FP8
@@ -144,7 +164,9 @@ AutoRound g64 split, INT8-row PLE (meta-device table is already upstream,
 #39928); U8 deterministic Marlin whole-K, QSA stable top-k and stable HC
 (align with open #42087); U9 monotonic `req_generation`, HiSparse decode batch
 multimodal inputs. Track I's identity transport aligns with draft #41792
-(`MultimodalDataItem.identity`). All independent. Gate G3-U per batch, then
+(`MultimodalDataItem.identity`). Each task works on its own branch from the
+same `upstream/main` commit; U1 and U23 both touch scheduler release paths,
+so U23 rebases onto U1 if both are prepared. The rest are independent. Gate G3-U per batch, then
 owner confirmation per PR.
 
 ## Phase 4: shrink REPLACE (after upstream merges)

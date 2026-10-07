@@ -1,0 +1,11 @@
+{
+  "sglang.srt.managers.scheduler.Scheduler.__init__": {
+    "def_line": 442,
+    "file": "sglang/srt/managers/scheduler.py",
+    "first_line": 442,
+    "kind": "function",
+    "module_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
+    "qualname": "Scheduler.__init__",
+    "sha256": "7d7ab563bc70f5a0ce2ff9f9682c2cd88ea5761fff2be353050bc038e817ca63"
+  }
+}

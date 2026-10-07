@@ -8,7 +8,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | P0-A inventory | done | `docs/patch-inventory.md`: 196 hunks → 89 rows, 39 REPLACE (~3,900 copied lines), 63 targets resolve at the pin |
 | P0-B baseline | done | `docs/baseline.md`: fork CPU 183 passed/7 skipped; pin subset 72 passed/3 skipped |
 | P0-C upstream status | done | `docs/upstream-status.md`: main `0b635266d4`, 1201 commits after pin |
-| G0 review | running | `reviews/G0.md` |
+| G0 review | findings fixed; re-review running | `reviews/G0.md`, `reviews/G0-response.md`, `reviews/G0r.md` |
 | Phase 1 W1–W7 | not started | |
 | G1 review | pending | |
 | Phase 2 GPU | approved (runtime-env-sglang-20260923) | |
@@ -54,3 +54,5 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   edits, inventory-row ownership, Track U alignment, next-pin break (#42354).
 - Owner (2026-10-07): GPU validation and `service/runtime-env-sglang-20260923`
   approved; deviations D1–D3 accepted.
+- G0 (gpt-6.1-sol xhigh): 2 blockers, 9 majors, 1 minor, all accepted and
+  fixed (see `reviews/G0-response.md`); framework tests 38 passed.

@@ -13,6 +13,8 @@ export PYTHONPATH="$repo/src:$pin_root/python${PYTHONPATH:+:$PYTHONPATH}"
 # Hide CUDA the same way the fork's CPU runner does (numeric, invalid ordinal).
 export CUDA_VISIBLE_DEVICES=99
 export TRITON_INTERPRET=1
+# Never write bytecode into the pinned checkout or the shared interpreter.
+export PYTHONDONTWRITEBYTECODE=1
 # Never inherit feature switches from the caller's shell.
 unset SGLANG_QSA_MODEL_COMPAT SGLANG_QSA_HISPARSE_V3
 
