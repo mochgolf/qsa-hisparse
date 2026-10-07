@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Manage a local model server in a systemd user cgroup; no SGLang imports."""
+"""Manage a local model server in a systemd user cgroup; no SGLang imports.
+
+Port of the fork's ``scripts/qsa_service.py`` to the plugin launcher: the
+profile command must be ``[<python>, "-m", "sglang_qsa_hisparse.launch",
+<launcher options>, "--", <sglang.launch_server args>]``. The controller adds
+``--run-dir <state_dir>/run-<instance>`` and counts the service as ready only
+after the launcher wrote ``ready.json`` there (every scheduler/TP rank's
+activation record verified) and the health check passes on a listener owned
+by the unit.
+"""
 
 import argparse
 import contextlib
@@ -18,6 +27,9 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+
+
+LAUNCHER = "sglang_qsa_hisparse.launch"
 
 
 class ServiceError(RuntimeError):
@@ -62,6 +74,16 @@ def load_profile(path):
             raise ValueError("command must be a nonempty list of strings")
         if not Path(argv[0]).is_absolute():
             raise ValueError("command executable must be an absolute path")
+        if argv[1:3] != ["-m", LAUNCHER] or "--" not in argv:
+            raise ValueError(
+                f"command must run the plugin launcher: <python> -m {LAUNCHER} "
+                "[options] -- <server args>"
+            )
+        if any(
+            arg == "--run-dir" or arg.startswith("--run-dir=")
+            for arg in argv[3 : argv.index("--")]
+        ):
+            raise ValueError("--run-dir is reserved for the controller")
         for key in ("cwd", "state_dir"):
             if (
                 not isinstance(profile[key], str)
@@ -116,6 +138,23 @@ def load_profile(path):
         return profile
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise ServiceError(f"Invalid profile {path}: {error}") from error
+
+
+def run_dir(profile, instance):
+    """The launcher's run directory for one controller instance."""
+    return Path(profile["state_dir"]).resolve() / f"run-{instance}"
+
+
+def launcher_argv(profile, instance):
+    argv = profile["command"]
+    return [*argv[:3], "--run-dir", str(run_dir(profile, instance)), *argv[3:]]
+
+
+def launcher_ready(profile, state):
+    """The launcher verified every scheduler/TP rank's activation record."""
+    return bool(state and state.get("instance")) and (
+        run_dir(profile, state["instance"]) / "ready.json"
+    ).is_file()
 
 
 def unit_name(profile):
@@ -312,6 +351,8 @@ def start(profile, profile_path, state_dir):
                 "Service already runs a different profile; use restart to apply this profile"
             )
         ready, reason = health(profile)
+        if ready and not launcher_ready(profile, state):
+            ready, reason = False, "the launcher has not verified the activation records"
         if ready and listener_owned(profile, info):
             print(
                 f"Already ready: {profile['name']} (PID {info['MainPID']}, {info['ControlGroup']})"
@@ -366,6 +407,7 @@ def start(profile, profile_path, state_dir):
         "profile_fingerprint": fingerprint,
         "profile_path": str(profile_path),
         "snapshot_path": str(snapshot),
+        "run_dir": str(run_dir(profile, instance)),
         "log_path": str(log_path),
         "last_action": "starting",
         "started_at": time.time(),
@@ -395,6 +437,8 @@ def start(profile, profile_path, state_dir):
                 )
             if listener_owned(profile, info):
                 ready, reason = health(profile)
+                if ready and not launcher_ready(profile, state):
+                    ready, reason = False, "waiting for the launcher's activation check"
                 if ready:
                     state["last_action"] = "ready"
                     write_json(state_dir / "state.json", state)
@@ -431,6 +475,8 @@ def status(profile, state_dir, as_json):
     ready, reason = health(actual) if active else (False, "stopped")
     if active and not listener_owned(actual, info):
         ready, reason = False, "waiting for a listener owned by the managed cgroup"
+    elif ready and not launcher_ready(actual, state):
+        ready, reason = False, "waiting for the launcher's activation check"
     failed = info.get("ActiveState") == "failed"
     conflict = not active and bool(listener_inodes(actual))
     if failed:
@@ -487,10 +533,15 @@ def main(argv=None):
         profile_path = args.profile.resolve()
         profile = load_profile(profile_path)
         if args.action == "_exec":
+            instance = os.environ.get("QSA_SERVICE_INSTANCE")
+            if not instance:
+                raise ServiceError("_exec runs only inside a unit started by this controller")
             os.chdir(profile["cwd"])
             environment = dict(os.environ)
             environment.update(profile.get("environment", {}))
-            os.execvpe(profile["command"][0], profile["command"], environment)
+            os.execvpe(
+                profile["command"][0], launcher_argv(profile, instance), environment
+            )
         if args.lines <= 0:
             raise ServiceError("--lines must be positive")
         state_dir = Path(profile["state_dir"]).resolve()

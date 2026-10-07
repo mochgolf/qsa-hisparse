@@ -27,10 +27,13 @@ the deployment half of PLAN.md's activation guarantees:
    locked versions. Any other outcome (exit, timeout, missing or wrong
    records) stops the server and exits non-zero.
 
-After readiness the launcher supervises the server: SIGTERM or SIGINT stops
-it, and the launcher exits with the server's status. It only ever signals the
-process group it created for the server, and only while the server's process
-id is unreaped (so the group id cannot have been reused).
+After readiness the launcher supervises the server. SIGTERM or SIGINT stops
+the server and ends the launcher by that signal; a server that stops on its
+own (before readiness: with a non-zero status) ends the launcher the same way
+(exit status or signal), so supervisors see the server's outcome. The
+launcher only ever signals the process group it created for the server, and
+only while the server's process id is unreaped (so the group id cannot have
+been reused).
 """
 
 import argparse
@@ -65,7 +68,9 @@ _MARKER = "QSA_LAUNCH_PREFLIGHT "
 
 
 class LaunchError(RuntimeError):
-    pass
+    def __init__(self, message: str, status: int = 1):
+        super().__init__(message)
+        self.status = status
 
 
 def native_versions() -> dict[str, str | None]:
@@ -240,6 +245,11 @@ def _describe(state) -> str:
     return f"signal {state.si_status}"
 
 
+def _status(state) -> int:
+    """Exit status, or the negated signal number (as ``Popen.returncode``)."""
+    return state.si_status if state.si_code == os.CLD_EXITED else -state.si_status
+
+
 _signals: list[int] = []
 
 
@@ -277,7 +287,10 @@ def _wait_until_ready(server, url, activation_dir, tp_size, features, lock, time
         _check_signals()
         state = _exit_state(server.pid)
         if state is not None:
-            raise LaunchError(f"The server stopped before readiness ({_describe(state)})")
+            raise LaunchError(
+                f"The server stopped before readiness ({_describe(state)})",
+                status=_status(state) or 1,
+            )
         if time.monotonic() > deadline:
             raise LaunchError(f"The server was not ready within {timeout:g} s")
         time.sleep(POLL_SECONDS)
@@ -364,12 +377,11 @@ def launch(run_dir: Path | None, timeout: float, server_module: str, server_args
             state = _exit_state(server.pid)
             if state is not None:
                 print(f"QSA launcher: server stopped ({_describe(state)})", flush=True)
-                status = state.si_status
-                return status if state.si_code == os.CLD_EXITED else 128 + status
+                return _status(state)
             time.sleep(POLL_SECONDS)
     except _Stopped as stopped:
         print(f"QSA launcher: {stopped}; stopping the server", file=sys.stderr, flush=True)
-        return 128 + stopped.signum
+        return -stopped.signum
     finally:
         stop_server(server)
 
@@ -381,6 +393,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="python -m sglang_qsa_hisparse.launch",
         usage="%(prog)s [--run-dir DIR] [--timeout SECONDS] -- <sglang.launch_server args>",
         description="Start sglang.launch_server with the QSA HiSparse plugin verified active.",
+        allow_abbrev=False,
     )
     parser.add_argument(
         "--run-dir",
@@ -395,10 +408,18 @@ def main(argv: list[str] | None = None) -> int:
     if split == len(argv):
         parser.error("missing '--' before the server arguments")
     try:
-        return launch(options.run_dir, options.timeout, options.server_module, argv[split + 1 :])
+        status = launch(options.run_dir, options.timeout, options.server_module, argv[split + 1 :])
     except LaunchError as error:
         print(f"QSA launcher: {error}", file=sys.stderr, flush=True)
-        return 1
+        status = error.status
+    if status < 0:
+        # End by the same signal as the server (or the launcher's stop signal),
+        # so supervisors see the same outcome as without the launcher.
+        if -status != signal.SIGKILL:
+            signal.signal(-status, signal.SIG_DFL)
+        os.kill(os.getpid(), -status)
+        return 128 - status  # Reached only if that signal's default is to ignore.
+    return status
 
 
 if __name__ == "__main__":

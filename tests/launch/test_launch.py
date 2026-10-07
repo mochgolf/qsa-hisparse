@@ -294,7 +294,20 @@ def test_ready_only_with_records_from_the_real_loader(tmp_path):
             assert record["features"] == ["model_compat"]
             assert "sglang.srt.managers.scheduler.configure_scheduler_process" in record["patches"]
         launcher.send_signal(signal.SIGTERM)
-        assert launcher.wait(timeout=60) == 128 + signal.SIGTERM
+        assert launcher.wait(timeout=60) == -signal.SIGTERM
+    finally:
+        if launcher.poll() is None:
+            launcher.kill()
+    assert_processes_gone(tmp_path)
+
+
+def test_server_crash_after_readiness_ends_the_launcher_alike(tmp_path):
+    launcher = start_launcher(tmp_path, "records", "--tp-size", "2")
+    try:
+        wait_for_line(launcher, "QSA launcher: ready")
+        processes = json.loads((tmp_path / "processes.json").read_text())
+        os.kill(processes["server"], signal.SIGKILL)
+        assert launcher.wait(timeout=60) == -signal.SIGKILL, launcher.stderr.read()
     finally:
         if launcher.poll() is None:
             launcher.kill()
@@ -305,7 +318,7 @@ def test_missing_rank_record_stops_the_server(tmp_path):
     code, stdout, stderr = run_launcher(tmp_path, "missing-rank", "--tp-size", "2")
     assert code == 1, stdout + stderr
     assert "without valid activation records" in stderr and "per TP rank" in stderr
-    assert "ready" not in stdout.replace("readiness", "")
+    assert "QSA launcher: ready" not in stdout
     assert not (tmp_path / "run" / "ready.json").exists()
     assert_processes_gone(tmp_path)
 
@@ -320,7 +333,7 @@ def test_version_mismatch_stops_the_server(tmp_path):
 
 def test_server_exit_before_readiness_is_reported(tmp_path):
     code, _, stderr = run_launcher(tmp_path, "exit", "--tp-size", "2")
-    assert code == 1
+    assert code == 17
     assert "stopped before readiness (exit status 17)" in stderr
     assert_processes_gone(tmp_path)
 
@@ -333,7 +346,7 @@ def test_sigint_before_readiness_stops_the_server(tmp_path):
         while not (tmp_path / "processes.json").exists() and time.monotonic() < deadline:
             time.sleep(0.05)
         launcher.send_signal(signal.SIGINT)
-        assert launcher.wait(timeout=60) == 128 + signal.SIGINT
+        assert launcher.wait(timeout=60) == -signal.SIGINT
     finally:
         if launcher.poll() is None:
             launcher.kill()
