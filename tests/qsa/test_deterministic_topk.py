@@ -4,6 +4,10 @@ Contract: preserve the input score values, select largest scores with smaller
 logical indices at ties, emit ascending logical indices and then -1 padding.
 The Python sorting oracle does not call Torch/FlashInfer top-k or argsort.
 Actual CUDA sort and graph evidence comes from the separate GPU probe.
+
+Plugin port: the stable top-k and the flag lookup live in plugin modules
+(inventory T01-T03), so mocks name them there; assertions are unchanged
+except where noted.
 """
 
 import sys
@@ -16,6 +20,8 @@ import torch
 from sglang.srt.layers.attention.qsa.kernel import qsa_fast_topk
 from sglang.srt.layers.attention.qsa.metadata import QSAIndexerMetadata
 from sglang.srt.layers.attention.qsa.qsa_indexer import QSAIndexer
+
+COMPAT = "sglang_qsa_hisparse.patches.model_compat.qsa_attention"
 
 
 def oracle(scores, starts, ends, topk):
@@ -91,7 +97,7 @@ class TestDeterministicQSATopK(unittest.TestCase):
         with (
             patch.dict(sys.modules, {"flashinfer": None}),
             patch(
-                "sglang.srt.layers.attention.qsa.kernel._QSA_DETERMINISTIC_TOPK_TILE_BYTES",
+                "sglang_qsa_hisparse.kernels.qsa_topk._QSA_DETERMINISTIC_TOPK_TILE_BYTES",
                 tile_budget,
             ),
             patch.object(torch, "argsort", wraps=torch.argsort) as sorts,
@@ -117,7 +123,7 @@ class TestDeterministicQSATopK(unittest.TestCase):
             self.assertLessEqual(call.args[0].numel() * 64, tile_budget)
             self.assertTrue(call.kwargs["stable"])
             self.assertTrue(call.kwargs["descending"])
-        from sglang.srt.layers.attention.qsa.kernel import (
+        from sglang_qsa_hisparse.kernels.qsa_topk import (
             _qsa_deterministic_topk_tile_rows,
         )
 
@@ -161,7 +167,7 @@ class TestDeterministicQSATopK(unittest.TestCase):
         )
         with (
             patch(
-                "sglang.srt.layers.attention.qsa.qsa_indexer.get_context",
+                f"{COMPAT}.get_context",
                 return_value=SimpleNamespace(
                     is_config_namespace_published=lambda name: True
                 ),
@@ -174,27 +180,25 @@ class TestDeterministicQSATopK(unittest.TestCase):
                 return_value=torch.full((1, 2051), -1, dtype=torch.int32),
             ),
             patch(
+                f"{COMPAT}.expand_qsa_block_indices",
+                return_value=torch.full((1, 2051), -1, dtype=torch.int32),
+            ),
+            patch(
                 "sglang.kernels.ops.elementwise.fast_topk.fast_topk",
                 side_effect=AssertionError(
                     "native collector reached during deterministic decode"
                 ),
             ),
-            patch(
-                "sglang.srt.layers.attention.qsa.qsa_indexer.get_exec",
-                return_value=config,
-            ),
+            patch(f"{COMPAT}.get_exec", return_value=config),
             patch(
                 "sglang.srt.layers.attention.qsa.qsa_indexer.qsa_mqa_prefill",
                 return_value=torch.zeros((1, 513)),
             ),
-            patch(
-                "sglang.srt.layers.attention.qsa.qsa_indexer.qsa_mqa_decode",
-                return_value=torch.zeros((1, 513)),
-            ),
-            patch(
-                "sglang.srt.layers.attention.qsa.qsa_indexer.qsa_fast_topk",
-                return_value=indices,
-            ) as selector,
+            patch(f"{COMPAT}.qsa_mqa_decode", return_value=torch.zeros((1, 513))),
+            # The fork passes the flag at each call site; the plugin resolves it
+            # inside the qsa_fast_topk hook (T02), so the selector observed here
+            # is the stable top-k that a deterministic call reaches.
+            patch(f"{COMPAT}._qsa_stable_topk", return_value=indices) as selector,
         ):
             indexer.select_prefill_tokens(
                 q,
@@ -214,29 +218,25 @@ class TestDeterministicQSATopK(unittest.TestCase):
                 vector + 2052,
             )
             self.assertEqual(selector.call_count, 2)
-            self.assertTrue(
-                all(call.kwargs["deterministic"] for call in selector.call_args_list)
-            )
+            # Fork: every qsa_fast_topk call had deterministic=True. Plugin: both
+            # calls reached the stable selector, which only deterministic calls do.
+            self.assertTrue(all(call.args[3] == 512 for call in selector.call_args_list))
         metadata = QSAIndexerMetadata(
             vector, vector, vector.reshape(1, 1), vector, None, 4, 512
         )
         with (
             patch(
-                "sglang.srt.layers.attention.qsa.metadata.get_context",
+                f"{COMPAT}.get_context",
                 return_value=SimpleNamespace(
                     is_config_namespace_published=lambda name: True
                 ),
             ),
-            patch(
-                "sglang.srt.layers.attention.qsa.metadata.get_exec", return_value=config
-            ),
-            patch(
-                "sglang.srt.layers.attention.qsa.metadata.qsa_fast_topk",
-                return_value=indices,
-            ) as selector,
+            patch(f"{COMPAT}.get_exec", return_value=config),
+            patch(f"{COMPAT}._qsa_stable_topk", return_value=indices) as selector,
         ):
             metadata.topk_transform(torch.zeros((1, 513)), 512, vector, vector + 513)
-            self.assertTrue(selector.call_args.kwargs["deterministic"])
+            # Fork: call_args.kwargs["deterministic"]; see the indexer case above.
+            selector.assert_called_once()
 
     def test_unpublished_standalone_metadata_keeps_native_reference_selection(self):
         vector = torch.tensor([0], dtype=torch.int32)
@@ -245,13 +245,13 @@ class TestDeterministicQSATopK(unittest.TestCase):
         )
         with (
             patch(
-                "sglang.srt.layers.attention.qsa.metadata.get_context",
+                f"{COMPAT}.get_context",
                 return_value=SimpleNamespace(
                     is_config_namespace_published=lambda name: False
                 ),
             ),
             patch(
-                "sglang.srt.layers.attention.qsa.metadata.get_exec",
+                f"{COMPAT}.get_exec",
                 side_effect=AssertionError("unpublished exec config must not be read"),
             ),
         ):

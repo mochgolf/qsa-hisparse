@@ -1,3 +1,7 @@
+# Fork test/registered/kernel/qsa/test_qsa.py (the pinned file plus the fork's
+# test_qsa_decode_score_width_matches_graph_without_padding_page_table), run
+# with the W4 rows active (tests/qsa/conftest.py). Port edits are marks only:
+# the known fork failure is a strict xfail and two CUDA-only tests are `gpu`.
 import sys
 from types import ModuleType, SimpleNamespace
 
@@ -657,6 +661,17 @@ def _make_paged_extend_backend():
     return backend, pool, layer
 
 
+@pytest.mark.xfail(
+    strict=True,
+    raises=AttributeError,
+    reason=(
+        "Known fork failure (docs/baseline.md): the test builds the backend with "
+        "QwenSparseAttnBackend.__new__ and never sets the attributes the fork adds "
+        "in __init__ (fork: 'qsa_hisparse' in _store_kv; plugin: the Q02 scope "
+        "flag '_qsa_target_model', read first by the forward_extend hook). "
+        "It passes at the pin. Reported, not fixed."
+    ),
+)
 def test_qsa_paged_extend_trims_padding_rows_and_restores_output(monkeypatch):
     kernel_rows = []
 
@@ -1276,6 +1291,7 @@ def test_qsa_mtp_step_out_cache_loc_matches_draft_forward_layout():
     assert torch.equal(backend._step_out_cache_loc(fb, 0), flat)
 
 
+@pytest.mark.gpu  # Allocates on CUDA; fails without a GPU at the fork and the pin.
 def test_qsa_graph_metadata_kernels_match_legacy_host_path():
     """For decode rows and target-verify fan-out (boundary and non-boundary),
     replay kernels and the host refresh must build identical graph buffers."""
@@ -1440,6 +1456,7 @@ def _qsa_expected_graph_layout(
     return row_lens, row_prefix, row_reqs
 
 
+@pytest.mark.gpu  # Allocates on CUDA; fails without a GPU at the fork and the pin.
 def test_qsa_graph_layout_covers_speculative_rows_and_padded_tail():
     """The layout kernel must rebuild speculative row fan-out and the padded dummy tail;
     the row-metadata kernel must derive compressed slots from those rows."""
