@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """Offline F-vs-P comparator for Phase 2 evidence (docs/baseline.md step 15).
 
-    compare.py <fork-arm-dir> <plugin-arm-dir>
+    compare.py <fork-arm-dir> <plugin-arm-dir> [--require-observer RANKS]
 
 Both arm directories use the same layout; an item present in one arm must be
 present in the other. Every value is compared exactly (canonical JSON, so
 floats compare bit for bit). For each item the first divergence is printed;
 the exit status is 1 if any item differs.
 
-- ``*.json`` (top level, except server_info.json): HTTP harness reports. The
-  REPORT_KEYS values are compared wherever they occur. The lifecycle
-  harness's deliberate abort (SKIPPED_KEYS) produces a timing-dependent
-  number of tokens and is not compared.
+- ``*.json`` (top level, except server_info.json and run_compat.py's
+  run.json): HTTP harness reports,
+  the fork ledger harness's ``ledger.json`` and the Marlin and top-k probes.
+  REPORT_KEYS values are compared wherever they occur; a report in which no
+  REPORT_KEYS value occurs is a difference. The lifecycle harness's
+  deliberate abort (SKIPPED_KEYS) produces a timing-dependent number of
+  tokens and is not compared.
 - ``server_info.json``: SERVER_INFO paths (computed sizes; measured memory is
   printed for information only).
 - ``server.log``: LOG_FIGURES per TP rank, in sorted order.
@@ -22,31 +25,70 @@ the exit status is 1 if any item differs.
 - ``observer/rank-N.jsonl`` (observer.py): every record. Within each arm,
   every restore must also equal the capture of the checkpoint it restored.
 
+With ``--require-observer RANKS`` (HiSparse runs), both arms must also hold
+``observer/rank-0..RANKS-1.jsonl``, each with at least one capture and one
+restore record, so that missing byte evidence cannot pass.
+
 Request IDs and salts embed ``time_ns`` and differ between arms: rids are
 renamed by order of first appearance in each file, and salts are never
 compared.
 """
 
+import argparse
 import json
 import re
 import sys
 from pathlib import Path
 
-REPORT_KEYS = frozenset(
-    {
-        "output_ids",
-        "cached_tokens",
-        "prompt_tokens",
-        "completion_tokens",
-        "cached_tokens_details",
-        "finish_reason",
-        "input_token_logprobs",
-        "output_token_logprobs",
-        "input_top_logprobs",
-        "output_top_logprobs",
-        "passed",
-    }
-)
+HTTP_KEYS = {
+    "output_ids",
+    "cached_tokens",
+    "prompt_tokens",
+    "completion_tokens",
+    "cached_tokens_details",
+    "finish_reason",
+    "input_token_logprobs",
+    "output_token_logprobs",
+    "input_top_logprobs",
+    "output_top_logprobs",
+    "passed",
+}
+# Fork qsa_hisparse_prefix_ledger.py summary (docs/baseline.md steps 13, 15,
+# 17). Not compared: file path, event count, max_active_leases (scheduling)
+# and the idle CUDA allocator figures (measured).
+LEDGER_KEYS = {
+    "restores",
+    "max_restored_tokens",
+    "host_budget_bytes",
+    "max_host_bytes",
+    "max_entries",
+    "evictions",
+    "raw_bytes",
+    "index_bytes",
+    "logical_capacity",
+    "last_idle_logical_available",
+    "final_event",
+    "final_logical_available",
+    "fixed_pools",
+    "static_pools_unchanged",
+    "tp_prefix_sequence_equal",
+}
+# Fork G2-1 probes (docs/baseline.md steps 3-7): the per-case, per-stage
+# output SHA-256 of marlin_batch_invariance.py (whole-K, graphs, native), both
+# Marlin probes' summaries, and the top-k probe's exactness results. Not
+# compared: the alignment probe's per-mode digests (its native modes align
+# nondeterministically by design) and the top-k native order/set changes.
+PROBE_KEYS = {
+    "sha256",
+    "differing_cases",
+    "fixed_case_repeatable",
+    "fixed_alignment_repeatable",
+    "deterministic_exact",
+    "cuda_graph_exact_replays",
+    "cuda_graph_dynamic_threshold_exact",
+    "empty_shapes_exact",
+}
+REPORT_KEYS = frozenset(HTTP_KEYS | LEDGER_KEYS | PROBE_KEYS)
 SKIPPED_KEYS = frozenset({"aborted_response", "abort_result"})
 # Fork test/manual/qsa_hisparse_prefix_ledger.py: FIXED_POOL_FIELDS and the
 # fields of its TP prefix sequence (plus "tokens").
@@ -247,7 +289,8 @@ def items_of(name, path, info, arm):
 
 
 def arm_files(arm):
-    names = {p.name for p in arm.glob("*.json")} | {
+    # run.json is run_compat.py's record of its own command; arms differ by design.
+    names = {p.name for p in arm.glob("*.json") if p.name != "run.json"} | {
         p.name for p in arm.glob("server.log")
     }
     for sub in ("events", "observer"):
@@ -255,9 +298,24 @@ def arm_files(arm):
     return names
 
 
-def compare(fork, plugin):
+def missing_observer(arm, ranks):
+    """Problems with an arm's observer files when byte evidence is required."""
+    problems = []
+    for rank in range(ranks):
+        path = arm / "observer" / f"rank-{rank}.jsonl"
+        events = {row["event"] for row in read_jsonl(path)} if path.exists() else set()
+        if not {"capture", "restore"} <= events:
+            problems.append(f"observer/{path.name} lacks a capture or a restore record")
+    return problems
+
+
+def compare(fork, plugin, require_observer=0):
     """Return (lines, number of differing items)."""
     lines, info, failed = [], [], 0
+    for arm, path in (("F", fork), ("P", plugin)):
+        for problem in missing_observer(path, require_observer):
+            failed += 1
+            lines.append(f"DIFF required evidence in {arm}: {problem}")
     names = sorted(arm_files(fork) | arm_files(plugin))
     if not names:
         raise SystemExit(f"nothing to compare in {fork} and {plugin}")
@@ -270,6 +328,8 @@ def compare(fork, plugin):
         f_items = items_of(name, f, info, "F")
         p_items = items_of(name, p, info, "P")
         divergence = first_divergence(f_items, p_items)
+        if divergence is None and not f_items:
+            divergence = "no compared value in either arm"
         if divergence is None:
             lines.append(f"OK   {name} ({len(f_items)} items)")
         else:
@@ -289,11 +349,14 @@ def compare(fork, plugin):
 
 
 def main(argv=None):
-    args = sys.argv[1:] if argv is None else argv
-    if len(args) != 2:
-        print(__doc__, file=sys.stderr)
-        return 2
-    lines, failed = compare(Path(args[0]), Path(args[1]))
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("fork", type=Path)
+    parser.add_argument("plugin", type=Path)
+    parser.add_argument("--require-observer", type=int, default=0, metavar="RANKS")
+    args = parser.parse_args(argv)
+    lines, failed = compare(args.fork, args.plugin, args.require_observer)
     print("\n".join(lines))
     return 1 if failed else 0
 
