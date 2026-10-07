@@ -86,6 +86,7 @@ LOG_FIGURES = re.compile(
     r"\b(fixed_bytes|logical_bytes_per_token|max_total_num_tokens)=(\d+)"
 )
 TP_RANK = re.compile(r"\bTP(\d+)\b")
+STATE = ("tokens", "token_sha256", "segments", "pending", "rope", "mamba")
 
 
 def canonical(value):
@@ -147,7 +148,7 @@ def report_items(path):
     return items
 
 
-def server_info_items(path, info):
+def server_info_items(path, info, arm):
     data = json.loads(path.read_text())
     items = [(key, canonical(data.get(key))) for key in SERVER_INFO]
     for i, state in enumerate(data.get("internal_states") or []):
@@ -157,7 +158,7 @@ def server_info_items(path, info):
             for key in MEMORY_USAGE
         ]
         info.append(
-            f"{path.parent.name}: measured memory "
+            f"{arm} internal_states[{i}] measured memory "
             + canonical({key: usage.get(key) for key in MEASURED_MEMORY})
         )
     return items
@@ -188,9 +189,9 @@ def stripped(value):
 
 def ledger_items(path):
     rows = read_jsonl(path)
-    items = [
-        ("fixed_pools", {key: rows[0].get(key) for key in FIXED_POOL_FIELDS})
-    ] if rows else []
+    items = []
+    if rows:
+        items.append(("fixed_pools", {k: rows[0].get(k) for k in FIXED_POOL_FIELDS}))
     rid = Renamer("r")
     prefix = 0
     for row in rows:
@@ -214,9 +215,6 @@ def observer_items(path):
     return items
 
 
-STATE = ("tokens", "token_sha256", "segments", "pending", "rope", "mamba")
-
-
 def observer_consistency(path):
     """Within one arm, each restore must equal its checkpoint's capture."""
     captures = {}
@@ -237,9 +235,9 @@ def observer_consistency(path):
     return None
 
 
-def items_of(name, path, info):
+def items_of(name, path, info, arm):
     if name == "server_info.json":
-        return server_info_items(path, info)
+        return server_info_items(path, info, arm)
     if name == "server.log":
         return log_items(path)
     if name.startswith("events/"):
@@ -270,7 +268,8 @@ def compare(fork, plugin):
             failed += 1
             lines.append(f"DIFF {name}: missing in {'P' if f.exists() else 'F'}")
             continue
-        f_items, p_items = items_of(name, f, info), items_of(name, p, info)
+        f_items = items_of(name, f, info, "F")
+        p_items = items_of(name, p, info, "P")
         divergence = first_divergence(f_items, p_items)
         if divergence is None:
             lines.append(f"OK   {name} ({len(f_items)} items)")

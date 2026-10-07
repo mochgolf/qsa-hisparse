@@ -200,7 +200,7 @@ def test_equal_behavior_passes(arms, capsys):
     status, out = run(compare, fork, plugin, capsys)
     assert status == 0, out
     assert "PASS: 6 items equal" in out
-    assert "INFO P: measured memory" in out
+    assert "INFO P internal_states[0] measured memory" in out
 
 
 def test_single_flipped_cached_byte_fails(arms, capsys):

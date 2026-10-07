@@ -12,7 +12,7 @@ import importlib.util
 import os
 import sys
 
-_here = os.path.dirname(os.path.abspath(__file__))
+_here = os.path.dirname(os.path.realpath(__file__))
 
 if os.environ.get("QSA_EVIDENCE_OBSERVER_DIR"):
     _spec = importlib.util.spec_from_file_location(
@@ -24,7 +24,7 @@ if os.environ.get("QSA_EVIDENCE_OBSERVER_DIR"):
     _observer.install()
 
 _shadowed = importlib.machinery.PathFinder.find_spec(
-    "sitecustomize", [p for p in sys.path if os.path.abspath(p or ".") != _here]
+    "sitecustomize", [p for p in sys.path if os.path.realpath(p or ".") != _here]
 )
 if _shadowed is not None:
     _shadowed.loader.exec_module(importlib.util.module_from_spec(_shadowed))

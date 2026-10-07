@@ -2,9 +2,9 @@
 
 Enable it identically in both arms: put ``tools/evidence/site`` first on the
 server's ``PYTHONPATH`` and set ``QSA_EVIDENCE_OBSERVER_DIR`` to a new absolute
-directory. Spawned TP schedulers inherit both, and the site hook wraps
-``QSAHiSparseRuntime.capture_prefix`` and ``restore_prefix`` in whichever
-runtime module the process imports:
+directory, ``<arm dir>/observer`` for ``compare.py``. Spawned TP schedulers
+inherit both, and the site hook wraps ``QSAHiSparseRuntime.capture_prefix``
+and ``restore_prefix`` in whichever runtime module the process imports:
 
     sglang.srt.mem_cache.qsa_hisparse.runtime   fork
     sglang_qsa_hisparse.hisparse.runtime        plugin (moved verbatim)
@@ -24,17 +24,19 @@ A digest is SHA-256 over ``"<dtype>:<shape>:"`` followed by the raw bytes.
 Records hold no times, pointers or module names, so equal behavior gives
 byte-identical files in F and P (``compare.py``).
 
-Synchronization added; no tensor is written and no stream is synchronized:
+Synchronization added (the observer never writes a tensor and never calls
+synchronize):
 - capture: none. ``capture_prefix`` already synchronized the producer and
   current streams and copied into pageable host tensors; hashing reads host
   memory only. Segments shared with an ancestor checkpoint are hashed once.
-- restore: blocking device-to-host copies of exactly the restored regions,
-  enqueued on the current stream after ``restore_prefix`` returns, plus the
-  small index-gather kernels and their transient buffers.
-  ``restore_prefix`` ends by synchronizing that stream (``_restore_mamba``),
-  so these copies add host waits but no new ordering between device work.
-The cost is host time on the scheduler thread: hashing the newly captured
-bytes, and reading back and hashing every restored checkpoint.
+- restore: after ``restore_prefix`` returns, blocking device-to-host copies
+  of exactly the restored regions on the current stream (each waits for that
+  stream), plus small index-gather kernels and their transient device
+  buffers. ``restore_prefix`` has already synchronized that stream at its end
+  (``_restore_mamba``), so the copies add host latency but no new ordering
+  between device work; other streams are untouched.
+The cost is host time on the scheduler thread: hashing newly captured bytes,
+and reading back and hashing every restored checkpoint before its forward.
 """
 
 import functools
@@ -52,7 +54,6 @@ RUNTIME_MODULES = (
 )
 _MARK = "__qsa_evidence__"
 _OBSERVERS = {}  # TP rank -> _Observer; one runtime per rank per process
-_installed = False
 
 
 def digest(tensor):
@@ -84,8 +85,6 @@ def _remember(table, obj, value):
 class _Observer:
     def __init__(self, directory, rank):
         directory = Path(directory)
-        if not directory.is_absolute():
-            raise ValueError(f"{ENV} must be an absolute directory")
         directory.mkdir(parents=True, exist_ok=True)
         self.path = directory / f"rank-{rank}.jsonl"
         if self.path.exists():
@@ -147,11 +146,11 @@ def _read_back(runtime, req, snapshot):
     lease = runtime.requests[idx].lease
     pool = runtime.pool
     layers = len(runtime.layer_ids)
+    shape = pool.qsa_compressed_k_buffer_pool[0].shape[1:]
     segments = []
     for segment in snapshot.segments:
         start, stop = segment.start, segment.stop
         raw = torch.empty((layers, 2, stop - start, 1, 256), dtype=torch.uint8)
-        shape = pool.qsa_compressed_k_buffer_pool[0].shape[1:]
         index = torch.empty(
             (layers, (stop - start) // 4, *shape), dtype=pool.index_state_dtype
         )
@@ -211,12 +210,8 @@ def install():
     import importlib.abc
     import importlib.machinery
 
-    global _installed
     if not Path(os.environ[ENV]).is_absolute():
         raise ValueError(f"{ENV} must be an absolute directory")
-    if _installed:
-        return
-    _installed = True
 
     class Loader(importlib.abc.Loader):
         def __init__(self, original):
