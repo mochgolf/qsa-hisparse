@@ -1,7 +1,8 @@
 """Model runner coordinator, ForwardBatch metadata and decode graph hooks.
 
 Rows R01, R02 (``model_executor/model_runner.py``), F01
-(``model_executor/forward_batch_info.py``, deviation D3) and G01-G03
+(``model_executor/forward_batch_info.py``, deviation D3, plus the eager
+runner's batch copy) and G01-G03
 (``model_executor/runner/decode_cuda_graph_runner.py``). All are hisparse: every
 fork change is gated on a ``qsa_hisparse`` runtime on the KV pool or on the
 coordinator's ``adapter``, which upstream ``HiSparseCoordinator`` lacks.

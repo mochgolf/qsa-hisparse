@@ -1,8 +1,8 @@
 """P2 offload pool sizing for the frozen B2/B4/B8 x 262,144 geometry.
 
 Expected numbers come from the geometry alone (target model config, TP2, FP8
-KV, QSA C4 index in BF16, page 64, five ring rows per lease), not from the
-patched code, and are compared with the patched configurators: C01/C02 for
+KV, QSA C4 index in BF16, page 64, five raw tail rows per lease), not from
+the patched code, and are compared with the patched configurators: C01/C02 for
 the fixed bias, logical bytes per token and capacity, K01/K02 for the raw
 staging pool, K03 for passing it to ``QSATokenToKVPool``.
 """
