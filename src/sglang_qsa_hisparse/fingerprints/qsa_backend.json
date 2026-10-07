@@ -1,0 +1,38 @@
+{
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__": {
+    "def_line": 177,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 177,
+    "kind": "function",
+    "module_sha256": "e4f0c2f3d5295d7865d293d5e64c41ab30c3e48fc17373900edb2250e2ff77b9",
+    "qualname": "QwenSparseAttnBackend.__init__",
+    "sha256": "8b2a4ebce6712468771c4179cbd67f9120d98e11643ee83abcbeb6b53656e90b"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._capture_cuda_graph_metadata": {
+    "def_line": 828,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 828,
+    "kind": "function",
+    "module_sha256": "e4f0c2f3d5295d7865d293d5e64c41ab30c3e48fc17373900edb2250e2ff77b9",
+    "qualname": "QwenSparseAttnBackend._capture_cuda_graph_metadata",
+    "sha256": "0fb43f40f98435e7234cbd3b92dfb7128dd31fa890b9fe5ac651a4cebcd63c75"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._is_speculative_paged_mode": {
+    "def_line": 223,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 222,
+    "kind": "function",
+    "module_sha256": "e4f0c2f3d5295d7865d293d5e64c41ab30c3e48fc17373900edb2250e2ff77b9",
+    "qualname": "QwenSparseAttnBackend._is_speculative_paged_mode",
+    "sha256": "b3bed577ae416fafbfe71ad6e6caf28f044f46000c12ba87573deadfce3153ae"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.init_forward_metadata": {
+    "def_line": 723,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 723,
+    "kind": "function",
+    "module_sha256": "e4f0c2f3d5295d7865d293d5e64c41ab30c3e48fc17373900edb2250e2ff77b9",
+    "qualname": "QwenSparseAttnBackend.init_forward_metadata",
+    "sha256": "47ad136d9d55d88c0330afaf7f36b233272ae17a116c9b33591057bd7dad34c7"
+  }
+}
