@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # CPU tests of the plugin against the pinned SGLang checkout. Selects sources
 # with PYTHONPATH; never installs into or modifies the shared environment.
+# Default interpreter: the owner-approved validation env (read-only use).
 set -euo pipefail
 
 repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 pin_root=${QSA_PIN_ROOT:-$repo/../.worktrees/sglang-pin-76e06febab}
-python=${QSA_PYTHON:-$repo/../flash-next-env/bin/python}
+python=${QSA_PYTHON:-$repo/../service/runtime-env-sglang-20260923/bin/python}
 
 cd "$repo"
 export PYTHONPATH="$repo/src:$pin_root/python${PYTHONPATH:+:$PYTHONPATH}"

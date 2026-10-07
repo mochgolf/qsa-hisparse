@@ -34,9 +34,12 @@ this repository; `fork:` is `../qsa-hisparse` at `ee8fe158d6`; `pin:` is
    the Triton interpreter). Port the fork's tests with their assertions
    intact; do not loosen or delete assertions to make a port pass. New
    ordering/ownership tests use independent reference construction.
-6. **Prohibited:** GPU use, starting or stopping services, installing into or
-   modifying `flash-next-env`/`quant-env`, editing `fork:` or `pin:`, pushing,
-   opening PRs/issues. Write only inside your assigned paths.
+6. **Prohibited** unless the task card says otherwise: GPU use, starting or
+   stopping services, installing into or modifying any Python environment
+   (`flash-next-env`, `quant-env`, `../service/runtime-env-sglang-20260923`,
+   which is the default interpreter of `tools/run_cpu_tests.sh` and is used
+   read-only), editing `fork:` or `pin:`, pushing, opening or commenting on
+   PRs/issues. Write only inside your assigned paths.
 7. **Intentional deviations** from the fork are allowed only when listed in
    [DEVIATIONS.md](DEVIATIONS.md) by the orchestrator.
 8. The fork's `test_service_control.py::ServiceLifecycleTests` starts systemd
