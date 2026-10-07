@@ -1,0 +1,776 @@
+{
+  "sglang.kernels.ops.kvcache.hisparse._jit_sparse_module": {
+    "def_line": 170,
+    "file": "sglang/kernels/ops/kvcache/hisparse.py",
+    "first_line": 169,
+    "kind": "function",
+    "module_sha256": "dbadcf1bbbf61af61b57f07f3b04ea805cf1caecfbf9b72b753268367e2ba415",
+    "qualname": "_jit_sparse_module",
+    "sha256": "e10f70f89a243be6c9f4a1a503b41a22f1f2bfb2ca6cde19fd1bd8c0091319df"
+  },
+  "sglang.kernels.ops.kvcache.hisparse._load_cache_to_device_buffer_mla": {
+    "def_line": 271,
+    "file": "sglang/kernels/ops/kvcache/hisparse.py",
+    "first_line": 271,
+    "kind": "function",
+    "module_sha256": "dbadcf1bbbf61af61b57f07f3b04ea805cf1caecfbf9b72b753268367e2ba415",
+    "qualname": "_load_cache_to_device_buffer_mla",
+    "sha256": "fef363c0a3003f6e25f21259dc3c1e63512dc7ae9723cc99492654e98d1c15ba"
+  },
+  "sglang.kernels.ops.kvcache.hisparse.load_cache_to_device_buffer_mla": {
+    "def_line": 350,
+    "file": "sglang/kernels/ops/kvcache/hisparse.py",
+    "first_line": 350,
+    "kind": "function",
+    "module_sha256": "dbadcf1bbbf61af61b57f07f3b04ea805cf1caecfbf9b72b753268367e2ba415",
+    "qualname": "load_cache_to_device_buffer_mla",
+    "sha256": "0d6ba398c6940fe669cf863c691a984d5115c9e82514feb64275f8a76ea3c949"
+  },
+  "sglang.srt.arg_groups.fields.device.Device": {
+    "def_line": 23,
+    "file": "sglang/srt/arg_groups/fields/device.py",
+    "first_line": 23,
+    "kind": "class",
+    "module_sha256": "305319002ef14c2e16c58f2b6a75644bfc346ead9efd6aab30c71fa7987b1ad9",
+    "qualname": "Device",
+    "sha256": "fa4439a7859353906a6d0f46735a84733d6a4b2a52e4c1c2ffbee7e2abd89386"
+  },
+  "sglang.srt.arg_groups.fields.disagg.Disagg": {
+    "def_line": 28,
+    "file": "sglang/srt/arg_groups/fields/disagg.py",
+    "first_line": 28,
+    "kind": "class",
+    "module_sha256": "3cd59a226ec92dc8890f091b0b8b3d2cb283e9c5d6f1c632f5df9e701e84d8d7",
+    "qualname": "Disagg",
+    "sha256": "f4a66bf5aa756d5b9649f53d9cb14f0fd1f4ea8913b59dbc2d55f3ce347bf538"
+  },
+  "sglang.srt.arg_groups.fields.exec_.ExecDeterministic": {
+    "def_line": 946,
+    "file": "sglang/srt/arg_groups/fields/exec_.py",
+    "first_line": 946,
+    "kind": "class",
+    "module_sha256": "23a73832d9fdbc3bafe64800eca79eb37127f876b4e05daa67a2f7a74e7a3f1f",
+    "qualname": "ExecDeterministic",
+    "sha256": "e163e3e23935eb691a3da672191e3dc67d18db70fb5763a559d95030e154b72a"
+  },
+  "sglang.srt.arg_groups.fields.exec_.ExecGraph": {
+    "def_line": 454,
+    "file": "sglang/srt/arg_groups/fields/exec_.py",
+    "first_line": 454,
+    "kind": "class",
+    "module_sha256": "23a73832d9fdbc3bafe64800eca79eb37127f876b4e05daa67a2f7a74e7a3f1f",
+    "qualname": "ExecGraph",
+    "sha256": "5a6ec58fc4d61e52a9cd14c4df14993d1e5447ff95c92a02f4ee69683ebed80c"
+  },
+  "sglang.srt.arg_groups.fields.exec_.ExecMamba": {
+    "def_line": 314,
+    "file": "sglang/srt/arg_groups/fields/exec_.py",
+    "first_line": 314,
+    "kind": "class",
+    "module_sha256": "23a73832d9fdbc3bafe64800eca79eb37127f876b4e05daa67a2f7a74e7a3f1f",
+    "qualname": "ExecMamba",
+    "sha256": "dfb8a51ecf34f6d59ba77fa9010b1f01a5c191b4acac9c618507e336e0287056"
+  },
+  "sglang.srt.arg_groups.fields.exec_.ExecOverlap": {
+    "def_line": 840,
+    "file": "sglang/srt/arg_groups/fields/exec_.py",
+    "first_line": 840,
+    "kind": "class",
+    "module_sha256": "23a73832d9fdbc3bafe64800eca79eb37127f876b4e05daa67a2f7a74e7a3f1f",
+    "qualname": "ExecOverlap",
+    "sha256": "9ac1187858e855d71c5c6e7cfea5e2411f1c2123e532f74aaed80e4ee29d6ea5"
+  },
+  "sglang.srt.arg_groups.fields.lora.Lora": {
+    "def_line": 33,
+    "file": "sglang/srt/arg_groups/fields/lora.py",
+    "first_line": 33,
+    "kind": "class",
+    "module_sha256": "4de041b97e0a12b85f0905922e67ae14f0aabac8aaaa87d5d75f7f22cf2517d7",
+    "qualname": "Lora",
+    "sha256": "18c1f556dcc84966ba117db81d6db4cf2a50a6216cc1b7a53696d2b5c88dbd49"
+  },
+  "sglang.srt.arg_groups.fields.memory.Memory": {
+    "def_line": 28,
+    "file": "sglang/srt/arg_groups/fields/memory.py",
+    "first_line": 28,
+    "kind": "class",
+    "module_sha256": "9759df4285e48360a2357e929c09ad36064ce1bdb519cc2e8e88822188618402",
+    "qualname": "Memory",
+    "sha256": "583d414869e56e4544b4da695bcf2f2799609e539715a0eb361393d79f8c07b0"
+  },
+  "sglang.srt.arg_groups.fields.model.Model": {
+    "def_line": 38,
+    "file": "sglang/srt/arg_groups/fields/model.py",
+    "first_line": 38,
+    "kind": "class",
+    "module_sha256": "22c9ddb5fb0fe4a8b78aa6d19c2670938c2f3ac52eecc0fd1d3207a71109fcfd",
+    "qualname": "Model",
+    "sha256": "d56e5afee299fc977a04a88050bf33250b17f34f5fb066129902d822d8387e0d"
+  },
+  "sglang.srt.arg_groups.fields.parallel.Parallel": {
+    "def_line": 24,
+    "file": "sglang/srt/arg_groups/fields/parallel.py",
+    "first_line": 24,
+    "kind": "class",
+    "module_sha256": "32691d40c3388d0b06c77bb1c3f76f30fadaf6458ae0739c8f13633874e638de",
+    "qualname": "Parallel",
+    "sha256": "be1f47550ad21b8b9bfd536aa6e2d212e99d79cde5fe7179471dcb30dbed3135"
+  },
+  "sglang.srt.arg_groups.fields.schedule.Schedule": {
+    "def_line": 26,
+    "file": "sglang/srt/arg_groups/fields/schedule.py",
+    "first_line": 26,
+    "kind": "class",
+    "module_sha256": "a63fd7948a8192adc30b08815d9207f9161ac394d2090eeaefb6d459354a9789",
+    "qualname": "Schedule",
+    "sha256": "ac6087e6d42f8803ad5a2ba421217c9177625e7636e1dfa8f0dfa35e33ee76ac"
+  },
+  "sglang.srt.arg_groups.fields.serving.Serving": {
+    "def_line": 29,
+    "file": "sglang/srt/arg_groups/fields/serving.py",
+    "first_line": 29,
+    "kind": "class",
+    "module_sha256": "5aadb1eafd1e7fee1b53bd171055c9384ce19dc3b8b5f3abeeff5151b81fffa2",
+    "qualname": "Serving",
+    "sha256": "0256d8d725c1db2d883302a1d7519a852b97f83fd20b9e52be5b5e3b33fc1fd2"
+  },
+  "sglang.srt.arg_groups.fields.spec.Spec": {
+    "def_line": 30,
+    "file": "sglang/srt/arg_groups/fields/spec.py",
+    "first_line": 30,
+    "kind": "class",
+    "module_sha256": "4e02869c9facecf1fcc4decaf6f98ce29c0fc5d23a775dac9c90777a2ff18143",
+    "qualname": "Spec",
+    "sha256": "8afccfd3e0cf53850730c3596e46cf8094a97e772f81cdca5e94e261b6b0204a"
+  },
+  "sglang.srt.configs.model_config.ModelConfig.__init__": {
+    "def_line": 390,
+    "file": "sglang/srt/configs/model_config.py",
+    "first_line": 390,
+    "kind": "function",
+    "module_sha256": "85c36b134e3e4a39bce382d9172aa4fe4819f02996d55cbdf779846da4cfb8c8",
+    "qualname": "ModelConfig.__init__",
+    "sha256": "00e2aa78d63df43a0c2bd2ed04bf9dc138959e8bc4005f63ecf7ae2c4895f15f"
+  },
+  "sglang.srt.distributed.parallel_state_wrapper.ParallelState": {
+    "def_line": 6,
+    "file": "sglang/srt/distributed/parallel_state_wrapper.py",
+    "first_line": 5,
+    "kind": "class",
+    "module_sha256": "910ac5af01eb34f2c2a5abf4699f5a40f637989d727bb3beb657e68e7ed72e8b",
+    "qualname": "ParallelState",
+    "sha256": "64354ad149c2c61d08ada1a3cb2a736b6a30102df5294d8e443290085369d636"
+  },
+  "sglang.srt.environ.Envs": {
+    "def_line": 257,
+    "file": "sglang/srt/environ.py",
+    "first_line": 257,
+    "kind": "class",
+    "module_sha256": "dd5a4699a8d23fb8a4c9f43aaf1f1474a881eb59be70e99d900f1ec302f6c74b",
+    "qualname": "Envs",
+    "sha256": "8eb712d822feedc49c9d803fbc3170f69137ab13338181e302d2e791db4cf98d"
+  },
+  "sglang.srt.layers.attention.qsa.graph_metadata._qsa_graph_row_metadata_kernel": {
+    "def_line": 98,
+    "file": "sglang/srt/layers/attention/qsa/graph_metadata.py",
+    "first_line": 97,
+    "kind": "function",
+    "module_sha256": "7508e186750c147a26aeecfed902fadc89e63cc398b28b11eb72587a8e2a5807",
+    "qualname": "_qsa_graph_row_metadata_kernel",
+    "sha256": "c4bd0f7e075cbb1111ffa4517d4d819884778a23e2a1671c5f669188778a6c13"
+  },
+  "sglang.srt.layers.attention.qsa.metadata.build_group_ring_slots": {
+    "def_line": 245,
+    "file": "sglang/srt/layers/attention/qsa/metadata.py",
+    "first_line": 245,
+    "kind": "function",
+    "module_sha256": "d361742e04dff8d9157211ed4b41f167d328a477767429eb515b7f44ff483c09",
+    "qualname": "build_group_ring_slots",
+    "sha256": "fa892967f6e5724b5e98108874cda8c32abaf7b429b9491d7e1ba73f5a884577"
+  },
+  "sglang.srt.layers.attention.qsa.metadata.build_pending_ring_slots": {
+    "def_line": 222,
+    "file": "sglang/srt/layers/attention/qsa/metadata.py",
+    "first_line": 222,
+    "kind": "function",
+    "module_sha256": "d361742e04dff8d9157211ed4b41f167d328a477767429eb515b7f44ff483c09",
+    "qualname": "build_pending_ring_slots",
+    "sha256": "c2155c8f467a7b8bf3a7f6e5e9148396d76e85d7cbea27a96af7ecc13cddef56"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._qsa_write_plan": {
+    "def_line": 451,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 450,
+    "kind": "function",
+    "module_sha256": "e4f0c2f3d5295d7865d293d5e64c41ab30c3e48fc17373900edb2250e2ff77b9",
+    "qualname": "QwenSparseAttnBackend._qsa_write_plan",
+    "sha256": "8ec2fab7b2467c19a2b39b652692bf04aab41ba8bbebee05623f915baabee73d"
+  },
+  "sglang.srt.managers.schedule_batch.Req.__init__": {
+    "def_line": 935,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 935,
+    "kind": "function",
+    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "qualname": "Req.__init__",
+    "sha256": "f8090141c67d6656377f38fbb38ec528b9282f5bfe76684e6ef5a20470ad1ca4"
+  },
+  "sglang.srt.managers.schedule_batch.ReqKvInfo": {
+    "def_line": 877,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 876,
+    "kind": "class",
+    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "qualname": "ReqKvInfo",
+    "sha256": "227a5d07d11d5b2536abdafc99e64edac2bf85cd0691d3c139c5300ed77014ce"
+  },
+  "sglang.srt.managers.schedule_batch.ScheduleBatch._collect_deferred_mamba_cow_and_clear": {
+    "def_line": 2989,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 2989,
+    "kind": "function",
+    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "qualname": "ScheduleBatch._collect_deferred_mamba_cow_and_clear",
+    "sha256": "e80c7fb849fff239b466bfeb7e7b45b0018666bd667c04d912aac81088727d15"
+  },
+  "sglang.srt.managers.schedule_batch.ScheduleBatch.prepare_for_decode": {
+    "def_line": 3424,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 3424,
+    "kind": "function",
+    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "qualname": "ScheduleBatch.prepare_for_decode",
+    "sha256": "856efc9678c691db56722eeec1c2dd56de45bbf549049fb94ce31b86ae908f68"
+  },
+  "sglang.srt.managers.schedule_batch.release_req": {
+    "def_line": 2163,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 2163,
+    "kind": "function",
+    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "qualname": "release_req",
+    "sha256": "52dbca1f4a29a9fbd7427b17b101d21040986a33b370186c4967f1404036acbc"
+  },
+  "sglang.srt.managers.scheduler.Scheduler.release_host_resources": {
+    "def_line": 1839,
+    "file": "sglang/srt/managers/scheduler.py",
+    "first_line": 1839,
+    "kind": "function",
+    "module_sha256": "da9fa5ec049144af66ef4946138bbe75286ac87688da988222d923243f6d5608",
+    "qualname": "Scheduler.release_host_resources",
+    "sha256": "381b03f78dca4a6bf331b7054199170b19761c9b4c1ca599f1773a120672d758"
+  },
+  "sglang.srt.mem_cache.allocator.base.BaseTokenToKVPoolAllocator.free_group_begin": {
+    "def_line": 156,
+    "file": "sglang/srt/mem_cache/allocator/base.py",
+    "first_line": 156,
+    "kind": "function",
+    "module_sha256": "7c854623578d320e192987c661d987c4cfd9bd7b4494781681db86e5c9331d83",
+    "qualname": "BaseTokenToKVPoolAllocator.free_group_begin",
+    "sha256": "b53c078437e8c0b8c1579b9bd22692f382b80013b46b6b82b2cbae860fad0b7c"
+  },
+  "sglang.srt.mem_cache.allocator.base.BaseTokenToKVPoolAllocator.free_group_end": {
+    "def_line": 160,
+    "file": "sglang/srt/mem_cache/allocator/base.py",
+    "first_line": 160,
+    "kind": "function",
+    "module_sha256": "7c854623578d320e192987c661d987c4cfd9bd7b4494781681db86e5c9331d83",
+    "qualname": "BaseTokenToKVPoolAllocator.free_group_end",
+    "sha256": "42fe3de1613e05a1d094a56fae277c482d429a7209639ece0e3c21411d2edf76"
+  },
+  "sglang.srt.mem_cache.allocator.mamba.MambaSlotAllocator.available_size": {
+    "def_line": 41,
+    "file": "sglang/srt/mem_cache/allocator/mamba.py",
+    "first_line": 41,
+    "kind": "function",
+    "module_sha256": "610d6b3b8452741812efb549cca2903aed8f6e4e585f5b34fa23b935116c0e01",
+    "qualname": "MambaSlotAllocator.available_size",
+    "sha256": "1cd069a83bbe2bb0876e45bfca048a9cda9a49d3e870ba7b559b56e82f9e03ad"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator": {
+    "def_line": 116,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 116,
+    "kind": "class",
+    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "qualname": "PagedTokenToKVPoolAllocator",
+    "sha256": "5fd9b0e878cc53f5c7615fbe1bed440a84cbb5b9877ed28e680c2a0083fb6bc7"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.alloc": {
+    "def_line": 160,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 160,
+    "kind": "function",
+    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "qualname": "PagedTokenToKVPoolAllocator.alloc",
+    "sha256": "c1ba41afcefac737986fbd6c341395f0028d821017e7c562b66680b5f6e1e2aa"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.available_size": {
+    "def_line": 147,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 147,
+    "kind": "function",
+    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "qualname": "PagedTokenToKVPoolAllocator.available_size",
+    "sha256": "9f18dd6d08db0291561300b768048f6d6fe52045b109ad8b3ea2e0025eee36f3"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free": {
+    "def_line": 270,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 270,
+    "kind": "function",
+    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "qualname": "PagedTokenToKVPoolAllocator.free",
+    "sha256": "6fe4a0dbcb56955eab07dea95f05f00c9abf6092d76d2b23a3ade71d6f7c3044"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free_group_begin": {
+    "def_line": 324,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 324,
+    "kind": "function",
+    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "qualname": "PagedTokenToKVPoolAllocator.free_group_begin",
+    "sha256": "3530b4efdd41fb5911379f1cca981eefecc8a0a0db3ef985b5395dabdd22a7ef"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free_group_end": {
+    "def_line": 328,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 328,
+    "kind": "function",
+    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "qualname": "PagedTokenToKVPoolAllocator.free_group_end",
+    "sha256": "7839656afbb4fa52df2a9ff5514d908899a8272cc89c9736cb66202e9976567b"
+  },
+  "sglang.srt.mem_cache.base_prefix_cache.MatchPrefixParams": {
+    "def_line": 65,
+    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
+    "first_line": 64,
+    "kind": "class",
+    "module_sha256": "f02938c561c9e53b316edccc20a888e9532d51e82c26301345e921037e3e9056",
+    "qualname": "MatchPrefixParams",
+    "sha256": "e17dad718eeecef52478a54234756325e7bb94a3a08d407f662beae67e867029"
+  },
+  "sglang.srt.mem_cache.base_prefix_cache.MatchResult": {
+    "def_line": 219,
+    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
+    "first_line": 219,
+    "kind": "class",
+    "module_sha256": "f02938c561c9e53b316edccc20a888e9532d51e82c26301345e921037e3e9056",
+    "qualname": "MatchResult",
+    "sha256": "e6aff1fb00307fd064e2565c2e90274d91326cb9d76a07ba949219780583b251"
+  },
+  "sglang.srt.mem_cache.chunk_cache.ChunkCache": {
+    "def_line": 35,
+    "file": "sglang/srt/mem_cache/chunk_cache.py",
+    "first_line": 35,
+    "kind": "class",
+    "module_sha256": "fca9a2dce3a639b7bb33493aab4684b86cabbe5f17958aa98001da9680d148eb",
+    "qualname": "ChunkCache",
+    "sha256": "08906a52951bc96a7162939003d307889547999bf40119699a19487b788d0ea5"
+  },
+  "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.__init__": {
+    "def_line": 3776,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 3776,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "HybridLinearKVPool.__init__",
+    "sha256": "9602425db3e3ea3f8eb33736221f510cb2b7127c42fc05348dd012bf14ec8524"
+  },
+  "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool._transfer_full_attention_id": {
+    "def_line": 4014,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 4014,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "HybridLinearKVPool._transfer_full_attention_id",
+    "sha256": "712131ab4e68c763af3ff83c5089c21c7cc5940e033dcb7faa6f926ac01c9c3b"
+  },
+  "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.__init__": {
+    "def_line": 1217,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1217,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "HybridReqToTokenPool.__init__",
+    "sha256": "ab040110b7ac501bb2791b7ec557a9b1ba137986a8a467f59270419bd6733047"
+  },
+  "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool._init_mamba_pool": {
+    "def_line": 1276,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1276,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "HybridReqToTokenPool._init_mamba_pool",
+    "sha256": "b715dd48c93da7758b99d829dd897be90892989e0d56a983ad7444a20cc9c631"
+  },
+  "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.alloc": {
+    "def_line": 1422,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1422,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "HybridReqToTokenPool.alloc",
+    "sha256": "4a01b3295b266828f7da22e4d8f8f896eb81e869801c627a122cf96960fa2d97"
+  },
+  "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache": {
+    "def_line": 1651,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1651,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "HybridReqToTokenPool.free_mamba_cache",
+    "sha256": "a5dfb19cb40067b571d6e5404ebe64e6cc1823cfdaee7185987bf01bed3887a5"
+  },
+  "sglang.srt.mem_cache.memory_pool.KVCache.__init__": {
+    "def_line": 1818,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1817,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "KVCache.__init__",
+    "sha256": "e9419c0de82edc7b27d5f4e54f9819442dfb95a6a220ffa018a69e73a1e6b3cf"
+  },
+  "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool": {
+    "def_line": 1950,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1950,
+    "kind": "class",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MHATokenToKVPool",
+    "sha256": "4f4efec76f831be5b6ac69da4eb5671b130195f23e416557dbe37493e616768b"
+  },
+  "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool.__init__": {
+    "def_line": 1951,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1951,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MHATokenToKVPool.__init__",
+    "sha256": "771badf88daab21951281f625f3bc1cf8514bd5cbd64943e0c15e0f5134050cc"
+  },
+  "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool._create_buffers": {
+    "def_line": 2128,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 2128,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MHATokenToKVPool._create_buffers",
+    "sha256": "db2b1d4da731682a50109f8f83dbbe3c5cdb92e2efdad4d97252485ca4bb3188"
+  },
+  "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool._init_data_ptrs_and_strides": {
+    "def_line": 2217,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 2217,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MHATokenToKVPool._init_data_ptrs_and_strides",
+    "sha256": "810355fd6b8859b8049c8cc5e085afce9ae1c6e74546ebccf8b7238c8df03a61"
+  },
+  "sglang.srt.mem_cache.memory_pool.MambaPool": {
+    "def_line": 382,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 382,
+    "kind": "class",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MambaPool",
+    "sha256": "f66ba0cb4008986e45295d3b760ab95dca3777db3f44cdb94574c13e8ef78af9"
+  },
+  "sglang.srt.mem_cache.memory_pool.MambaPool.State": {
+    "def_line": 397,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 396,
+    "kind": "class",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MambaPool.State",
+    "sha256": "32b95d26c0b0c06a7e65ce657922ce60014dc5113063bd27cc2603f887e72068"
+  },
+  "sglang.srt.mem_cache.memory_pool.MambaPool.__init__": {
+    "def_line": 513,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 513,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MambaPool.__init__",
+    "sha256": "216fa27fe4977e18bb857e6376b1fa49cb7cead7a2694ad07bebf7e003adab86"
+  },
+  "sglang.srt.mem_cache.memory_pool.MambaPool.get_contiguous_buf_infos": {
+    "def_line": 1135,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1135,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MambaPool.get_contiguous_buf_infos",
+    "sha256": "176b3a63a0a68400d2896b101570fe6c83916e0ba816dcc62183dd2c5fce3c72"
+  },
+  "sglang.srt.mem_cache.memory_pool.MambaPool.register_slot_state": {
+    "def_line": 391,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 391,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "MambaPool.register_slot_state",
+    "sha256": "8b5bd1fafafcf4f2f45da94cabcf18e014f32040f7685d68c0b6536b2d639266"
+  },
+  "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.__init__": {
+    "def_line": 267,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 267,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "ReqToTokenPool.__init__",
+    "sha256": "dd15c3e54eae26cc351ebdd6dde23aa3ec4acea314fa9ba94c217dfa436fb273"
+  },
+  "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.alloc_rows": {
+    "def_line": 316,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 316,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "ReqToTokenPool.alloc_rows",
+    "sha256": "7b854577478ec66cf772a7cb2195a7bb74c4eb5a6476f6c4bc9cac0d5bbd2fb6"
+  },
+  "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.clear": {
+    "def_line": 346,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 346,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "ReqToTokenPool.clear",
+    "sha256": "ccbd330e0d851b06d2d1b820b513d5a860d2ff6370ff8281e1b3af4904411180"
+  },
+  "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free": {
+    "def_line": 341,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 341,
+    "kind": "function",
+    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "qualname": "ReqToTokenPool.free",
+    "sha256": "bcb3e8b66ac0946229f33adb31fae30006e9aaf6ecd35653ccb3cdc6c8b27176"
+  },
+  "sglang.srt.mem_cache.ple_state_pool.NGramPool": {
+    "def_line": 142,
+    "file": "sglang/srt/mem_cache/ple_state_pool.py",
+    "first_line": 142,
+    "kind": "class",
+    "module_sha256": "2d743ce369dbcf0578ec0040d2b4d86ce600bd138210e00e0fc7133b1e9e42f0",
+    "qualname": "NGramPool",
+    "sha256": "004909f3810430e5c9eaa51ff4a3f6e2066415300d114152ca9cffdf2844a415"
+  },
+  "sglang.srt.mem_cache.ple_state_pool.ShortConvPool": {
+    "def_line": 38,
+    "file": "sglang/srt/mem_cache/ple_state_pool.py",
+    "first_line": 38,
+    "kind": "class",
+    "module_sha256": "2d743ce369dbcf0578ec0040d2b4d86ce600bd138210e00e0fc7133b1e9e42f0",
+    "qualname": "ShortConvPool",
+    "sha256": "b6cd42aac2d063cb4fa2c652c373c9140aaa24d197811c6362e803bc9c1c4670"
+  },
+  "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool": {
+    "def_line": 29,
+    "file": "sglang/srt/mem_cache/qsa_kv_pool.py",
+    "first_line": 29,
+    "kind": "class",
+    "module_sha256": "eaab189e2f70d18495a2e6e2d158efcbcbebbb951475fc4cf0b426c4c5598fa8",
+    "qualname": "QSATokenToKVPool",
+    "sha256": "2a6084508d3d86fad2c73f0cb1beff99de4e36412e75e8fa838afb65bfe205d4"
+  },
+  "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool.__init__": {
+    "def_line": 49,
+    "file": "sglang/srt/mem_cache/qsa_kv_pool.py",
+    "first_line": 49,
+    "kind": "function",
+    "module_sha256": "eaab189e2f70d18495a2e6e2d158efcbcbebbb951475fc4cf0b426c4c5598fa8",
+    "qualname": "QSATokenToKVPool.__init__",
+    "sha256": "8e97beb4125ddf1739c56e8dddeb2189ee2c30cd7bbeeb828bf5e837ba249c19"
+  },
+  "sglang.srt.mem_cache.radix_cache.RadixKey": {
+    "def_line": 59,
+    "file": "sglang/srt/mem_cache/radix_cache.py",
+    "first_line": 59,
+    "kind": "class",
+    "module_sha256": "150818b0a4eaa05171ca2e485698fa455608c13ee6b07f3945ac2095fa294de3",
+    "qualname": "RadixKey",
+    "sha256": "05b70e4ec53dcb752770d414f66b7588c6490bce3d850f7bf908433aefdf62cf"
+  },
+  "sglang.srt.model_executor.cuda_graph_config.CudaGraphConfig": {
+    "def_line": 150,
+    "file": "sglang/srt/model_executor/cuda_graph_config.py",
+    "first_line": 149,
+    "kind": "class",
+    "module_sha256": "d57827faaabca03871580acf66a8befa610ecaf2c42661445f3d1171a5889a9b",
+    "qualname": "CudaGraphConfig",
+    "sha256": "918d17be85a6ad92f32ff40f050f5f2a5252586d74d9ef2d06429248fb3238a0"
+  },
+  "sglang.srt.model_executor.cuda_graph_config.PhaseConfig": {
+    "def_line": 92,
+    "file": "sglang/srt/model_executor/cuda_graph_config.py",
+    "first_line": 91,
+    "kind": "class",
+    "module_sha256": "d57827faaabca03871580acf66a8befa610ecaf2c42661445f3d1171a5889a9b",
+    "qualname": "PhaseConfig",
+    "sha256": "294a1b394c62bb31d85105c87081035db6c9ebe373b210e03e26c31cc25a98a6"
+  },
+  "sglang.srt.model_executor.cuda_graph_config.check_cuda_graph_backend": {
+    "def_line": 208,
+    "file": "sglang/srt/model_executor/cuda_graph_config.py",
+    "first_line": 208,
+    "kind": "function",
+    "module_sha256": "d57827faaabca03871580acf66a8befa610ecaf2c42661445f3d1171a5889a9b",
+    "qualname": "check_cuda_graph_backend",
+    "sha256": "35cf956bcaa706557bab3ca42a680f3d4ba092e6b6ba9b7d72eecda32269888f"
+  },
+  "sglang.srt.model_executor.cuda_graph_config.cuda_graph_fully_disabled": {
+    "def_line": 222,
+    "file": "sglang/srt/model_executor/cuda_graph_config.py",
+    "first_line": 222,
+    "kind": "function",
+    "module_sha256": "d57827faaabca03871580acf66a8befa610ecaf2c42661445f3d1171a5889a9b",
+    "qualname": "cuda_graph_fully_disabled",
+    "sha256": "ede8c67cc918d64f76235143c0ce4e4b44bea86960445c504940626633cb5d5d"
+  },
+  "sglang.srt.model_executor.forward_batch_info.ForwardBatch": {
+    "def_line": 399,
+    "file": "sglang/srt/model_executor/forward_batch_info.py",
+    "first_line": 398,
+    "kind": "class",
+    "module_sha256": "586a4243f4e543fd99e5a6fce54b4ac17fe0cd81698be658b8b8441838a45dc3",
+    "qualname": "ForwardBatch",
+    "sha256": "10bef39406ed6948e974599d0dfd4726b6a17da350304955e61105cbda859f6f"
+  },
+  "sglang.srt.model_executor.forward_batch_info.ForwardBatch.init_new": {
+    "def_line": 764,
+    "file": "sglang/srt/model_executor/forward_batch_info.py",
+    "first_line": 763,
+    "kind": "function",
+    "module_sha256": "586a4243f4e543fd99e5a6fce54b4ac17fe0cd81698be658b8b8441838a45dc3",
+    "qualname": "ForwardBatch.init_new",
+    "sha256": "bf77b8358301104a85f97acfc02b8e374f93f790a6dfcae852073c2aa42518c2"
+  },
+  "sglang.srt.model_executor.forward_batch_info.ForwardMode": {
+    "def_line": 107,
+    "file": "sglang/srt/model_executor/forward_batch_info.py",
+    "first_line": 107,
+    "kind": "class",
+    "module_sha256": "586a4243f4e543fd99e5a6fce54b4ac17fe0cd81698be658b8b8441838a45dc3",
+    "qualname": "ForwardMode",
+    "sha256": "da6b50454a88930bf87886039740492aea9162355cfe8f5892d44a94e7d96d97"
+  },
+  "sglang.srt.model_executor.model_runner.ModelRunner.__init__": {
+    "def_line": 318,
+    "file": "sglang/srt/model_executor/model_runner.py",
+    "first_line": 318,
+    "kind": "function",
+    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "qualname": "ModelRunner.__init__",
+    "sha256": "13841439756a41dee26c9aa888f2ccae9cb0bcc7e88fa47548f2069282d80b4c"
+  },
+  "sglang.srt.model_executor.model_runner.ModelRunner._prepare_eager_forward_batch": {
+    "def_line": 1548,
+    "file": "sglang/srt/model_executor/model_runner.py",
+    "first_line": 1548,
+    "kind": "function",
+    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "qualname": "ModelRunner._prepare_eager_forward_batch",
+    "sha256": "c692f50d8dc1542029e4ce2c406ba6f13d1d997a8ffb11b86f4f60348bc4ffeb"
+  },
+  "sglang.srt.model_executor.model_runner.ModelRunner.alloc_memory_pool": {
+    "def_line": 892,
+    "file": "sglang/srt/model_executor/model_runner.py",
+    "first_line": 892,
+    "kind": "function",
+    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "qualname": "ModelRunner.alloc_memory_pool",
+    "sha256": "f2e2d5b55a60bd282e59d371ba37dabda6babdc13d2c8a9f531935ab6d4e47ac"
+  },
+  "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_prepare": {
+    "def_line": 830,
+    "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
+    "first_line": 830,
+    "kind": "function",
+    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "qualname": "DecodeCudaGraphRunner.capture_prepare",
+    "sha256": "5ba879aa709e6e7176dfd37b9f2a7e1f864d4ccf1b538d30c41b250f11da0121"
+  },
+  "sglang.srt.model_executor.runner.flashinfer_autotune.should_run_flashinfer_autotune": {
+    "def_line": 55,
+    "file": "sglang/srt/model_executor/runner/flashinfer_autotune.py",
+    "first_line": 55,
+    "kind": "function",
+    "module_sha256": "cddbf6f4a2bed8e4811b9977e7fe4b2c03ac292b88392df0e8810c946fd0deb8",
+    "qualname": "should_run_flashinfer_autotune",
+    "sha256": "4a1e6ec5e8add45973c849426ee6ef47576d01c585bb0ac68de629fb3c1e620f"
+  },
+  "sglang.srt.model_executor.runner.shape_key.ShapeKey": {
+    "def_line": 22,
+    "file": "sglang/srt/model_executor/runner/shape_key.py",
+    "first_line": 21,
+    "kind": "class",
+    "module_sha256": "26e3f15209b654345a35966bd817ff8d0eb6c4c118527e78ca1e89942d5ea2c5",
+    "qualname": "ShapeKey",
+    "sha256": "2ad91c04ddaf03755c14872493467109fae86594e32f384f4573d77322d5926d"
+  },
+  "sglang.srt.model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend.__init__": {
+    "def_line": 82,
+    "file": "sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py",
+    "first_line": 82,
+    "kind": "function",
+    "module_sha256": "0dc52a9a581636a20f5070cbb81d921bc56e4fb3394a9a1cf601747271c6905b",
+    "qualname": "FullCudaGraphBackend.__init__",
+    "sha256": "ca02079d1d261d2ef8302c7799fb20fe698de8b7025cdb8dcbe62771414f592d"
+  },
+  "sglang.srt.model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend.capture_session": {
+    "def_line": 105,
+    "file": "sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py",
+    "first_line": 104,
+    "kind": "function",
+    "module_sha256": "0dc52a9a581636a20f5070cbb81d921bc56e4fb3394a9a1cf601747271c6905b",
+    "qualname": "FullCudaGraphBackend.capture_session",
+    "sha256": "9f9ff20c0d793547d7a6f45d44416b64d84a00b3d430ac003895bc32e51bffd6"
+  },
+  "sglang.srt.runtime_context.get_exec": {
+    "def_line": 1388,
+    "file": "sglang/srt/runtime_context.py",
+    "first_line": 1388,
+    "kind": "function",
+    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "qualname": "get_exec",
+    "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
+  },
+  "sglang.srt.server_args.ServerArgs": {
+    "def_line": 195,
+    "file": "sglang/srt/server_args.py",
+    "first_line": 195,
+    "kind": "class",
+    "module_sha256": "118ebd9aa79757110c52ddd08593f05972c468f4326dc142c33e49a8b2702c65",
+    "qualname": "ServerArgs",
+    "sha256": "34eb070ad21221eae4af98cd0e6ad7f5e0c9994a0028666dd612a7112f60f45b"
+  },
+  "sglang.srt.utils.common.Range": {
+    "def_line": 1196,
+    "file": "sglang/srt/utils/common.py",
+    "first_line": 1196,
+    "kind": "class",
+    "module_sha256": "0f6387b5ed3c1dcd8d822fe52fa5433dbb4eb29aed42a253bc9e7e968591a49d",
+    "qualname": "Range",
+    "sha256": "48bfc81806a6ee479ba9d02216243457e918b2ac0850f2d06df4af44fa1673c9"
+  },
+  "sglang.srt.utils.nvtx_utils.profile_method": {
+    "def_line": 100,
+    "file": "sglang/srt/utils/nvtx_utils.py",
+    "first_line": 100,
+    "kind": "function",
+    "module_sha256": "c97d6b542d463f37b54c6e983b0d6ac40ca57f0402b17584ea35103339fd5775",
+    "qualname": "profile_method",
+    "sha256": "3518cec92aeca99791bf69beefb75e64d835889fc3e09b375b2740e68ec70113"
+  },
+  "sglang.srt.utils.nvtx_utils.profile_range": {
+    "def_line": 84,
+    "file": "sglang/srt/utils/nvtx_utils.py",
+    "first_line": 84,
+    "kind": "function",
+    "module_sha256": "c97d6b542d463f37b54c6e983b0d6ac40ca57f0402b17584ea35103339fd5775",
+    "qualname": "profile_range",
+    "sha256": "f3d1132320083bb9f5c0e20d6a3cbb4e2fc18ccd22b8bbd4c49576dd4e031c4d"
+  }
+}
