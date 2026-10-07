@@ -1,0 +1,155 @@
+{
+  "sglang.srt.hardware_backend.gpu.quantization.gptq_kernels.GPTQMarlinMoEKernel.process_weights_after_loading": {
+    "def_line": 225,
+    "file": "sglang/srt/hardware_backend/gpu/quantization/gptq_kernels.py",
+    "first_line": 225,
+    "kind": "function",
+    "module_sha256": "4134148fcc97957eee13f0e3f4b0bd4ddaca52a5fd36ccc81e8b43c8242493a7",
+    "qualname": "GPTQMarlinMoEKernel.process_weights_after_loading",
+    "sha256": "97f42136c8b38daff4c402d1b3d40120faeccd4dd4559133edc20d14b75a5ce2"
+  },
+  "sglang.srt.hardware_backend.gpu.quantization.gptq_kernels.gptq_marlin_moe_repack": {
+    "def_line": 62,
+    "file": "sglang/srt/hardware_backend/gpu/quantization/gptq_kernels.py",
+    "first_line": 62,
+    "kind": "function",
+    "module_sha256": "4134148fcc97957eee13f0e3f4b0bd4ddaca52a5fd36ccc81e8b43c8242493a7",
+    "qualname": "gptq_marlin_moe_repack",
+    "sha256": "a01423fa22c635753f0b065bb8d6d1b0b5a9f791ae13865f8a94a8bb73e9a82c"
+  },
+  "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoE.weight_loader": {
+    "def_line": 999,
+    "file": "sglang/srt/layers/moe/fused_moe_triton/layer.py",
+    "first_line": 999,
+    "kind": "function",
+    "module_sha256": "25a1937ae5c263a4b7f8294322cace5c7e021011ac3c2a421de0692b6566ee31",
+    "qualname": "FusedMoE.weight_loader",
+    "sha256": "aa83e0e5e7af6a2f042b8e6f33b57b29e4a28e73cca967e98ab50b23ca2bdd5a"
+  },
+  "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoeWeightScaleSupported": {
+    "def_line": 226,
+    "file": "sglang/srt/layers/moe/fused_moe_triton/layer.py",
+    "first_line": 226,
+    "kind": "class",
+    "module_sha256": "25a1937ae5c263a4b7f8294322cace5c7e021011ac3c2a421de0692b6566ee31",
+    "qualname": "FusedMoeWeightScaleSupported",
+    "sha256": "aa1eddd0c2877565b97e6c734ab234496c63b5677f22faf011cb5d643c733a2b"
+  },
+  "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.apply_gptq_quant_layer": {
+    "def_line": 437,
+    "file": "sglang/srt/layers/quantization/auto_round.py",
+    "first_line": 437,
+    "kind": "function",
+    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "qualname": "AutoRoundConfig.apply_gptq_quant_layer",
+    "sha256": "99ac25f95387ab337f0bf5f4a6887f9a1b487aa30833a4a6a0beeb63eb512612"
+  },
+  "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.check_cpu_support": {
+    "def_line": 281,
+    "file": "sglang/srt/layers/quantization/auto_round.py",
+    "first_line": 281,
+    "kind": "function",
+    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "qualname": "AutoRoundConfig.check_cpu_support",
+    "sha256": "03d721227d1de151e39b561ef9c78f1e05e65197f67517128209c13f0bf74855"
+  },
+  "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.check_quantized": {
+    "def_line": 278,
+    "file": "sglang/srt/layers/quantization/auto_round.py",
+    "first_line": 278,
+    "kind": "function",
+    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "qualname": "AutoRoundConfig.check_quantized",
+    "sha256": "aa0b21d0fdc699b0185146a35a2348a235f573be9cc373d0344e942b421ba7ff"
+  },
+  "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.get_gptq_config_kwargs": {
+    "def_line": 313,
+    "file": "sglang/srt/layers/quantization/auto_round.py",
+    "first_line": 313,
+    "kind": "function",
+    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "qualname": "AutoRoundConfig.get_gptq_config_kwargs",
+    "sha256": "3bb627ea2fb3943255993f250a3ae5cbba230c28395b6da762f167848769da3f"
+  },
+  "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.get_layer_config": {
+    "def_line": 190,
+    "file": "sglang/srt/layers/quantization/auto_round.py",
+    "first_line": 190,
+    "kind": "function",
+    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "qualname": "AutoRoundConfig.get_layer_config",
+    "sha256": "47f8c03e0cecb702f13fd330f8ace817c453e1cb264f0d44945690ec48e4a46a"
+  },
+  "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.log_gptq_default_assumptions_once": {
+    "def_line": 291,
+    "file": "sglang/srt/layers/quantization/auto_round.py",
+    "first_line": 291,
+    "kind": "function",
+    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "qualname": "AutoRoundConfig.log_gptq_default_assumptions_once",
+    "sha256": "5d85f3ca57f38305aec6d2bfea28bc2c573fe07b0b7733d8119994e8bf0418d5"
+  },
+  "sglang.srt.layers.quantization.gptq.schemes.gptq_moe.GPTQMarlinMoEScheme.create_weights": {
+    "def_line": 180,
+    "file": "sglang/srt/layers/quantization/gptq/schemes/gptq_moe.py",
+    "first_line": 180,
+    "kind": "function",
+    "module_sha256": "135e004f7613a59aa0765cbe3d779c9bb0c459f3a199b868358759e020aaeb5d",
+    "qualname": "GPTQMarlinMoEScheme.create_weights",
+    "sha256": "413f2247be307d50eaba6e7911159b4b93a5df95b12242214db55104a32acce7"
+  },
+  "sglang.srt.layers.quantization.marlin_utils.check_marlin_supported": {
+    "def_line": 143,
+    "file": "sglang/srt/layers/quantization/marlin_utils.py",
+    "first_line": 143,
+    "kind": "function",
+    "module_sha256": "e732ef90fc84ac55714a8caedadea15efbf1de16b9ae70b2a70b4a988bb2fd71",
+    "qualname": "check_marlin_supported",
+    "sha256": "864c72005ad94a93419812a0d16b90d084ad0999ee9e4d1296236aa548566f23"
+  },
+  "sglang.srt.layers.quantization.marlin_utils.check_moe_marlin_supports_layer": {
+    "def_line": 229,
+    "file": "sglang/srt/layers/quantization/marlin_utils.py",
+    "first_line": 229,
+    "kind": "function",
+    "module_sha256": "e732ef90fc84ac55714a8caedadea15efbf1de16b9ae70b2a70b4a988bb2fd71",
+    "qualname": "check_moe_marlin_supports_layer",
+    "sha256": "c362482e52fdc49dea8281cb1ace012be02dccb6a51942f8769f95d5f0be7f18"
+  },
+  "sglang.srt.layers.quantization.marlin_utils.marlin_moe_permute_scales": {
+    "def_line": 334,
+    "file": "sglang/srt/layers/quantization/marlin_utils.py",
+    "first_line": 334,
+    "kind": "function",
+    "module_sha256": "e732ef90fc84ac55714a8caedadea15efbf1de16b9ae70b2a70b4a988bb2fd71",
+    "qualname": "marlin_moe_permute_scales",
+    "sha256": "3d1a0bf9cbe9162fc815c3df8725edce431ea294f523d2b7d14ebee481a2cf99"
+  },
+  "sglang.srt.layers.quantization.unquant.UnquantizedLinearMethod": {
+    "def_line": 431,
+    "file": "sglang/srt/layers/quantization/unquant.py",
+    "first_line": 431,
+    "kind": "class",
+    "module_sha256": "9f071f09eba9522e8d2b3e26fa0f12c0a6564da22b8062d5c8a12df9db4202bb",
+    "qualname": "UnquantizedLinearMethod",
+    "sha256": "dcb6d7d2de4d8bc7c30c95439aa5a1075757f5ec0c19cad32e0089fb5748f12f"
+  },
+  "sglang.srt.layers.quantization.utils.replace_parameter": {
+    "def_line": 199,
+    "file": "sglang/srt/layers/quantization/utils.py",
+    "first_line": 199,
+    "kind": "function",
+    "module_sha256": "a5c45d9e5a35b996d254e59ecefedaae04cf3fee48b85082d4f23539741f93e2",
+    "qualname": "replace_parameter",
+    "sha256": "fbe1e420983cf940adc6eb284b54b29979556a42cf9447894b5db5a71c6ba431"
+  },
+  "sglang.srt.utils.common.set_weight_attrs": {
+    "def_line": 2399,
+    "file": "sglang/srt/utils/common.py",
+    "first_line": 2399,
+    "kind": "function",
+    "module_sha256": "0f6387b5ed3c1dcd8d822fe52fa5433dbb4eb29aed42a253bc9e7e968591a49d",
+    "qualname": "set_weight_attrs",
+    "sha256": "232d4fe2dfe65812ff965576ff455b24f14d0da066b98517ca8a1cb734039e94"
+  }
+}

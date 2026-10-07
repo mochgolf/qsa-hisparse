@@ -1,0 +1,173 @@
+{
+  "sglang.kernels.jit.utils.common.cache_once": {
+    "def_line": 27,
+    "file": "sglang/kernels/jit/utils/common.py",
+    "first_line": 27,
+    "kind": "function",
+    "module_sha256": "cdaab0ec52cd48eddf527e03e3c109745f2bf882751802407bc51b7e7ad4c22b",
+    "qualname": "cache_once",
+    "sha256": "8bab34167526a57f6d1b3ba01429c8a12c947d45315d86d228171bbe3adaaa13"
+  },
+  "sglang.kernels.jit.utils.compile.cpp_args.make_cpp_args": {
+    "def_line": 40,
+    "file": "sglang/kernels/jit/utils/compile/cpp_args.py",
+    "first_line": 40,
+    "kind": "function",
+    "module_sha256": "84be4f6ab4b3a435a424e2762cf2f48c25ccf57119e6971e83f4856d779757c3",
+    "qualname": "make_cpp_args",
+    "sha256": "662afa471b3f812e60f80049ceaa01f678531e180c100891a7524ce7aa4a21b0"
+  },
+  "sglang.kernels.jit.utils.compile.loader.load_jit": {
+    "def_line": 48,
+    "file": "sglang/kernels/jit/utils/compile/loader.py",
+    "first_line": 47,
+    "kind": "function",
+    "module_sha256": "7888b2074e7ed0d36e81532fbd65183d8221d4bfe66308af481fb8c90065e305",
+    "qualname": "load_jit",
+    "sha256": "f8911a4141f5c56faf5b9806ed0d12ef6b82f0e74a5edf78c1451285ffa2b01f"
+  },
+  "sglang.kernels.jit.utils.compile.spec.resolve_sources": {
+    "def_line": 125,
+    "file": "sglang/kernels/jit/utils/compile/spec.py",
+    "first_line": 125,
+    "kind": "function",
+    "module_sha256": "f762d7d90adb2770988ab0d17b444496d9d611531ab136eb37b8c8707dd42b2f",
+    "qualname": "resolve_sources",
+    "sha256": "c3d1d97d5d28c8e5d91a78f4092562b9baad144c4317fa666e7537a4d48eb9e4"
+  },
+  "sglang.kernels.kernel_api_logging.debug_kernel_api": {
+    "def_line": 402,
+    "file": "sglang/kernels/kernel_api_logging.py",
+    "first_line": 402,
+    "kind": "function",
+    "module_sha256": "d3cfbaa939422f47b84b96a8878a98b178a7182a79656440c08938804517c4f7",
+    "qualname": "debug_kernel_api",
+    "sha256": "fc75355445c2656dacf8cb4e0d17deeb0db0e1818e8a5e2d40bc2759a32c05a6"
+  },
+  "sglang.kernels.ops.activation.activation.silu_and_mul": {
+    "def_line": 182,
+    "file": "sglang/kernels/ops/activation/activation.py",
+    "first_line": 182,
+    "kind": "function",
+    "module_sha256": "c8ea8e9480ccc488b5b4721fe991e4e901e63fb88e6fe89286767f30e23d9ab6",
+    "qualname": "silu_and_mul",
+    "sha256": "69f3b9e5242ce24f59f89032742244eee9984394e7a10bb435cbaa13a4dc54f2"
+  },
+  "sglang.kernels.ops.moe.moe_align_single_token.moe_align_single_token": {
+    "def_line": 32,
+    "file": "sglang/kernels/ops/moe/moe_align_single_token.py",
+    "first_line": 32,
+    "kind": "function",
+    "module_sha256": "5815a12c30b00719496db29860353900d27225803eba16d91a3c09eaabb30498",
+    "qualname": "moe_align_single_token",
+    "sha256": "1a05429158cd6685a415b79678829ada6569e31164b1a1fef77b07d7df3e0b28"
+  },
+  "sglang.kernels.ops.moe.moe_topk_sum.moe_topk_sum": {
+    "def_line": 34,
+    "file": "sglang/kernels/ops/moe/moe_topk_sum.py",
+    "first_line": 34,
+    "kind": "function",
+    "module_sha256": "1847f8d4eb524e3b2e11969496f6bac485c1e275a5da58d3737002048c5c8e37",
+    "qualname": "moe_topk_sum",
+    "sha256": "099fb2710d6c897cdef604946d668e3c02f9f9f56a3f5e6e4d019cd679d5f6dc"
+  },
+  "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.fused_marlin_moe": {
+    "def_line": 135,
+    "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
+    "first_line": 134,
+    "kind": "function",
+    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "qualname": "fused_marlin_moe",
+    "sha256": "b5b24a0f31092c10112c11159b74f10b12e69e2daec9ed6a5522fd29912eb7fe"
+  },
+  "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.get_scalar_type": {
+    "def_line": 84,
+    "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
+    "first_line": 84,
+    "kind": "function",
+    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "qualname": "get_scalar_type",
+    "sha256": "6fa1a08f7a18082c3f8453606e6e7213ca9d53c18595645a534db3b6744294fa"
+  },
+  "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.situ_and_mul": {
+    "def_line": 56,
+    "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
+    "first_line": 56,
+    "kind": "function",
+    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "qualname": "situ_and_mul",
+    "sha256": "2211c004ea6d5e68468f1039672efed3af05294a3d47257fc611682fe419a781"
+  },
+  "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.swiglu_gpt_oss_sigmoid_alpha_contiguous": {
+    "def_line": 122,
+    "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
+    "first_line": 122,
+    "kind": "function",
+    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "qualname": "swiglu_gpt_oss_sigmoid_alpha_contiguous",
+    "sha256": "17d2ed75a388208e0775f861e960dd8c9d77f8752b7d04c7cf31ee8f768f206f"
+  },
+  "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.swiglu_limit_func": {
+    "def_line": 106,
+    "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
+    "first_line": 106,
+    "kind": "function",
+    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "qualname": "swiglu_limit_func",
+    "sha256": "93b311cc8275ae35a3870a7daed77bee10a670641cd4540cedfd8a426f949841"
+  },
+  "sglang.srt.layers.moe.moe_runner.triton_utils.moe_align_block_size.moe_align_block_size": {
+    "def_line": 32,
+    "file": "sglang/srt/layers/moe/moe_runner/triton_utils/moe_align_block_size.py",
+    "first_line": 32,
+    "kind": "function",
+    "module_sha256": "3556aba5fc1142546f30d1f03034831e6893ee5ce05d868c29207485cb28df78",
+    "qualname": "moe_align_block_size",
+    "sha256": "6ae4086d05bb8f32ab5f52f6d68cdf01b4409c72bfe34893678bede6cd9db529"
+  },
+  "sglang.srt.layers.zero_copy_context.get_moe_output": {
+    "def_line": 26,
+    "file": "sglang/srt/layers/zero_copy_context.py",
+    "first_line": 26,
+    "kind": "function",
+    "module_sha256": "85bcaba1ac6911cacf83051f5214f3e4dd1edb9d3c1f6809aa8f1e3ab3072468",
+    "qualname": "get_moe_output",
+    "sha256": "93cde228de99616503dd09b1dbf47e7b80065226f42da63bd85224a6a991d7a2"
+  },
+  "sglang.srt.runtime_context.get_context": {
+    "def_line": 1351,
+    "file": "sglang/srt/runtime_context.py",
+    "first_line": 1351,
+    "kind": "function",
+    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "qualname": "get_context",
+    "sha256": "e259db7cb2d6e0339aac82725b374a0197b63969dbf34a35bbead7939eb95353"
+  },
+  "sglang.srt.runtime_context.get_exec": {
+    "def_line": 1388,
+    "file": "sglang/srt/runtime_context.py",
+    "first_line": 1388,
+    "kind": "function",
+    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "qualname": "get_exec",
+    "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
+  },
+  "sglang.srt.utils.common.direct_register_custom_op": {
+    "def_line": 2775,
+    "file": "sglang/srt/utils/common.py",
+    "first_line": 2775,
+    "kind": "function",
+    "module_sha256": "0f6387b5ed3c1dcd8d822fe52fa5433dbb4eb29aed42a253bc9e7e968591a49d",
+    "qualname": "direct_register_custom_op",
+    "sha256": "e1e3ba11ac053980936c2f2c528a66dcef44e2d9cb1ec0f42182aa2f1b84ffce"
+  },
+  "sglang.srt.utils.custom_op.CustomOpWrapper": {
+    "def_line": 133,
+    "file": "sglang/srt/utils/custom_op.py",
+    "first_line": 133,
+    "kind": "class",
+    "module_sha256": "d7c760c7fb45985679517561d034a8568897dd15b7a3e371aa5b1add6925f776",
+    "qualname": "CustomOpWrapper",
+    "sha256": "6d47e0160e0df5288e50ab20e77b13443313b5e4fc1cd176806ea1517e180f01"
+  }
+}

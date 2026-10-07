@@ -1,0 +1,110 @@
+{
+  "sglang.kernels.ops.elementwise.hc_mix.hc_mix": {
+    "def_line": 72,
+    "file": "sglang/kernels/ops/elementwise/hc_mix.py",
+    "first_line": 72,
+    "kind": "function",
+    "module_sha256": "d62c3e75e3d7607a7646d4d7467dc44eb531f1491b9d458f721bcb40cf1c7212",
+    "qualname": "hc_mix",
+    "sha256": "8c8508476e192813448f484c07d177b1e7f6e9251020dabe02a9d3425a6c4f28"
+  },
+  "sglang.kernels.ops.elementwise.hc_mix.permute_pad_up_weight": {
+    "def_line": 24,
+    "file": "sglang/kernels/ops/elementwise/hc_mix.py",
+    "first_line": 24,
+    "kind": "function",
+    "module_sha256": "d62c3e75e3d7607a7646d4d7467dc44eb531f1491b9d458f721bcb40cf1c7212",
+    "qualname": "permute_pad_up_weight",
+    "sha256": "aac6d88571fff16f47ef0bcb67b83862b8763dd745829fee0130a6017f636793"
+  },
+  "sglang.srt.layers.hc_mix_triton._deterministic_inference": {
+    "def_line": 151,
+    "file": "sglang/srt/layers/hc_mix_triton.py",
+    "first_line": 151,
+    "kind": "function",
+    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "qualname": "_deterministic_inference",
+    "sha256": "ab0c932cd93ca7730eb13630f3d6674e31ee35469b1b628bcad21926087e7297"
+  },
+  "sglang.srt.layers.hc_mix_triton._get_counters": {
+    "def_line": 143,
+    "file": "sglang/srt/layers/hc_mix_triton.py",
+    "first_line": 143,
+    "kind": "function",
+    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "qualname": "_get_counters",
+    "sha256": "d880127b3c3224e379529fe7a2ec5db59e260ae254912b773653cecba2e53d41"
+  },
+  "sglang.srt.layers.hc_mix_triton._grid_barrier": {
+    "def_line": 20,
+    "file": "sglang/srt/layers/hc_mix_triton.py",
+    "first_line": 19,
+    "kind": "function",
+    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "qualname": "_grid_barrier",
+    "sha256": "b10fa9262dcc838056455b5990825edc9bac9f924387987b0357bbe5c63e8fb5"
+  },
+  "sglang.srt.layers.hc_mix_triton._hc_mix_persistent_kernel": {
+    "def_line": 27,
+    "file": "sglang/srt/layers/hc_mix_triton.py",
+    "first_line": 26,
+    "kind": "function",
+    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "qualname": "_hc_mix_persistent_kernel",
+    "sha256": "5b5ee134ca795d0aa7f67d3ac09f94b82273f8f39c32b373ada5327583ff3333"
+  },
+  "sglang.srt.layers.hc_mix_triton.fused_hc_mix": {
+    "def_line": 182,
+    "file": "sglang/srt/layers/hc_mix_triton.py",
+    "first_line": 182,
+    "kind": "function",
+    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "qualname": "fused_hc_mix",
+    "sha256": "36ab68033f1f5d2cee5576581dc74690ffaa0f9793f830c8f67204f4aa74b482"
+  },
+  "sglang.srt.layers.hc_mix_triton.fused_hc_mix_supported": {
+    "def_line": 161,
+    "file": "sglang/srt/layers/hc_mix_triton.py",
+    "first_line": 161,
+    "kind": "function",
+    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "qualname": "fused_hc_mix_supported",
+    "sha256": "fb19b5bb1e169f0a5dd9e6de01aa62812d40ee5b4e053cc754d131a475d917c3"
+  },
+  "sglang.srt.layers.hyperconnection.GatedResidual.__init__": {
+    "def_line": 116,
+    "file": "sglang/srt/layers/hyperconnection.py",
+    "first_line": 116,
+    "kind": "function",
+    "module_sha256": "338bf29366565b357a15e9650a0fd7f83cdf0456f0d995b0006ad3c1edaa9a8f",
+    "qualname": "GatedResidual.__init__",
+    "sha256": "1a5fcee14da33de86959fab4a80e43e18fdd1a39e0926f558b13e954a04c51b3"
+  },
+  "sglang.srt.layers.hyperconnection.GatedResidual.mix": {
+    "def_line": 222,
+    "file": "sglang/srt/layers/hyperconnection.py",
+    "first_line": 222,
+    "kind": "function",
+    "module_sha256": "338bf29366565b357a15e9650a0fd7f83cdf0456f0d995b0006ad3c1edaa9a8f",
+    "qualname": "GatedResidual.mix",
+    "sha256": "44c01967c28cd4f5e6fd4579884093979ee7c1ffdbf902fa07ec9707419f6816"
+  },
+  "sglang.srt.layers.hyperconnection.GroupedGemmaRMSNorm.forward": {
+    "def_line": 45,
+    "file": "sglang/srt/layers/hyperconnection.py",
+    "first_line": 45,
+    "kind": "function",
+    "module_sha256": "338bf29366565b357a15e9650a0fd7f83cdf0456f0d995b0006ad3c1edaa9a8f",
+    "qualname": "GroupedGemmaRMSNorm.forward",
+    "sha256": "26a5de55e7d1a922c5ade4c88b9c1f99da8aa494f3829173ffdf6774acb04516"
+  },
+  "sglang.srt.runtime_context.get_exec": {
+    "def_line": 1388,
+    "file": "sglang/srt/runtime_context.py",
+    "first_line": 1388,
+    "kind": "function",
+    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "qualname": "get_exec",
+    "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
+  }
+}
