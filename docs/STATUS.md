@@ -79,3 +79,18 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 - G0 cleared by the proportionate final review; its one minor item (binding
   analysis redundant with module hashes) applied: `fingerprint.py` 146 lines,
   42 framework tests. Phase 1 started with eight parallel workstreams.
+- W6 done (branch `worktree-agent-a4324b8a18d2c2856`, `fcc029d`): 31 prefix
+  tests ported (16 pass alone, 15 `integration` need W2 rows M01/P01/P02/B06/M04;
+  all 31 pass with those rows applied). Radix-cache backend: keep S01 now,
+  switch at the next pin. Integration-time decisions: activate features for
+  `integration` tests in a separate pytest process (activation is
+  process-global); W2 asked to add S01 guard and M02/M03 ordering tests.
+- W1 done (branch `worktree-agent-aca35e5bc131c2060`, `5a015f1`): runtime tests
+  ported (71 pass; 11 `integration` need Q04/Q08/Q09/Q10/S03/K03/M02/A01/A07/A09),
+  moved sources proven byte-identical modulo import rewrites, 86
+  `RUNTIME_DEPENDS` pinned. Fork defects kept verbatim: runtime check of the
+  nonexistent `enable_priority_preemption` field (preemption still fails via
+  retract); `_namespace` `position_ids`/`mrope_positions` terms inert.
+  Integration: activate before collection; Q10 must reach A09's replacement.
+  `fingerprint.verify` now hashes each module file once (no AST parse on
+  match).

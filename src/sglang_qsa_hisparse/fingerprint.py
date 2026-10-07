@@ -120,24 +120,34 @@ def verify(
     """Return the pinned records of ``names`` after checking their modules.
 
     Raises FingerprintMismatch if a name has no record or the bytes of its
-    module differ from the pinned revision.
+    module differ from the pinned revision. Each module file is read once;
+    definitions are parsed only to report which ones changed.
     """
     root = installed_source_root() if source_root is None else Path(source_root)
     pinned = load_pinned() if pinned is None else pinned
     problems = []
     records = {}
+    hashes: dict[str, str | None] = {}
     for name in names:
         expected = pinned.get(name)
         if expected is None:
             problems.append(f"{name}: no pinned fingerprint")
             continue
-        try:
-            actual = definition_record(root / expected["file"], expected["qualname"])
-        except (LookupError, OSError, SyntaxError) as error:
-            problems.append(f"{name}: {error}")
+        file = expected["file"]
+        if file not in hashes:
+            try:
+                hashes[file] = _sha256((root / file).read_bytes())
+            except OSError:
+                hashes[file] = None
+        if hashes[file] is None:
+            problems.append(f"{name}: cannot read {file}")
             continue
-        if actual["module_sha256"] != expected["module_sha256"]:
-            changed = "definition" if actual["sha256"] != expected["sha256"] else "module"
+        if hashes[file] != expected["module_sha256"]:
+            try:
+                actual = definition_record(root / file, expected["qualname"])
+                changed = "definition" if actual["sha256"] != expected["sha256"] else "module"
+            except (LookupError, SyntaxError):
+                changed = "definition (missing)"
             problems.append(f"{name}: {changed} differs from the pinned revision")
             continue
         records[name] = expected
