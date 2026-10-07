@@ -77,7 +77,6 @@ def registry():
         patching._applied.clear()
         patching._frozen_hooks.clear()
         patching._frozen_depends.clear()
-        patching._snapshots.clear()
         patching._attached_live.clear()
 
     clear()
@@ -190,16 +189,7 @@ def test_record_locates_definitions(fake):
     assert record["file"] == "qsa_fake/mod.py"
     assert record["qualname"] == "Box.value"
     assert record["kind"] == "function"
-    (level,) = record["chains"]["cpu"]
-    assert level["type"] == "builtins.function"
-    assert level["code"] == ["qsa_fake/mod.py", record["def_line"]]
-    assert level["function"] == "qsa_fake.mod.Box.value"
-    assert level["file_sha256"] == record["module_sha256"]
-    cached = fingerprint.record(fake.root, "qsa_fake.mod.cached")
-    assert [level["type"] for level in cached["chains"]["cpu"]] == [
-        "functools._lru_cache_wrapper",
-        "builtins.function",
-    ]
+    assert record["first_line"] == record["def_line"]
     assert fingerprint.record(fake.root, "qsa_fake.mod.Box")["kind"] == "class"
 
 
@@ -218,7 +208,7 @@ def test_any_module_edit_fails_verification(fake, edit):
     pinned = fake.pin("qsa_fake.mod.Box.value")
     fake.path.write_bytes(edit(fake.path.read_text()).encode())
     with pytest.raises(FingerprintMismatch):
-        fingerprint.verify(["qsa_fake.mod.Box.value"], pinned=pinned, check_bindings=False)
+        fingerprint.verify(["qsa_fake.mod.Box.value"], pinned=pinned)
 
 
 def test_method_record_covers_class_header(fake):
@@ -274,72 +264,12 @@ def test_non_bindings_do_not_count(fake, suffix):
     assert fingerprint.definition_record(fake.path, "double")["qualname"] == "double"
 
 
-@pytest.mark.parametrize(
-    "build",
-    [
-        lambda torch, f: (torch.no_grad()(f), torch.enable_grad()(f)),
-        lambda torch, f: (torch.ops.aten.add, torch.ops.aten.mul),
-        lambda torch, f: (
-            functools.lru_cache(maxsize=4)(f),
-            functools.lru_cache(maxsize=None)(f),
-        ),
-        lambda torch, f: (functools.partial(f, 1), functools.partial(f, 2)),
-        lambda torch, f: (torch.set_grad_enabled(False)(f), torch.set_grad_enabled(True)(f)),
-        lambda torch, f: (
-            functools.partial(_closure_over(3)),
-            functools.partial(_closure_over(4)),
-        ),
-    ],
-    ids=["grad-mode", "operator", "lru-cache", "partial", "grad-setting", "partial-closure"],
-)
-def test_chains_identify_behavior(build, tmp_path):
-    import torch
-
-    def f(*args):
-        return torch.is_grad_enabled()
-
-    first, second = build(torch, f)
-    assert fingerprint.live_chain(first, tmp_path) != fingerprint.live_chain(second, tmp_path)
 
 
-def _closure_over(value):
-    def inner():
-        return value
-
-    return inner
 
 
-def test_operator_kernel_registrations_are_part_of_the_chain(tmp_path):
-    import torch
-
-    library = torch.library.Library("qsa_fw_probe", "DEF")
-    library.define("f(Tensor x) -> Tensor")
-    library.impl("f", lambda x: x + 1, "CPU")
-    before = fingerprint.live_chain(torch.ops.qsa_fw_probe.f, tmp_path)
-    override = torch.library.Library("qsa_fw_probe", "IMPL")
-    override.impl("f", lambda x: x * 4, "CPU", allow_override=True)  # different line
-    after = fingerprint.live_chain(torch.ops.qsa_fw_probe.f, tmp_path)
-    assert before != after
 
 
-def test_unidentifiable_levels_are_rejected(tmp_path):
-    class Opaque:
-        def __call__(self):
-            return 1
-
-    with pytest.raises(fingerprint.Undescribable):
-        fingerprint.live_chain(Opaque(), tmp_path)
-
-    state = object()
-
-    @functools.wraps(len)
-    def wrapper(*args):
-        return state
-
-    wrapper.__module__ = "external"
-    wrapper.__code__ = wrapper.__code__.replace(co_filename="/elsewhere/lib.py")
-    with pytest.raises(fingerprint.Undescribable):
-        fingerprint.live_chain(wrapper, tmp_path)
 
 
 # Activation -----------------------------------------------------------------
@@ -420,86 +350,14 @@ def test_unpinned_dependency_fails(registry, fake):
         patching.activate(COMPAT)
 
 
-def test_missing_mode_chain_fails(registry, fake, monkeypatch):
-    fake.pin("qsa_fake.mod.double")
-    monkeypatch.setattr(fingerprint, "binding_mode", lambda: "cuda")
-    patching.patch("qsa_fake.mod.double", "after", feature="model_compat", row="R1")(
-        lambda result, x: result
-    )
-    with pytest.raises(FingerprintMismatch, match="no pinned binding chain for mode cuda"):
-        patching.activate(COMPAT)
 
 
-@pytest.mark.parametrize("kind", ["raw", "wraps"])
-def test_live_object_must_be_the_pinned_definition(registry, fake, monkeypatch, kind):
-    fake.pin("qsa_fake.mod.double")
-    mod = _mod()
-    original = mod.double
-    if kind == "raw":
-        replacement = lambda x: 50 * x  # noqa: E731
-    else:
-
-        @functools.wraps(original)
-        def replacement(x):
-            return 50 * original(x)
-
-    monkeypatch.setattr(mod, "double", replacement)
-    patching.patch("qsa_fake.mod.double", "after", feature="model_compat", row="R1")(
-        lambda result, x: result + 1
-    )
-    with pytest.raises(FingerprintMismatch, match="not the pinned definition"):
-        patching.activate(COMPAT)
-    assert not registry._hooks
 
 
-def test_decorator_configuration_is_part_of_the_binding(registry, fake, monkeypatch):
-    import torch
-
-    fake.pin("qsa_fake.mod.guarded")
-    mod = _mod()
-    assert mod.guarded() is False
-    monkeypatch.setattr(mod, "guarded", torch.enable_grad()(mod.guarded.__wrapped__))
-    patching.patch("qsa_fake.mod.guarded", "after", feature="model_compat", row="R1")(
-        lambda result: result
-    )
-    with pytest.raises(FingerprintMismatch, match="not the pinned definition"):
-        patching.activate(COMPAT)
 
 
-@pytest.mark.parametrize("mutation", ["class-member", "defaults"])
-def test_in_place_mutation_before_activation_fails(registry, fake, monkeypatch, mutation):
-    fake.pin("qsa_fake.mod.double", "qsa_fake.mod.Box")
-    mod = _mod()
-    patching.patch(
-        "qsa_fake.mod.double", "after", feature="model_compat", row="R1",
-        depends=("qsa_fake.mod.Box",),
-    )(lambda result, x: result)
-    if mutation == "class-member":
-        monkeypatch.setattr(mod.Box, "value", lambda self: 9)
-        expected = "Box: live binding"
-    else:
-        monkeypatch.setattr(mod.double, "__defaults__", (1,))
-        expected = "double: live binding"
-    with pytest.raises(FingerprintMismatch, match=expected):
-        patching.activate(COMPAT)
 
 
-@pytest.mark.parametrize("mutation", ["defaults", "class-member"])
-def test_in_place_mutation_after_activation_fails_final_check(registry, fake, mutation):
-    fake.pin("qsa_fake.mod.double", "qsa_fake.mod.helper", "qsa_fake.mod.Box")
-    patching.patch(
-        "qsa_fake.mod.double", "after", feature="model_compat", row="R1",
-        depends=("qsa_fake.mod.helper", "qsa_fake.mod.Box"),
-    )(lambda result, x: result)
-    patching.activate(COMPAT)
-    patching.verify_final("scheduler")
-    mod = _mod()
-    if mutation == "defaults":
-        mod.helper.__kwdefaults__ = {"unused": 1}
-    else:
-        mod.Box.value = lambda self: 9
-    with pytest.raises(PluginActivationError, match="changed in place"):
-        patching.verify_final("scheduler")
 
 
 def test_unmanifested_entries_claiming_this_plugin_fail(registry, fake):
@@ -584,23 +442,8 @@ def test_dependencies_are_protected(registry, fake):
         mod.configure()
 
 
-def test_decorated_definition_passes_with_its_pinned_chain(registry, fake):
-    fake.pin("qsa_fake.mod.cached")
-    patching.patch("qsa_fake.mod.cached", "after", feature="model_compat", row="R1")(
-        lambda result, x: result + 1
-    )
-    patching.activate(COMPAT)
-    assert _mod().cached(1) == 2
 
 
-def test_inherited_member_is_rejected(registry, fake, monkeypatch):
-    pinned = fake.pin("qsa_fake.mod.Box.value")
-    pinned["qsa_fake.mod.Child.value"] = pinned["qsa_fake.mod.Box.value"]
-    patching.patch("qsa_fake.mod.Child.value", "after", feature="model_compat", row="R1")(
-        lambda result, self: result
-    )
-    with pytest.raises(FingerprintMismatch, match="not the pinned definition"):
-        patching.activate(COMPAT)
 
 
 def test_property_targets_are_rejected(registry, fake):

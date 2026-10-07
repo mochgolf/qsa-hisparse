@@ -10,8 +10,8 @@ modules are imported only when their feature is active.
 Activation, in order:
 1. the declarations of every requested feature (and the framework) must
    equal ``manifest.json`` exactly (rows, targets, hook types, members);
-2. every target and ``depends`` name must match its pinned module bytes and
-   pinned live binding chain; properties cannot be hook targets;
+2. every target and ``depends`` name must match its pinned module bytes;
+   properties cannot be hook targets (HookRegistry would break them);
 3. no hook from another plugin may overlap a target, attached member or
    declared dependency (same path, an ancestor class, or a member);
 4. only this plugin's targets are applied (other plugins' hooks are left for
@@ -22,7 +22,7 @@ Activation, in order:
 ``load_plugins()`` returned: it requires the registry entries of every
 patched target to be exactly the frozen set, no late hooks from this plugin
 or overlapping hooks from others, unchanged patched attributes, attachments
-and dependency bindings, and writes an activation record when
+and dependency objects (identity), and writes an activation record when
 ``SGLANG_QSA_ACTIVATION_DIR`` is set.
 """
 
@@ -59,9 +59,6 @@ class PatchSpec:
     row: str
     depends: tuple[str, ...] = ()
     reason: str = ""
-    # Names (target or depends) whose live object cannot be described by a
-    # binding chain; their module bytes are still pinned.
-    unchecked_bindings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -92,8 +89,6 @@ _activated: Features | None = None
 _applied: dict[str, object] = {}
 _frozen_hooks: dict[str, tuple] = {}
 _frozen_depends: dict[str, object] = {}
-# name -> (object, description): pinned objects this activation relies on.
-_snapshots: dict[str, tuple[object, object]] = {}
 _attached_live: list[AttachSpec] = []
 
 
@@ -110,7 +105,6 @@ def patch(
     row: str,
     depends: tuple[str, ...] = (),
     reason: str = "",
-    unchecked_bindings: tuple[str, ...] = (),
 ) -> Callable:
     """Declare a hook on a pinned SGLang definition (HookRegistry signatures)."""
     if hook_type not in HOOK_TYPES:
@@ -127,7 +121,6 @@ def patch(
                 row,
                 tuple(depends),
                 reason,
-                tuple(unchecked_bindings),
             )
         )
         return hook
@@ -268,7 +261,11 @@ def collect(features: Features) -> tuple[list[PatchSpec], list[AttachSpec]]:
 
 
 def _raw_attribute(target: str):
-    return fingerprint.raw_attribute(target)
+    owner_path, name = target.rsplit(".", 1)
+    owner = pkgutil.resolve_name(owner_path)
+    if isinstance(owner, type) and name in owner.__dict__:
+        return owner.__dict__[name]
+    return getattr(owner, name)
 
 
 def _source():
@@ -295,14 +292,6 @@ def _existing_entries(registry, names: set[str]) -> list[str]:
         for key, hooks in registry._hooks.items()
         if hooks and any(_overlaps(key, name) for name in names)
     )
-
-
-def _describe(value: object) -> object:
-    """Recomputable description of an object (identity if unidentifiable)."""
-    try:
-        return ("chain", fingerprint.live_chain(value, fingerprint.installed_source_root()))
-    except fingerprint.Undescribable:
-        return ("identity", id(value))
 
 
 def _defines(owner: object, name: str) -> bool:
@@ -346,9 +335,7 @@ def activate(features: Features) -> list[PatchSpec]:
     names = {s.target for s in specs}
     names |= {d for s in specs for d in s.depends}
     names |= {d for s in attaches for d in s.depends}
-    unchecked = {n for s in specs for n in s.unchecked_bindings}
-    fingerprint.verify(sorted(names - unchecked))
-    fingerprint.verify(sorted(names & unchecked), check_bindings=False)
+    fingerprint.verify(sorted(names))
     properties = sorted(s.target for s in specs if isinstance(_raw_attribute(s.target), property))
     if properties:
         raise PluginActivationError(f"Properties cannot be hook targets: {properties}")
@@ -398,10 +385,6 @@ def activate(features: Features) -> list[PatchSpec]:
     # Attach last, so owners resolve to any class we replaced.
     _attach_all(attaches)
     _attached_live[:] = attaches
-    # Patched targets: the wrapped original (our wrapper is identity-checked);
-    # dependencies: the live object. Attached members are plugin code.
-    relied_on = {**{d: _raw_attribute(d) for d in depends}, **originals}
-    _snapshots.update({n: (obj, _describe(obj)) for n, obj in relied_on.items()})
     _activated = features
     logger.info(
         "QSA HiSparse plugin activated %s with %d patches and %d attached members",
@@ -443,9 +426,6 @@ def verify_final(role: str, **details: object) -> None:
             f"Patched targets or dependencies were replaced afterwards: {changed}"
         )
     _verify_attached(_attached_live)
-    mutated = sorted(name for name, (obj, desc) in _snapshots.items() if _describe(obj) != desc)
-    if mutated:
-        raise PluginActivationError(f"Protected bindings changed in place: {mutated}")
 
     directory = os.environ.get(ACTIVATION_DIR_ENV)
     if directory:

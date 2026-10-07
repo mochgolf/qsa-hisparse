@@ -17,12 +17,10 @@ Common to every card:
   row needs a different hook than listed (e.g. an equivalence fallback),
   implement it, and report the change; the orchestrator updates the
   inventory and manifest at merge.
-- Fingerprints: `CUDA_VISIBLE_DEVICES=99 <validation python> tools/fingerprint.py
-  write <your-module> <targets...>` for every target and `depends` name,
-  against the pin only. Records include CPU binding chains; the orchestrator
-  adds CUDA chains before GPU validation. `depends` entries must be functions
-  or classes (fields and instance attributes are not definitions). Properties
-  cannot be hook targets.
+- Fingerprints: `tools/fingerprint.py write <your-module> <targets...>` for
+  every target and `depends` name, against the pin only. `depends` entries
+  must be functions or classes (fields and instance attributes are not
+  definitions). Properties cannot be hook targets.
 - Run `tools/run_cpu_tests.sh` (all tests, including the framework suite).
   Until every row of a feature is implemented, real activation of that
   feature fails by design; test your hooks by activating against a manifest

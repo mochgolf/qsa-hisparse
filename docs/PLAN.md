@@ -52,34 +52,31 @@ this repository; `fork:` is `../qsa-hisparse` at `ee8fe158d6`; `pin:` is
    text model it builds). The predicate reads SGLang's published model
    configuration and raises if it cannot decide; it never guesses. Each
    row's scope decision goes in the patch `reason`.
-10. **Report** in your final message: files changed, tests run with results,
+10. **Keep it simple.** Implement the fork's behavior with the narrowest
+    hook and the least new code; no speculative abstractions, options or
+    defenses beyond PLAN.md's activation guarantees.
+11. **Report** in your final message: files changed, tests run with results,
    unresolved items, and any deviation from this plan.
 
 ## Activation guarantees (threat model)
 
-Detected and fail closed (process stops before serving):
+Served processes run only SGLang, its libraries and this plugin: the
+launcher sets `SGLANG_PLUGINS=qsa_hisparse` and refuses native-library
+versions other than the validated lock. Within that deployment, activation
+fails closed (the process stops before serving) on:
 - SGLang source drift: any byte change in a module that contains a patch
-  target or a declared dependency, or in a pinned-tree file implementing a
-  decorator level of such a binding.
-- Replacement or wrapping of a protected binding (target, dependency) and
-  identifiable in-place changes to it (code, closures, defaults, class
-  members, decorator configuration, operator kernel registration locations),
-  before activation or between activation and final verification in each
-  scheduler/TP process.
-- HookRegistry entries on or around protected names that this activation did
-  not declare (any source), registered before or after activation.
-- Incomplete or extra declarations versus `manifest.json` (per feature).
-- Missing activation in any scheduler/TP process (launcher readiness check).
+  target or a declared dependency;
+- declarations that differ from `manifest.json` (missing, extra, duplicate,
+  wrong feature);
+- a hook that was not applied, or registry entries on or around protected
+  names that this activation did not declare, before or after activation;
+- a scheduler/TP process without an activation record (launcher readiness).
 
-Not detected (out of scope; controlled by deployment):
-- Mutations after final verification, or by code that also tampers with the
-  plugin's own verifier; state of bindings listed in `unchecked_bindings`;
-  re-registration of an operator kernel from the same source location.
-- Native library changes (torch, sglang-kernel, flashinfer, triton): the
-  launcher records versions in activation records and refuses versions other
-  than the validated environment lock.
-- Other general plugins: the launcher sets `SGLANG_PLUGINS=qsa_hisparse` so
-  no other general plugin loads in served processes.
+Not defended: code inside the served process deliberately mutating SGLang
+objects in place. Correctness of SGLang itself and its libraries is
+established by tests and the GPU equivalence gate, not by activation checks.
+Keep the framework proportionate to this model; do not add machinery for
+excluded threats.
 
 ## Layout
 
