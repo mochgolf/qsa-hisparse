@@ -1,0 +1,65 @@
+{
+  "name": "qsa-compat-reduced-deterministic",
+  "status": "unvalidated until G2",
+  "fixed": "2026-10-07, before any compat-only run, from model geometry and recorded pool sizes only; no model output was used",
+  "purpose": "G2-2 compat-only arm (docs/baseline.md gap 7): fork with SGLANG_QSA_HISPARSE_V3 unset vs plugin with SGLANG_QSA_MODEL_COMPAT=1, cold requests only",
+  "base_profile": {
+    "file": "service/candidate-acceptance.json",
+    "note": "The deterministic comparison profile of docs/baseline.md, path relative to the workspace that holds results/ and service/. It is private (model path, served name) and is read at run time, never copied here. Its command is used unchanged except for set_flags.",
+    "requires": {
+      "--tp-size": "2",
+      "--context-length": "262144",
+      "--page-size": "64",
+      "--kv-cache-dtype": "fp8_e4m3",
+      "--mem-fraction-static": "0.96",
+      "--max-running-requests": "8",
+      "--chunked-prefill-size": "2048",
+      "--max-total-tokens": "2097152",
+      "--disable-radix-cache": null,
+      "--enable-deterministic-inference": null
+    }
+  },
+  "set_flags": {
+    "--max-total-tokens": "266304"
+  },
+  "environment": {
+    "remove": "every SGLANG_QSA_* variable and SGLANG_PLUGINS inherited from the caller or the base profile (V3 runtime, observation, host prefix cache, events)",
+    "fork": {},
+    "plugin": {
+      "SGLANG_QSA_MODEL_COMPAT": "1",
+      "SGLANG_PLUGINS": "qsa_hisparse"
+    }
+  },
+  "geometry": {
+    "full_attention_layers": 12,
+    "kv_heads_per_rank": 1,
+    "head_dim": 256,
+    "kv_bytes_per_element": 1,
+    "index_bytes_per_token": 768,
+    "context_length": 262144,
+    "page_size": 64,
+    "clip_max_new_tokens": 4096,
+    "base_max_total_tokens": 2097152,
+    "base_fixed_bytes": 1611399936
+  },
+  "derivation": [
+    "Raw K/V per token per rank = 12 full-attention layers x 2 (K, V) x 1 KV head per rank x 256 head dim x 1 byte (FP8 E4M3) = 6,144 B (fork QSA_HISPARSE.md, frozen geometry).",
+    "Compressed index per token per rank = 768 B (pin QSATokenToKVPool.qsa_bytes_per_token: BF16 index-K bytes per C4 group / 4 tokens x 12 layers); docs/baseline.md records the same value as logical_bytes_per_token of the deterministic profile.",
+    "Without offload the pin prices one token at 6,144 + 768 = 6,912 B per rank (pool_configurator._compute_cell_size: raw K/V plus the QSA index cell).",
+    "Device KV budget of each 48 GB rank: the qualified deterministic profile (same model and flags, --mem-fraction-static 0.96) allocated fixed_bytes 1,611,399,936 + 2,097,152 x 768 = 3,222,012,672 B of KV pools per rank and still reported 3.30 GB available (docs/baseline.md). With V3 unset the offload runtime's device workspaces (hot caches, decode and graph workspaces) do not exist, so any compat pool of at most 3,222,012,672 B per rank fits with at least that headroom.",
+    "B8 at full context without offload: 2,097,152 x 6,912 = 14,495,514,624 B per rank > 3,222,012,672 B, which is why the base profile cannot run with V3 unset.",
+    "--max-total-tokens = context 262,144 + CLIP_MAX_NEW_TOKENS 4,096 + page 64 = 266,304: one full-context request plus the largest decode reservation and the page-alignment reserve the pin's PrefillAdder.add_one_req charges, so every request that passes SGLang's context-length check is admissible on an idle server.",
+    "Pool per rank: (266,304 + 64 padding) x 6,912 = 1,841,135,616 B, 57% of 3,222,012,672 B (1,380,877,056 B spare). The per-request pending/RoPE rings (12,384 B per request slot) are negligible against that margin.",
+    "Everything else is the base profile: TP2, deterministic inference, context 262,144, page 64, FP8 KV, chunked prefill 2,048, 8 running requests, full decode CUDA graphs for B1-B8, radix cache and overlap scheduling disabled."
+  ],
+  "fixtures": {
+    "file": "results/prefix-cache-service-20260916/fixtures.json",
+    "sha256": "171231bd51a27bc106e66905c1a59136326cfddf927467d7167e0a48764216d8",
+    "rule": "Keep every frozen case, in file order and with its tokens unmodified, whose len(input_ids) + max_new_tokens <= context_length (SGLang's request-length check); drop the rest. Fixed before any run; it depends on input lengths only, never on outputs.",
+    "kept_cases": 16,
+    "max_prefix": 262016,
+    "largest_request_tokens": 262069,
+    "harness": "fork test/manual/qsa_hisparse_prefix_acceptance.py baseline --max-prefix <max_prefix>: two salted cold requests per kept case; the harness file comes from the fork reference tree in both arms",
+    "output": "compat-cold.json"
+  }
+}
