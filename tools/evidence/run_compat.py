@@ -3,7 +3,8 @@
 
     run_compat.py --arm {fork,plugin} --base-profile <service/candidate-acceptance.json>
                   --fixtures <frozen fixtures.json> --output <new arm directory>
-                  [--python ...] [--fork-root ...] [--pin-root ...] [--dry-run]
+                  [--python ...] [--fork-root ...] [--pin-root ...] [--plugin-root ...]
+                  [--dry-run]
 
 compat_profile.json fixes the profile; the private base profile supplies the
 model path. Run the fork arm, then the plugin arm, into sibling directories,
@@ -15,14 +16,16 @@ then ``compare.py <fork dir> <plugin dir>``. Each run:
    checking the base values the derivation relies on; every SGLANG_QSA_*
    variable and SGLANG_PLUGINS removed, then the arm's variables set; the
    arm's PYTHONPATH (fork: <fork>/python; plugin: <plugin>/src:<pin>/python
-   through the W7 launcher); PYTHONDONTWRITEBYTECODE=1 and SGLANG_CACHE_DIR
-   inside the arm directory;
+   through the W7 launcher with ``--run-dir <arm dir>/launcher``);
+   PYTHONDONTWRITEBYTECODE=1 and SGLANG_CACHE_DIR inside the arm directory;
 3. refuses to start if the port is production's 8081 or in use, or if
    nvidia-smi lists any compute process;
 4. starts the server in its own session, logging to server.log, waits for the
-   base profile's readiness path, saves /get_server_info to server_info.json,
-   and runs the fork harness ``baseline`` (two salted cold requests per case)
-   into compat-cold.json;
+   base profile's readiness path and, for the plugin arm, for the launcher's
+   ``ready.json`` (written only after every TP rank's activation record was
+   verified), saves /get_server_info to server_info.json, and runs the fork
+   harness ``baseline`` (two salted cold requests per case) into
+   compat-cold.json;
 5. stops only the process group it started (SIGTERM, SIGKILL after the base
    profile's stop timeout). Exits with the harness status.
 """
@@ -72,13 +75,14 @@ def server_command(arm, base, profile, *, python, roots, output):
     env.update(PYTHONDONTWRITEBYTECODE="1", SGLANG_CACHE_DIR=str(output / "cache"))
     if arm == "fork":
         env["PYTHONPATH"] = str(roots["fork"] / "python")
-        argv = [python, "-m", "sglang.launch_server", *args]
-    else:
-        env["PYTHONPATH"] = os.pathsep.join(
-            [str(roots["plugin"] / "src"), str(roots["pin"] / "python")]
-        )
-        argv = [python, "-m", "sglang_qsa_hisparse.launch", "--", *args]
-    return argv, env
+        return [python, "-m", "sglang.launch_server", *args], env, None
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(roots["plugin"] / "src"), str(roots["pin"] / "python")]
+    )
+    # The launcher writes ready.json only after every TP rank's activation record.
+    run_dir = output / "launcher"
+    argv = [python, "-m", "sglang_qsa_hisparse.launch", "--run-dir", str(run_dir), "--", *args]
+    return argv, env, run_dir / "ready.json"
 
 
 def checked_fixtures(path, profile):
@@ -121,16 +125,19 @@ def preflight(host, port):
         raise SystemExit(f"GPU compute processes are running:\n{apps}")
 
 
-def wait_ready(process, url, readiness):
+def wait_ready(process, url, readiness, ready_file):
+    """Wait for HTTP health and, when given, the launcher's verified ready file."""
     deadline = time.monotonic() + readiness["timeout_seconds"]
     while time.monotonic() < deadline:
         if process.poll() is not None:
             raise SystemExit(f"server exited with {process.returncode} before ready")
-        try:
-            with urllib.request.urlopen(url, timeout=readiness["request_timeout_seconds"]):
-                return
-        except OSError:
-            time.sleep(readiness["poll_seconds"])
+        if ready_file is None or ready_file.exists():
+            try:
+                with urllib.request.urlopen(url, timeout=readiness["request_timeout_seconds"]):
+                    return
+            except OSError:
+                pass
+        time.sleep(readiness["poll_seconds"])
     raise SystemExit(f"server not ready after {readiness['timeout_seconds']} s")
 
 
@@ -172,6 +179,7 @@ def parse(argv):
     parser.add_argument(
         "--pin-root", type=Path, default=parent / ".worktrees/sglang-pin-76e06febab"
     )
+    parser.add_argument("--plugin-root", type=Path, default=PLUGIN_ROOT)
     parser.add_argument("--profile", type=Path, default=PROFILE)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args(argv)
@@ -186,10 +194,10 @@ def main(argv=None):
     output = args.output.resolve()
     roots = {
         "fork": args.fork_root.resolve(),
-        "plugin": PLUGIN_ROOT,
+        "plugin": args.plugin_root.resolve(),
         "pin": args.pin_root.resolve(),
     }
-    server, env = server_command(
+    server, env, ready_file = server_command(
         args.arm, base, profile, python=args.python, roots=roots, output=output
     )
     host, port = option(server, "--host"), int(option(server, "--port"))
@@ -227,7 +235,7 @@ def main(argv=None):
             server, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
         )
         try:
-            wait_ready(process, url + base["readiness"]["path"], base["readiness"])
+            wait_ready(process, url + base["readiness"]["path"], base["readiness"], ready_file)
             with urllib.request.urlopen(url + "/get_server_info", timeout=60) as response:
                 (output / "server_info.json").write_bytes(response.read())
             status = subprocess.run(harness, cwd=roots["fork"] / HARNESS.parent).returncode
