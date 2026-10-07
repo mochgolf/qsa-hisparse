@@ -1,0 +1,3 @@
+1. **Minor — redundant binding-analysis complexity.** [fingerprint.py:40](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/fingerprint.py:40), [fingerprint.py:165](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/src/sglang_qsa_hisparse/fingerprint.py:165). The general rebinding analyzer adds no source-drift coverage beyond whole-module byte hashes. It also rejects the pinned `register_custom_op` dependency because of its five definitions, requiring PLAN’s caller workaround. **Smallest fix:** drop binding-count rejection and use owning-module hashes as the activation gate; retain definition hashes for diagnostics. This can be assigned to the orchestrator during Phase 1.
+
+G0: cleared

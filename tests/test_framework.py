@@ -217,59 +217,23 @@ def test_method_record_covers_class_header(fake):
     assert fingerprint.definition_record(fake.path, "Box.value")["sha256"] != before
 
 
-@pytest.mark.parametrize(
-    "suffix, qualname",
-    [
-        ("\nif True:\n    def double(x):\n        return 3 * x\n", "double"),
-        ("\ndouble = staticmethod(double)\n", "double"),
-        ("\nfrom os import path as double\n", "double"),
-        ("\ntry:\n    pass\nexcept Exception as double:\n    pass\n", "double"),
-        ("\nmatch 1:\n    case double:\n        pass\n", "double"),
-        ("\nif (double := 3):\n    pass\n", "double"),
-        ("\nfor double in ():\n    pass\n", "double"),
-        ("\nwith open(__file__) as double:\n    pass\n", "double"),
-        ("\ndel double\n", "double"),
-        ("\ndef other(x=(double := 1)):\n    pass\n", "double"),
-        ("\nclass Other((double := object)):\n    pass\n", "double"),
-        ("\nvalue: (double := int)\n", "double"),
-        ("\ng = lambda x=(double := 1): x\n", "double"),
-        ("\nclass Other:\n    global double\n    double = 1\n", "double"),
-        ("\ndef other():\n    global double\n    double = 1\n", "double"),
-        ("", "Child.value"),
-    ],
-    ids=["conditional", "reassigned", "imported", "except-alias", "match-capture",
-         "walrus", "for-target", "with-target", "del", "default-walrus",
-         "base-walrus", "annotation-walrus", "lambda-default", "class-global",
-         "function-global", "inherited"],
-)
-def test_ambiguous_or_inherited_bindings_cannot_be_pinned(fake, suffix, qualname):
-    fake.path.write_text(MODULE + suffix)
+
+
+
+
+
+
+
+
+
+
+
+
+def test_inherited_or_missing_definitions_cannot_be_pinned(fake):
     with pytest.raises(LookupError):
-        fingerprint.definition_record(fake.path, qualname)
-
-
-@pytest.mark.parametrize(
-    "suffix",
-    [
-        "\ndouble.extra = 1\n",
-        "\ndouble: object\n",
-        "\nvalues = [double for double in ()]\n",
-        "\ndef other():\n    double = 1\n    return double\n",
-        "\nclass Other:\n    double = 1\n",
-    ],
-    ids=["attribute", "annotation-only", "comprehension", "nested-function", "nested-class"],
-)
-def test_non_bindings_do_not_count(fake, suffix):
-    fake.path.write_text(MODULE + suffix)
-    assert fingerprint.definition_record(fake.path, "double")["qualname"] == "double"
-
-
-
-
-
-
-
-
+        fingerprint.definition_record(fake.path, "Child.value")
+    with pytest.raises(LookupError):
+        fingerprint.definition_record(fake.path, "absent")
 
 
 # Activation -----------------------------------------------------------------

@@ -23,8 +23,7 @@ this repository; `fork:` is `../qsa-hisparse` at `ee8fe158d6`; `pin:` is
    edit in the patch `reason` and cover it with a test. Members the fork
    *added* (absent at the pin) use `attach`/`attach_value`, which fail if
    upstream defines the name. Name every other upstream definition whose
-   behavior the copy assumes in `depends` (definitions with `@overload`
-   variants cannot be fingerprinted; name their callers instead).
+   behavior the copy assumes in `depends`.
    Fingerprints: `tools/fingerprint.py write <module-name> <targets...>`,
    always against `pin:`. Never hand-edit hashes.
 4. **Prefer the narrowest hook.** AFTER/AROUND at a function boundary first;

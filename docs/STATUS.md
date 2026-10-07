@@ -8,8 +8,8 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | P0-A inventory | done | `docs/patch-inventory.md`: 196 hunks → 89 rows, 39 REPLACE (~3,900 copied lines), 63 targets resolve at the pin |
 | P0-B baseline | done | `docs/baseline.md`: fork CPU 183 passed/7 skipped; pin subset 72 passed/3 skipped |
 | P0-C upstream status | done | `docs/upstream-status.md`: main `0b635266d4`, 1201 commits after pin |
-| G0 review | simplified after owner warning; final round pending | `reviews/G0*.md` |
-| Phase 1 W1–W7 | not started | |
+| G0 review | cleared (`reviews/G0final.md`) | `reviews/G0*.md` |
+| Phase 1 W1–W8 | running | `docs/tasks/W*.md` |
 | G1 review | pending | |
 | Phase 2 GPU | approved (runtime-env-sglang-20260923) | |
 | Phase 3 tracks I/U | not started | |
@@ -76,3 +76,6 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   module bytes, manifest, exact registry entries, identity checks and the
   launcher's exclusive plugin loading and version lock. PLAN rule 10 (keep it
   simple) added. 62 framework tests.
+- G0 cleared by the proportionate final review; its one minor item (binding
+  analysis redundant with module hashes) applied: `fingerprint.py` 146 lines,
+  42 framework tests. Phase 1 started with eight parallel workstreams.

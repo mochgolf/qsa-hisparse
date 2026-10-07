@@ -7,9 +7,7 @@ constants, helpers, line endings, indentation).
 
 Each record also hashes the definition itself (raw bytes, decorators, and the
 decorator/header lines of every enclosing class) to report which definitions
-changed when the pin is upgraded. Writing a record requires exactly one
-binding of each name along the qualified path, so the fingerprinted
-definition is the one the module binds.
+changed when the pin is upgraded; the module hash alone gates activation.
 
 Pinned records live in ``fingerprints/*.json`` (one file per patch module, so
 parallel work does not share a file). See PLAN.md, "Activation guarantees",
@@ -25,157 +23,27 @@ from pathlib import Path
 from sglang_qsa_hisparse.errors import FingerprintMismatch
 
 _DEFINITIONS = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-_NEW_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
-_COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
-_BODY_FIELDS = ("body", "orelse", "finalbody", "handlers", "cases")
 
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-# Binding analysis -------------------------------------------------------------
-
-
-def _expression_bindings(node: ast.AST, names: list[str], in_comprehension: bool) -> None:
-    """Names an expression binds in the enclosing scope."""
-    if isinstance(node, ast.NamedExpr):
-        names.append(node.target.id)  # Walrus binds outside comprehensions too.
-        _expression_bindings(node.value, names, in_comprehension)
-        return
-    if isinstance(node, ast.Lambda):
-        # Defaults are evaluated in the enclosing scope; the body is not.
-        arguments = node.args
-        for default in arguments.defaults + [d for d in arguments.kw_defaults if d]:
-            _expression_bindings(default, names, in_comprehension)
-        return
-    if isinstance(node, _NEW_SCOPES):
-        return
-    if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
-        if not in_comprehension:
-            names.append(node.id)
-        return
-    inner = in_comprehension or isinstance(node, _COMPREHENSIONS)
-    for child in ast.iter_child_nodes(node):
-        _expression_bindings(child, names, inner)
-
-
-def _pattern_bindings(pattern: ast.AST, names: list[str]) -> None:
-    for node in ast.walk(pattern):
-        if isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
-            names.append(node.name)
-        elif isinstance(node, ast.MatchMapping) and node.rest:
-            names.append(node.rest)
-
-
-def _statement_bindings(statement: ast.stmt) -> list[str]:
-    """Names bound in the current scope by ``statement`` itself (not its body)."""
-    names: list[str] = []
-    if isinstance(statement, _DEFINITIONS):
-        names.append(statement.name)
-        # Expressions evaluated in the enclosing scope when the definition runs.
-        header = list(statement.decorator_list)
-        if isinstance(statement, ast.ClassDef):
-            header += statement.bases + [k.value for k in statement.keywords]
-        else:
-            arguments = statement.args
-            header += arguments.defaults + [d for d in arguments.kw_defaults if d]
-            every = arguments.posonlyargs + arguments.args + arguments.kwonlyargs
-            every += [a for a in (arguments.vararg, arguments.kwarg) if a]
-            header += [a.annotation for a in every if a.annotation is not None]
-            if statement.returns is not None:
-                header.append(statement.returns)
-        for expression in header:
-            _expression_bindings(expression, names, False)
-        return names
-    if isinstance(statement, (ast.Import, ast.ImportFrom)):
-        for alias in statement.names:
-            if alias.name != "*":
-                names.append(alias.asname or alias.name.split(".")[0])
-        return names
-    if isinstance(statement, (ast.Global, ast.Nonlocal)):
-        return names
-    if isinstance(statement, ast.AnnAssign) and statement.value is None:
-        # Annotation only: the target is declared, not bound, but the
-        # annotation expression is evaluated (and may bind via walrus).
-        _expression_bindings(statement.annotation, names, False)
-        return names
-    if isinstance(statement, ast.Try) or type(statement).__name__ == "TryStar":
-        for handler in statement.handlers:
-            if handler.name:
-                names.append(handler.name)
-            if handler.type is not None:
-                _expression_bindings(handler.type, names, False)
-        return names
-    if isinstance(statement, ast.Match):
-        _expression_bindings(statement.subject, names, False)
-        for case in statement.cases:
-            _pattern_bindings(case.pattern, names)
-            if case.guard is not None:
-                _expression_bindings(case.guard, names, False)
-        return names
-    for field, value in ast.iter_fields(statement):
-        if field in _BODY_FIELDS:
-            continue
-        for node in value if isinstance(value, list) else [value]:
-            if isinstance(node, ast.AST):
-                _expression_bindings(node, names, False)
-    return names
-
-
-def _statements(scope: ast.AST):
-    """Statements executed in ``scope``, entering compound statements only."""
-    pending = list(getattr(scope, "body", ()))
-    while pending:
-        statement = pending.pop()
-        yield statement
-        if isinstance(statement, _NEW_SCOPES):
-            continue
-        for field in _BODY_FIELDS:
-            for child in getattr(statement, field, ()) or ():
-                if isinstance(child, (ast.ExceptHandler, ast.match_case)):
-                    pending.extend(child.body)
-                else:
-                    pending.append(child)
-
-
-def _global_rebindings(module: ast.Module, name: str) -> int:
-    """Bindings of ``name`` in nested scopes that declare it ``global``."""
-    count = 0
-    for node in ast.walk(module):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            continue
-        statements = list(_statements(node))
-        if any(isinstance(s, ast.Global) and name in s.names for s in statements):
-            count += sum(_statement_bindings(s).count(name) for s in statements)
-    return count
-
-
-def binding_count(scope: ast.AST, name: str) -> int:
-    count = sum(_statement_bindings(s).count(name) for s in _statements(scope))
-    if isinstance(scope, ast.Module):
-        count += _global_rebindings(scope, name)
-    return count
-
-
 def _locate(tree: ast.Module, qualname: str) -> tuple[ast.AST, list[ast.ClassDef]]:
+    """Last direct definition along ``qualname`` (the one Python binds last)."""
     node: ast.AST = tree
     enclosing: list[ast.ClassDef] = []
     for part in qualname.split("."):
-        count = binding_count(node, part)
         direct = [
             child
             for child in getattr(node, "body", ())
             if isinstance(child, _DEFINITIONS) and child.name == part
         ]
-        if count != 1 or len(direct) != 1:
-            raise LookupError(
-                f"{qualname}: {part!r} must have exactly one binding, a direct "
-                f"definition; found {count} binding(s), {len(direct)} direct"
-            )
+        if not direct:
+            raise LookupError(f"{qualname}: no direct definition of {part!r}")
         if isinstance(node, ast.ClassDef):
             enclosing.append(node)
-        node = direct[0]
+        node = direct[-1]
     return node, enclosing
 
 
