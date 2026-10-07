@@ -132,3 +132,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   `compat+hisparse` (60 + 6). `tools/run_cpu_tests.sh` runs three passes:
   396 unit passed (12 GPU skipped, 1 known fork xfail), 1 subprocess
   integration passed, 26 activated integration passed. 358 fingerprints match.
+- G1 (gpt-6.1-sol xhigh): no parity, ordering or plugin-off defects; 3 major
+  and 2 minor evidence-tooling gaps. Lock file packaged (finding 5). W5 resumed
+  for plugin-arm GPU probe runner (finding 1); W8 resumed for comparator
+  coverage, required observer evidence and launcher-ready gating (2–4).
