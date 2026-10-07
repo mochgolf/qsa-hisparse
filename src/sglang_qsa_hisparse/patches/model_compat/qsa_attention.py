@@ -84,6 +84,10 @@ _FUNCTION_SCOPE = (
     "process-cached scope.target_model_active() per call; out of scope the "
     "pinned definition runs."
 )
+_DIRECT_BINDING = (
+    " The in-scope backend copies bind the plugin copy directly, so only "
+    "pinned callers pass through this check."
+)
 
 
 def _scoped_function(upstream, plugin_impl):
@@ -177,6 +181,7 @@ patch(
         "of FA4 cute on SM86/SM89 without flash_attn. replace: the branch sits "
         "between two try-blocks. The verbatim copy keeps @lru_cache(maxsize=1). "
         + _FUNCTION_SCOPE
+        + _DIRECT_BINDING
     ),
 )(_scoped_function(_backend._resolve_flash_attn_varlen_func, _resolve_flash_attn_varlen_func))
 
@@ -260,7 +265,8 @@ def _store_kv(self, layer, loc, k: torch.Tensor, v: torch.Tensor) -> None:
 
 _Q04_REASON = (
     "model_compat: FP8 KV store path; the qsa_hisparse branch is inert (rule 2). "
-    "attach: member added by the fork. Called only from the scoped Q08/Q11 copies."
+    "attach: member added by the fork. Scope: called only from the scoped "
+    "Q08/Q10/Q11/Q12 copies, so it needs no check of its own."
 )
 _Q04_DEPENDS = (
     "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.set_kv_buffer",
@@ -575,7 +581,8 @@ _Q09_REASON = (
     "model_compat (rule 2): _can_run_fa2_graph is called by the Q12 copy; "
     "the hisparse Q07 hook calls the other two. All are inert without the "
     "runtime. attach: members added by the fork; the module-level "
-    "_resolve_flashinfer_qsa_ragged lives in this module."
+    "_resolve_flashinfer_qsa_ragged lives in this module. Scope: called only "
+    "from the scoped Q12 copy and the hisparse Q07 hook."
 )
 _Q09_DEPENDS = (
     f"{_BACKEND}.init_cuda_graph_state",
@@ -1109,6 +1116,7 @@ _KERNEL_REASON = (
     "(kernels/qsa_sparse_attn.py, moved rows A01/A02/A04/A07). replace: the "
     "kernel signature changed, so the launcher must launch the plugin copy. "
     + _FUNCTION_SCOPE
+    + _DIRECT_BINDING
 )
 patch(
     f"{_SPARSE_ATTN}.sparse_gqa_fwd_interface_triton",
