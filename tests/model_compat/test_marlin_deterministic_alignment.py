@@ -6,8 +6,9 @@ plugin's: the stable alignment helper (J04), the copied ``fused_marlin_moe``
 body (J03), the copied op wrapper (J01) and the copied stripe schedule (J02).
 The fork loaded the first two by executing its source files with stubbed
 packages; the port imports the plugin modules and substitutes the same stubs
-for their module globals instead. GPU checks are marked ``gpu``; the
-standalone test/manual/marlin_deterministic_alignment.py tests the real GEMM.
+for their module globals instead. GPU checks are marked ``gpu``; the whole-K
+one runs the fork's test/manual/marlin_batch_invariance.py (from QSA_FORK_ROOT)
+through tools/evidence/plugin_probe.py and fails if the script is missing.
 """
 
 import importlib.util
@@ -25,6 +26,7 @@ import sglang_qsa_hisparse.kernels
 from sglang_qsa_hisparse.kernels import stable_align as module
 
 KERNELS = Path(sglang_qsa_hisparse.kernels.__file__).resolve().parent
+PLUGIN_PROBE = Path(__file__).resolve().parents[2] / "tools/evidence/plugin_probe.py"
 align = module.moe_align_block_size_stable
 
 
@@ -403,15 +405,16 @@ def test_cuda_graph_replay_updates_integer_mapping(tokens):
 @pytest.mark.gpu
 @pytest.mark.integration
 def test_whole_k_actual_group64_cuda_graph_target_batch_reference(tmp_path):
-    # The fork's test/manual/marlin_batch_invariance.py imports the fork's
-    # in-tree op; it qualifies the plugin only once ported to the plugin op
-    # (Phase 2 input), which QSA_MARLIN_BATCH_SCRIPT then names.
-    if not os.environ.get("QSA_MARLIN_BATCH_SCRIPT"):
-        pytest.skip("needs the plugin port of test/manual/marlin_batch_invariance.py")
-    script = Path(os.environ["QSA_MARLIN_BATCH_SCRIPT"])
+    # The fork's unmodified script, run by the plugin-arm runner against the
+    # plugin Marlin op and stable helper (tools/evidence/plugin_probe.py).
+    fork = os.environ.get("QSA_FORK_ROOT", "")
+    script = Path(fork, "test/manual/marlin_batch_invariance.py")
+    if not fork or not script.is_file():
+        pytest.fail(f"set QSA_FORK_ROOT to the fork checkout (ee8fe158d6); missing {script}")
     result = subprocess.run(
         [
             sys.executable,
+            str(PLUGIN_PROBE),
             str(script),
             "--cuda-graphs",
             "--batch-sizes",
