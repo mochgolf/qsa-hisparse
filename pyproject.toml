@@ -21,3 +21,9 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 sglang_qsa_hisparse = ["fingerprints/*.json", "kernels/csrc/**/*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: needs patches owned by several workstreams; run after merging",
+    "gpu: needs CUDA; skipped by the CPU runner",
+]
