@@ -147,6 +147,10 @@
         {
           "target": "sglang.srt.model_executor.forward_batch_info.ForwardBatch.init_new",
           "hook_type": "after"
+        },
+        {
+          "target": "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch",
+          "hook_type": "after"
         }
       ],
       "attach": []

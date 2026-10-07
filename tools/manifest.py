@@ -30,6 +30,12 @@ OVERRIDES = {
             {"target": "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.__init__", "hook_type": "before"},
         ]
     },
+    "F01": {
+        "patches": [
+            {"target": "sglang.srt.model_executor.forward_batch_info.ForwardBatch.init_new", "hook_type": "after"},
+            {"target": "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch", "hook_type": "after"},
+        ]
+    },
     "Q04": {"attach": [{"owner": BACKEND, "name": "_kv_descales"}, {"owner": BACKEND, "name": "_store_kv"}]},
     "Q09": {
         "attach": [

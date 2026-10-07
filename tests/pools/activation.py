@@ -21,14 +21,7 @@ ROWS = ("K01", "K02", "K03", "F01", "R01", "R02", "C01", "C02", "G01", "G02", "G
 # Hooks W3 added beyond the inventory, until the orchestrator updates
 # docs/patch-inventory.md and manifest.json: under deviation D3 the F01
 # instance attribute must also survive EagerRunner.load_batch's copy.
-PENDING_MANIFEST = {
-    "F01": [
-        {
-            "target": "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch",
-            "hook_type": "after",
-        }
-    ],
-}
+PENDING_MANIFEST: dict = {}  # F01's EagerRunner hook is in manifest.json now.
 
 
 def manifest_rows(rows):
