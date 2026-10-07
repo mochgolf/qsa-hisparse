@@ -18,7 +18,8 @@ the deployment half of PLAN.md's activation guarantees:
    ``qsa_hisparse`` entry point (this package, from this file's directory),
    parse the server arguments with SGLang's own parser (single node, one
    pipeline stage, one data-parallel replica: one scheduler per TP rank),
-   and report native library versions equal to ``docs/environment.lock.json``.
+   and report native library versions equal to ``environment.lock.json``
+   (package data).
 4. ``SGLANG_QSA_ACTIVATION_DIR`` points at an empty private directory and the
    server starts in its own process group.
 5. Ready (a stdout line and ``<run-dir>/ready.json``) is reported only once
@@ -60,7 +61,7 @@ ENTRY_POINT = "sglang_qsa_hisparse.plugin:load"
 # A private dist-info; its version is not a release.
 DIST_INFO_VERSION = "0+launcher"
 LOCKED_DISTRIBUTIONS = ("torch", "sglang-kernel", "flashinfer-python", "triton")
-LOCK_FILE = Path(__file__).resolve().parents[2] / "docs" / "environment.lock.json"
+LOCK_FILE = Path(__file__).resolve().parent / "environment.lock.json"
 SERVER_MODULE = "sglang.launch_server"
 POLL_SECONDS = 0.5
 STOP_TIMEOUT_SECONDS = 30.0

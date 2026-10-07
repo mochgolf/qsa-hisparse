@@ -597,7 +597,10 @@ def test_wheel_contains_activation_data(tmp_path):
     assert result.returncode == 0, result.stderr[-2000:]
     names = zipfile.ZipFile(glob.glob(str(tmp_path / "*.whl"))[0]).namelist()
     package = repo / "src" / "sglang_qsa_hisparse"
-    expected = ["sglang_qsa_hisparse/manifest.json"] + [
+    expected = [
+        "sglang_qsa_hisparse/manifest.json",
+        "sglang_qsa_hisparse/environment.lock.json",
+    ] + [
         f"sglang_qsa_hisparse/fingerprints/{p.name}" for p in (package / "fingerprints").glob("*.json")
     ]
     assert set(expected) <= set(names)

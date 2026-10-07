@@ -20,7 +20,7 @@ qsa_hisparse = "sglang_qsa_hisparse.plugin:load"
 where = ["src"]
 
 [tool.setuptools.package-data]
-sglang_qsa_hisparse = ["manifest.json", "fingerprints/*.json", "kernels/csrc/**/*"]
+sglang_qsa_hisparse = ["manifest.json", "environment.lock.json", "fingerprints/*.json", "kernels/csrc/**/*"]
 
 [tool.pytest.ini_options]
 markers = [
