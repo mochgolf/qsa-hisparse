@@ -1,7 +1,7 @@
 # Fork test/registered/kernel/qsa/test_qsa.py (the pinned file plus the fork's
 # test_qsa_decode_score_width_matches_graph_without_padding_page_table), run
 # with the W4 rows active (tests/qsa/conftest.py). Port edits are marks only:
-# the known fork failure is a strict xfail and two CUDA-only tests are `gpu`.
+# the known fork failure is a strict xfail and the CUDA-only tests are `gpu`.
 import sys
 from types import ModuleType, SimpleNamespace
 
@@ -48,6 +48,7 @@ BLOCK_TOPK = TOKEN_TOPK // COMPRESS_RATIO
 FINAL_TOPK = TOKEN_TOPK + COMPRESS_RATIO - 1
 
 
+@pytest.mark.gpu  # Skips or returns early without CUDA.
 def test_qsa_chunk_prefill_accepts_fp8_cached_prefix():
     if not torch.cuda.is_available() or torch.cuda.get_device_capability() < (8, 9):
         pytest.skip("FP8-capable CUDA GPU required")
@@ -173,6 +174,7 @@ def test_qsa_sm121_resolves_kda_varlen_kernel(monkeypatch):
         resolver.cache_clear()
 
 
+@pytest.mark.gpu  # Skips or returns early without CUDA.
 def test_qsa_sm121_compaction_and_attention_match_sparse_reference():
     if not torch.cuda.is_available() or torch.cuda.get_device_capability() != (12, 1):
         pytest.skip("SM121-only kernel")
@@ -589,6 +591,7 @@ def test_qsa_indexer_ignores_dp_attention_token_padding():
     assert calls == {"token_rows": 15, "logical_rows": 15, "rope_rows": 15}
 
 
+@pytest.mark.gpu  # Skips or returns early without CUDA.
 def test_qsa_cuda_extend_ignores_dp_attention_padding(monkeypatch):
     if not torch.cuda.is_available():
         return
@@ -1201,6 +1204,7 @@ def test_qsa_block_expansion_adds_only_incomplete_tail():
     assert torch.all(result[1, 11:] == -1)
 
 
+@pytest.mark.gpu  # Skips or returns early without CUDA.
 def test_qsa_triton_block_expansion_matches_torch_reference():
     if not torch.cuda.is_available():
         return

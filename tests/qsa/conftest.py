@@ -95,6 +95,11 @@ def qsa_patches():
             _deactivate(originals)
             _reset_activation_state()
             patching._declared[:], patching._attached[:] = saved
+    assert all(patching._raw_attribute(t) is o for t, o in originals.items())
+    assert all(
+        getattr(pkgutil.resolve_name(a.owner), a.name, None) is not a.value
+        for a in attaches
+    )
 
 
 @pytest.fixture(autouse=True)
