@@ -180,3 +180,14 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   is open #35955 (support needs owner OK), `qsa/U7-gptq-moe-w13-scale-k` and
   `qsa/U7-autoround-moe-marlin-group-split` stacked on it (split needs GPU
   speed/GSM8K numbers); INT8-row PLE dropped this cycle (#41624 overlaps).
+- UC done: `qsa/U6-qsa-sm8x-varlen-fallback` (Q01; upstream bug hit by the
+  validation interpreter's FA4-without-FA2 setup), `qsa/U6-qsa-fp8-kv-scales`
+  (no REPLACE removed without a recorded deviation), `qsa/U8-marlin-moe-batch-invariant`
+  (J01–J04, not compiled; needs GPU matrix); stable top-k → #42087; stable HC
+  dropped; U4 dropped, U5 deferred (no in-tree consumer).
+- Phase 2 run2: **G2-1 PASS** (Marlin align 1, whole-K 1,187, graphs 217,
+  native 1,187, top-k 110 items equal F=P; registered kernel tests: same two
+  known fork `__new__` failures on both arms). **G2-2 PASS** (10 evidence
+  items equal incl. observer byte digests 1,505/rank, qualification 1,181,
+  ledgers, lifecycle, concurrency, memory figures; all four harnesses passed
+  on both arms). Comparator skips run metadata `harness-status.json`.

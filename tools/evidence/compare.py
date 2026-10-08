@@ -121,6 +121,8 @@ VOLATILE_KEYS = frozenset(
     {"time_ns", "cuda_allocated", "cuda_reserved", "host_alloc_wall_ms", "graph_pool"}
 )
 SERVER_INFO = ("max_total_num_tokens", "max_req_input_len")
+# Run scripts' own records (command, harness exit codes), not evidence.
+RUN_METADATA = frozenset({"run.json", "harness-status.json"})
 MEMORY_USAGE = ("kvcache", "token_capacity")
 MEASURED_MEMORY = ("weight", "graph", "startup_available")
 LOG_FIGURES = re.compile(
@@ -290,7 +292,7 @@ def items_of(name, path, info, arm):
 
 def arm_files(arm):
     # run.json is run_compat.py's record of its own command; arms differ by design.
-    names = {p.name for p in arm.glob("*.json") if p.name != "run.json"} | {
+    names = {p.name for p in arm.glob("*.json") if p.name not in RUN_METADATA} | {
         p.name for p in arm.glob("server.log")
     }
     for sub in ("events", "observer"):
