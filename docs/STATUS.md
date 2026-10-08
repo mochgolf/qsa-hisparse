@@ -193,3 +193,10 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   on both arms). Comparator skips run metadata `harness-status.json`.
 - Phase 2 complete (`docs/phase2-results.md`); production restored 23:44 and
   verified. G2 review running.
+- G3-U (gpt-6.1-sol xhigh): ready after owner confirmation: U1, U9a, U7 w13
+  (as a contribution to #35955 only). Needs changes: U9b (CustomTestCase),
+  U7 group split (doc widths; GPU accuracy/perf before opening), U6a/U6b (CPU
+  test placement; GPU smoke/regression before opening), U8 (numerical
+  reference; compile/run/accuracy before opening); doc corrections for U4,
+  U5, U23 (`on_release` precedes row free), stable HC scope. UA/UB/UC
+  resumed for the CPU-side fixes.
