@@ -367,6 +367,27 @@ Step 8 test IDs map by file and test name: the fork's `test_qsa.py` is
 `tests/qsa/test_qsa.py` in P, and the fork's `test_hc_mix_triton.py` is the
 pinned file plus `tests/model_compat/test_hc_mix_triton.py` (its one added test).
 
+**Pin v0.5.21 (Phase 4, G4-GPU).** The paths above are the Phase 2 record
+(pin `76e06febab`); the Phase 2 fork arm logs stay the reference for F.
+v0.5.21 moved the registered kernel tests and renamed the HC file (same test
+names), so P's step 8b runs, with `PIN` the v0.5.21 checkout:
+
+```bash
+cd $PIN/test && $PROBE -m pytest -v -rA -p no:cacheprovider \
+  registered/kernels/ops/attention/qsa/test_qsa_indexer.py \
+  registered/kernels/ops/attention/qsa/test_qsa_strided_zero_fill.py \
+  registered/kernels/ops/gemm/test_hc_mix.py
+```
+
+Step 8a is unchanged (`tests/qsa/test_qsa.py`,
+`tests/model_compat/test_hc_mix_triton.py`; the pin's own `test_qsa.py` is at
+`registered/kernels/ops/attention/qsa/test_qsa.py`). `pytest_outcomes.py`
+keys `test_hc_mix.py` as `test_hc_mix_triton.py` (`RENAMED`), so the frozen
+inventory still applies. Collected on CPU (2026-10-08), the three v0.5.21
+files give 26 IDs, all in the inventory; the one inventory ID they lack is the
+fork-added `test_stable_fused_hc_mix_is_exact_across_batch_sizes`, which 8a
+supplies, as in Phase 2.
+
 ## Gaps
 
 1. **No fork goldens exist for the Phase 2 environment.** Snapshot 7 used the

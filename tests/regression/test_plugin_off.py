@@ -5,9 +5,11 @@ A fresh process gets the launcher's environment (private dist-info on
 runs SGLang's plugin loader, and then runs the pinned upstream subset from
 ``docs/baseline.md`` in-process with pytest. The plugin must be loaded, the
 HookRegistry must stay empty, no activation record may appear, and the subset
-must give the pinned results: the five unit files 72 passed / 3 skipped
-(9 subtests), ``kernel/qsa/test_qsa.py`` 35 passed / 2 skipped with exactly
-the two CUDA-only failures.
+must give the pinned results (those of pristine v0.5.21 with no plugin on
+the path, CPU runner, 2026-10-08): the five unit files 81 passed / 3 skipped
+(9 subtests), ``kernels/ops/attention/qsa/test_qsa.py`` (``kernel/qsa/`` at
+the previous pin) 35 passed / 2 skipped with exactly the two CUDA-only
+failures.
 """
 
 import json
@@ -27,10 +29,10 @@ UNIT_FILES = [
     "test/registered/unit/managers/test_batch_result_processor_hidden_states.py",
     "test/registered/unit/managers/test_scheduler_chunked_req_gate.py",
 ]
-QSA_FILE = "test/registered/kernel/qsa/test_qsa.py"
+QSA_FILE = "test/registered/kernels/ops/attention/qsa/test_qsa.py"
 CUDA_ONLY_FAILURES = {
-    "registered/kernel/qsa/test_qsa.py::test_qsa_graph_metadata_kernels_match_legacy_host_path",
-    "registered/kernel/qsa/test_qsa.py::test_qsa_graph_layout_covers_speculative_rows_and_padded_tail",
+    "registered/kernels/ops/attention/qsa/test_qsa.py::test_qsa_graph_metadata_kernels_match_legacy_host_path",
+    "registered/kernels/ops/attention/qsa/test_qsa.py::test_qsa_graph_layout_covers_speculative_rows_and_padded_tail",
 }
 MARKER = "QSA_OFF_RESULT "
 
@@ -102,10 +104,10 @@ def test_installed_but_off_is_pristine_upstream(tmp_path):
     assert not (tmp_path / "activation").exists()
 
     outcomes = state["outcomes"]
-    unit = Counter(v for k, v in outcomes.items() if not k.startswith("registered/kernel/"))
-    qsa = Counter(v for k, v in outcomes.items() if k.startswith("registered/kernel/qsa/"))
+    unit = Counter(v for k, v in outcomes.items() if not k.startswith("registered/kernels/"))
+    qsa = Counter(v for k, v in outcomes.items() if k.startswith("registered/kernels/ops/attention/qsa/"))
     failed = {k for k, v in outcomes.items() if v == "failed"}
-    assert unit == {"passed": 72, "skipped": 3}, unit
+    assert unit == {"passed": 81, "skipped": 3}, unit
     assert qsa == {"passed": 35, "skipped": 2, "failed": 2}, qsa
     assert failed == CUDA_ONLY_FAILURES
     assert state["subtests"] == {"passed": 9}

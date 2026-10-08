@@ -27,7 +27,7 @@ Objects and owners:
 | 4 | `PrefillAdder.add_chunked_req` 950 | `prefill_checkpoint_limit` | P01 | `test_chunk_continuation_*` |
 | 5 | `alloc_for_extend` 344 (from `ScheduleBatch.prepare_for_extend` 2677) | `prepare_prefix_for_extend`, `note_extend_allocation`, `restore_prefix_for_extend`, `rollback_prefix_for_extend` | M01 | 8 tests, see section 4 |
 | 6 | `maybe_cache_unfinished_req` (common.py 156) from `Scheduler.stash_chunked_request` 3483 (`chunked=True`) and `process_batch_result_prefill` 383 | `cache_unfinished_req` -> `_capture` | none; B03 keeps `admit_request_into_staging` after it | `test_ordinary_short_prompt_*`, `test_real_request_force_miss_*` |
-| 7 | `release_kv_cache` (common.py 254) | `before_release` (-> `_capture` if inserting), runtime `release`, `cache_finished_req`, runtime `after_release` | M03 | none (W2 lifecycle ledger test) |
+| 7 | `release_kv_cache` (common.py 254; v0.5.21: 292) | `before_release` (-> `_capture` if inserting), runtime `release`, `cache_finished_req` (v0.5.21: `release_kv_cache` frees the row itself and then calls `on_release`, which drops the pending match), runtime `after_release` | M03 | `tests/prefix/test_release.py` (v0.5.21: `on_release` from the pinned `release_kv_cache`); W2 lifecycle ledger test |
 | 8 | `PagedTokenToKVPoolAllocator.free_group_end` 328 | runtime `after_logical_flush` / `after_release(pending_release)` | M02 | none (W2 lifecycle ledger test) |
 | 9 | `Scheduler._release_aborted_request` 3281 -> `BasePrefixCache.finish(ABORT)` | `release_aborted_request` | none | `test_queued_abort_*`, `test_old_abort_handle_*` |
 | 10 | `Scheduler.flush_cache` 5013, then `req_to_token_pool.clear()` | `reset` | none; M04 keeps generations monotonic across the clear | `test_pool_flush_*` (needs M04), `test_queued_abort_*` |
@@ -112,7 +112,10 @@ disabled, so the steps below run in this order for each request.
    `runtime.release` (drain: terminal event and copy events) ->
    `cache_finished_req` (drops any reader, frees the KV row) ->
    over-allocation release -> Mamba slot free -> `req_to_token_pool.free` ->
-   `mark_kv_released` -> `runtime.after_release(lease)`. Inside a free group
+   `mark_kv_released` -> `runtime.after_release(lease)`. At v0.5.21 the
+   steps between `runtime.release` and the Mamba slot free are upstream's:
+   `insert_req` (a no-op here) when inserting -> KV row free -> `unpin` ->
+   over-allocation release -> `on_release` (drops any reader). Inside a free group
    (`process_batch_result_*` brackets with `free_group_begin/end`) the lease
    is queued and committed by `after_logical_flush` at `free_group_end`; only
    then is the physical slot reusable.
