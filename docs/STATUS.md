@@ -269,3 +269,10 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   `pin-76e06febab-final` keeps the previous state. P4.0 infra:
   `FORK_BASE_COMMIT`, default pin root, `tests/regression/test_replace_deltas.py`
   (REPLACE copy = pin definition + fork change). Tasks P4-A..D started.
+- Phase 4 tasks P4-A..D and follow-ups merged into branch `phase4`
+  (`docs/phase4-results.md`): REPLACE 37 → 31 (S02, P01, M04 narrowed; H05
+  removed; G03, R02 narrowed as owner-approved deviations D6, D7; D3 uses
+  upstream's `req_pool_indices_cpu`). B06's new weight-update session is
+  outside the contract. Full CPU suite at v0.5.21 passes (569 + 4 + 26),
+  364 fingerprints, manifest current. Next: G4-CPU review, then the
+  G4-GPU window (owner approval).
