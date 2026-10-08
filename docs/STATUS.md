@@ -11,7 +11,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | G0 review | cleared (`reviews/G0final.md`) | `reviews/G0*.md` |
 | Phase 1 W1–W8 | done; G1 cleared | `reviews/G1*.md` |
 | G1 review | cleared (`reviews/G1r.md`) | |
-| Phase 2 GPU | approved (runtime-env-sglang-20260923) | |
+| Phase 2 GPU | done: G2-1, G2-2, compat-only, G2-4 PASS; G2-3 deferred | `docs/phase2-results.md` |
 | Phase 3 tracks I/U | not started | |
 
 ## Log
@@ -191,3 +191,5 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   items equal incl. observer byte digests 1,505/rank, qualification 1,181,
   ledgers, lifecycle, concurrency, memory figures; all four harnesses passed
   on both arms). Comparator skips run metadata `harness-status.json`.
+- Phase 2 complete (`docs/phase2-results.md`); production restored 23:44 and
+  verified. G2 review running.
