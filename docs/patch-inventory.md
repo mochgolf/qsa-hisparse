@@ -90,22 +90,24 @@ Conventions:
 
 | ID | Fork file:lines | Behavior | Feature: justification | Hook target (pin) | Type: why | depends (key) | WS | U |
 |---|---|---|---|---|---|---|---|---|
-| Q01 | layers/attention/qwen_sparse_attn_backend.py:95-103 | On SM86/SM89 without `flash_attn`, use SGLang's vendored varlen flash-attention instead of FA4 cute | model_compat: changes the kernel on consumer GPUs | `sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func` (pin 67) | replace (39): inserted between two try-blocks. The copy must keep `@lru_cache(maxsize=1)`, and the wrapper must expose `cache_clear` (§6, G5) | `sglang.kernels.ops.attention.flash_attention.flash_attn_varlen_func`, `utils.is_sm121` | W4 | U6 |
-| Q02 | qwen_sparse_attn_backend.py:239-243 | `__init__`: FA2 graph-wrapper state (`_fa2_graph_wrappers`, `_workspace`, `_shape`, `_unavailable`, `_active_logged`) | model_compat (rule 2): Q12's compat-owned verbatim body reads `_fa2_graph_wrappers` and `_fa2_graph_active_logged`; inert without the runtime | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__` (pin 179) | after: also sets `qsa_hisparse = None` only if absent (§2, C3). The fork's statements after the block are plain None assignments | `QwenSparseAttnBackend.__init__` | W4 | U6 |
-| Q03 | qwen_sparse_attn_backend.py:11, 246-257 | `__init__`: with `SGLANG_QSA_HISPARSE_V3` set, build `QSAHiSparseRuntime`/`SingleRequest` and attach it as `token_to_kv_pool.qsa_hisparse` | hisparse: env-gated | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__` (pin 179) | after: same argument as Q02 | `QwenSparseAttnBackend.__init__` | W4 | U23/U6 |
-| Q04 | qwen_sparse_attn_backend.py:34, 262-291 | New `_kv_descales` and `_store_kv`: for FP8 KV with non-unit scales, `set_kv_buffer` gets scales and cloned K/V; with a runtime, `write_locations` remaps | model_compat: FP8 KV path. The `qsa_hisparse` branch is inert (rule 2) | new members on `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend` | attach: new methods (§6, G1) | `memory_pool.HybridLinearKVPool.set_kv_buffer`, `MHATokenToKVPool.set_kv_buffer` (divides in place), A01 | W4 | U6 |
-| Q05 | qwen_sparse_attn_backend.py:704, 741-749, 790 | Eager plain decode (no spec) sets `decode_score_width = ceil(max_blocks/page)*page`, matching the CUDA graph | model_compat: changes eager decode score width (§4 item 6) | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._metadata_from_forward_batch` (pin 542) | after: when the batch is not idle or empty, `should_reuse_mtp_sparse_indices` is false (pure), the mode is decode, and `spec_info` is None, `msgspec.structs.replace` `indexer_metadata` with the width. Requires T04. Fallback: replace (193) | `QwenSparseAttnBackend.should_reuse_mtp_sparse_indices`, `._empty_metadata`, T04 | W4 | U8 (gap: not named) |
-| Q06 | qwen_sparse_attn_backend.py:808-809 | `init_forward_metadata` calls `qsa_hisparse.begin_batch(fb)` for non-idle batches | hisparse | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.init_forward_metadata` (pin 725) | before: skip when the batch is idle (the fork's early return) | none | W4 | U6 |
-| Q07 | qwen_sparse_attn_backend.py:995-1006 | `_capture_cuda_graph_metadata` plans an SM89 FlashInfer ragged FA2 graph wrapper for P2 graph decode | hisparse | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._capture_cuda_graph_metadata` (pin 830) | after: all inputs are keyword arguments, and `metadata_rows = bs` for decode with no spec. The insertion is at the end | `._is_speculative_paged_mode`, Q09 | W4 | U5/U6 |
-| Q08 | qwen_sparse_attn_backend.py:1370, 1429-1434, 1436, 1440 | `forward_extend`: store through `_store_kv`. Chunk prefill gathers raw slots via `qsa_hisparse.prefill_slots` | model_compat (both features; rule 2 copies the inert `qsa_hisparse` branch) | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_extend` (pin 1263-1364) | replace (102): mid-function call changes | Q04, A03, A05, `kernel.qsa_sparse_attention`, `._resolve_metadata`, `._forward_paged_attention` | W4 | U6 |
-| Q09 | qwen_sparse_attn_backend.py:50-60, 1492-1593 | `_resolve_flashinfer_qsa_ragged` (module) + `_qsa_local_head_shape`, `_ensure_fa2_graph_wrapper`, `_can_run_fa2_graph` | model_compat (rule 2): `_can_run_fa2_graph` is called by Q12's verbatim body. All four are inert without the runtime; only Q07 (hisparse) calls the other two | new members on `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend` | attach (3 methods); the module function lives in the plugin | flashinfer `BatchPrefillWithRaggedKVCacheWrapper` (external) | W4 | U6 |
-| Q10 | qwen_sparse_attn_backend.py:1650, 1667-1668 | `_forward_trtllm_sparse` passes FP8 descales to compact extraction | model_compat: FP8 KV | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_trtllm_sparse` (pin 1414-1499) | replace (89): extra arguments in a mid-function call | A09, `._get_trtllm_sparse_tables`, `._get_fa2_scratch`, `sparse_attn.qwen_sparse_valid_counts_triton` | W4 | U6 |
-| Q11 | qwen_sparse_attn_backend.py:1713-1719 | `forward_decode`: store through `_store_kv`, then `qsa_hisparse.after_store(layer[, graph=True])` | model_compat (both; rule 2) | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_decode` (pin 1501) | replace (23): `after_store` must follow the store and precede paged attention | Q04, Q12, `._resolve_metadata` | W4 | U6 |
-| Q12 | qwen_sparse_attn_backend.py:42, 1741-1753, 1766-1845 | `_forward_paged_attention`: `qsa_hisparse.selected()` buffers. trtllm is disabled under HiSparse. NVTX ranges. FP8 scratch dtype and descales. FA2 graph wrapper. `capture_decode` | model_compat (both; rule 2) | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_paged_attention` (pin 1521-1632) | replace (143): v0.5.21 adds a ROCm branch (pinned `sparse_gqa_packed_decode_triton` after extraction, flash-attention resolved after it) inside the region the fork rewraps in NVTX ranges; merged by hand (RESOLVED) | Q01, Q09, Q10, A09, `_resolve_trtllm_sparse_decode`, `qwen_sparse_fa2_cu_seqlens_triton`, `sparse_attn.sparse_gqa_packed_decode_triton`, `utils.common.is_hip`, `._get_fa2_scratch`, `utils.nvtx_utils.profile_range` (`operations_nvtx_range` is a module-level `partial`, not fingerprintable) | W4 | U6 |
+| Q01 | layers/attention/qwen_sparse_attn_backend.py:130-138 | On SM86/SM89 without `flash_attn`, use SGLang's vendored varlen flash-attention instead of FA4 cute | model_compat: changes the kernel on consumer GPUs | `sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func` (pin 84) | replace (55): inserted between two try-blocks (after the pin's ROCm aiter probe). The copy equals the reference's definition, keeps `@lru_cache(maxsize=1)`, and the wrapper must expose `cache_clear` (§6, G5) | `sglang.kernels.ops.attention.flash_attention.flash_attn_varlen_func`, `utils.is_hip`, `utils.is_sm121` | W4 | U6 |
+| Q02 | qwen_sparse_attn_backend.py:274-278 | `__init__`: FA2 graph-wrapper state (`_fa2_graph_wrappers`, `_workspace`, `_shape`, `_unavailable`, `_active_logged`) | model_compat (rule 2): Q12's compat-owned verbatim body reads `_fa2_graph_wrappers` and `_fa2_graph_active_logged`; inert without the runtime | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__` (pin 212) | after: also sets `qsa_hisparse = None` only if absent (§2, C3). The reference's statements after the block are plain assignments that nothing in `__init__` reads | `QwenSparseAttnBackend.__init__` | W4 | U6 |
+| Q03 | qwen_sparse_attn_backend.py:11, 237 (del), 281-299, 994, 1444-1455 | `__init__`: with `SGLANG_QSA_HISPARSE_V3` set, build `QSAHiSparseRuntime`/`SingleRequest` and attach it as `token_to_kv_pool.qsa_hisparse`. While a runtime is attached the pin's fused #40972 KV path (`_fused_kv_pool_eligible`, block-expansion deferral) stays off: the reference adds `_fused_kv_eligible()` (`qsa_hisparse is None and _supports_fused_kv_pool(pool)`) and computes the flag after the runtime (production merge 80dc48ddfc) | hisparse: env-gated; with no runtime `_fused_kv_eligible()` equals the pin's `_supports_fused_kv_pool(pool)` | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__` (pin 212) + new member `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._fused_kv_eligible` | after (same argument as Q02; with a runtime the hook recomputes `_fused_kv_pool_eligible`, which nothing in `__init__` reads) + attach. The reference's other call, the late pool binding in `_capture_cuda_graph_metadata` (line 994), runs only without a runtime (attaching one needs the pool at construction), where it equals the pin's expression: no hook | `QwenSparseAttnBackend.__init__`, `._supports_fused_kv_pool`, `._can_defer_block_expansion` | W4 | U23/U6 |
+| Q04 | qwen_sparse_attn_backend.py:38, 306-343 | New `_kv_descales` and `_store_kv`: for FP8 KV with non-unit scales, `set_kv_buffer` gets scales and cloned K/V; with a runtime, `write_locations` remaps. New `_kv_descale_kwargs` (production bdb935d70f): `{k_scale, v_scale}` for FP8 buffers, else `{}`, passed by the prefill and reference reads (Q08, Q12) | model_compat: FP8 KV path. The `qsa_hisparse` branch is inert (rule 2) | new members on `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend` | attach: new methods (§6, G1) | `memory_pool.HybridLinearKVPool.set_kv_buffer`, `MHATokenToKVPool.set_kv_buffer` (divides in place), A01 | W4 | U6 |
+| Q05 | qwen_sparse_attn_backend.py:756, 793-802, 843 | Eager plain decode (no spec) sets `decode_score_width = ceil(max_blocks/page)*page`, matching the CUDA graph | model_compat: changes eager decode score width (§4 item 6) | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._metadata_from_forward_batch` (pin 580) | after: when the batch is not idle or empty, `should_reuse_mtp_sparse_indices` is false (pure), the mode is decode, and `spec_info` is None, `msgspec.structs.replace` `indexer_metadata` with the width. Requires T04. Fallback: replace (199) | `QwenSparseAttnBackend.should_reuse_mtp_sparse_indices`, `._empty_metadata`, T04 | W4 | U8 (gap: not named) |
+| Q06 | qwen_sparse_attn_backend.py:865-866 | `init_forward_metadata` calls `qsa_hisparse.begin_batch(fb)` for non-idle batches | hisparse | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.init_forward_metadata` (pin 767) | before: skip when the batch is idle (the fork's early return) | none | W4 | U6 |
+| Q07 | qwen_sparse_attn_backend.py:1067-1078 | `_capture_cuda_graph_metadata` plans an SM89 FlashInfer ragged FA2 graph wrapper for P2 graph decode | hisparse | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._capture_cuda_graph_metadata` (pin 885) | after: all inputs are keyword arguments, and `metadata_rows = bs` for decode with no spec. The insertion is at the end | `._is_speculative_paged_mode`, Q09 | W4 | U5/U6 |
+| Q08 | qwen_sparse_attn_backend.py:1581, 1602-1603, 1606-1607, 1610, 1648-1651, 1654-1656, 1658, 1673 | `forward_extend`: store through `_store_kv`. Chunk prefill gathers raw slots via `qsa_hisparse.prefill_slots` (merged with the pin's breakable-graph slot table). The reference and cached-prefix chunk-prefill reads pass the FP8 descales (`_kv_descale_kwargs`, production bdb935d70f) | model_compat (both features; rule 2 copies the inert `qsa_hisparse` branch) | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_extend` (pin 1432-1549) | replace (120): mid-function call changes. The copy equals the reference's definition | Q04, Q13, A03, A05, A12, `._forward_extend_cp`, `._resolve_metadata`, `._forward_paged_attention`, `layers.cp.utils.is_cp_active`, `breakable_cuda_graph.is_in_breakable_cuda_graph` | W4 | U6 |
+| Q09 | qwen_sparse_attn_backend.py:69-79, 1805-1903 | `_resolve_flashinfer_qsa_ragged` (module) + `_qsa_local_head_shape`, `_ensure_fa2_graph_wrapper`, `_can_run_fa2_graph` | model_compat (rule 2): `_can_run_fa2_graph` is called by Q12's verbatim body. All four are inert without the runtime; only Q07 (hisparse) calls the other two | new members on `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend` | attach (3 methods); the module function lives in the plugin | flashinfer `BatchPrefillWithRaggedKVCacheWrapper` (external) | W4 | U6 |
+| Q10 | qwen_sparse_attn_backend.py:1962, 2010-2011 | `_forward_trtllm_sparse` passes FP8 descales to compact extraction (the gather branch; the pin's fused #40972 branch is reached only with unit descales, Q13) | model_compat: FP8 KV | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_trtllm_sparse` (pin 1694-1825) | replace (135): extra arguments in a mid-function call. The copy equals the reference's definition | A09, `._get_trtllm_sparse_tables`, `._get_fa2_scratch`, `._uses_block_indices`, `qsa.fused_kv.fused_kv_prepare`, `sparse_attn.qwen_sparse_valid_counts_triton` | W4 | U6 |
+| Q11 | qwen_sparse_attn_backend.py:2074-2082 | `forward_decode`: store through `_store_kv`, then `qsa_hisparse.after_store(layer[, graph=True])` | model_compat (both; rule 2) | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_decode` (pin 1827) | replace (30): `after_store` must follow the store (after the pin's fused attempt, off under the runtime, Q03) and precede paged attention. The copy equals the reference's definition | Q04, Q12, Q13, `._resolve_metadata` | W4 | U6 |
+| Q12 | qwen_sparse_attn_backend.py:61, 2100-2107, 2111-2130, 2143-2192, 2195-2251, 2253-2255 (del) | `_forward_paged_attention`: `qsa_hisparse.selected()` buffers. trtllm is disabled under HiSparse. NVTX ranges (the pin's ROCm packed decode merged into `qsa.fa2_attention`). FP8 scratch dtype and descales, also on the reference read (production bdb935d70f). FA2 graph wrapper. `capture_decode` | model_compat (both; rule 2) | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_paged_attention` (pin 1852-1963) | replace (171): the copy equals the reference's definition | Q01, Q09, Q10, A09, A11, A12, `_resolve_trtllm_sparse_decode`, `qwen_sparse_fa2_cu_seqlens_triton`, `._expand_block_indices`, `utils.common.is_hip`, `._get_fa2_scratch`, `utils.nvtx_utils.profile_range` (`operations_nvtx_range` is a module-level `partial`, not fingerprintable) | W4 | U6 |
+| Q13 | qwen_sparse_attn_backend.py:1526-1531 | `_try_fused_kv_attention` returns None (keeps the descaling `_store_kv` and gather path) when the K buffer is FP8 and the layer's descales are not unit: the pin's fused KV prepare stores `cast_fp8(x)` without the write divide and packs cached FP8 without the read scale (production merge 80dc48ddfc) | model_compat: FP8 KV with calibrated scales, HiSparse unset | `sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._try_fused_kv_attention` (pin 1365) | around: the reference evaluates the guard after checks that only return None and have no side effects, so returning None first gives the same result. The hook evaluates it under the reference's first preconditions (eligible pool, CUDA q, K/V present, decode or target-verify); there every caller (Q08, Q11) reads the same layer's K buffer in `_forward_paged_attention` when this returns None, so `get_key_buffer`'s only side effect (HiCache's per-layer load wait) occurs in the same step, earlier. Fallback: replace (72) | `._supports_fused_kv_pool`, `MHATokenToKVPool.get_key_buffer`, Q04 | W4 | U6 |
 | T01 | layers/attention/qsa/kernel.py:12-61 | Exact stable top-k (`_qsa_stable_topk`) with tile sizing | model_compat (deterministic inference) | none | moved/owned: `kernels/qsa_topk.py` | none | W4 | U8 |
-| T02 | qsa/kernel.py:78, 80-85, 89-90, 123-124; qsa/metadata.py:15, 123-132; qsa/qsa_indexer.py:25, 444-448, 475 | `qsa_fast_topk(deterministic=)` routes to the stable top-k. `topk_transform` and `select_prefill_tokens` pass the exec-config flag. The kernel.py:123-124 `torch.topk` rewrite is behavior-identical | model_compat: active whenever `enable_deterministic_inference` | `sglang.srt.layers.attention.qsa.kernel.qsa_fast_topk` (pin 23) | around: accept `deterministic`. When it is omitted, compute it with the fork's expression (`get_context().is_config_namespace_published("exec") and get_exec().deterministic.enable_deterministic_inference`). At the pin the only callers are these two and T03, and in the fork each passes exactly that expression. False delegates to the original. Fallback: replace `topk_transform` (24) and `select_prefill_tokens` (61) | `QSAIndexerMetadata.topk_transform`, `QSAIndexer.select_prefill_tokens` (rely on the default) | W4 | U8 |
-| T03 | qsa/qsa_indexer.py:505-509, 523-527 | `select_decode_tokens`: under deterministic inference, skip the JIT `fast_topk` and pass the flag | model_compat | `sglang.srt.layers.attention.qsa.qsa_indexer.QSAIndexer.select_decode_tokens` (pin 481) | replace (48): mid-function branch predicate (v0.5.21 only moved the `fast_topk` import) | T02, `qsa.mqa.qsa_mqa_decode`, `qsa.kernel.expand_qsa_block_indices`, `sglang.kernels.ops.attention.fast_topk.fast_topk` | W4 | U8 |
-| T04 | qsa/metadata.py:86-88, 219-220, 232-233 | `QSAIndexerMetadata.decode_score_width` field; `get_decode_mqa_inputs` uses it as the score stride | model_compat (with Q05) | `sglang.srt.layers.attention.qsa.metadata.QSAIndexerMetadata` (pin 46) | replace (class): a frozen msgspec subclass adding the field (default None) and overriding `get_decode_mqa_inputs` verbatim (53). A Struct field cannot be added otherwise (`test_replace_deltas.py` lists it in RESOLVED: the copy is a subclass, not the whole class) | `metadata.compressed_decode_view` | W4 | U8 |
+| T02 | qsa/kernel.py:78, 80-85, 89-90, 123-124; qsa/metadata.py:15, 129-138; qsa/qsa_indexer.py:32, 454-458, 485 | `qsa_fast_topk(deterministic=)` routes to the stable top-k. `topk_transform` and `select_prefill_tokens` pass the exec-config flag. The kernel.py:123-124 `torch.topk` rewrite is behavior-identical | model_compat: active whenever `enable_deterministic_inference` | `sglang.srt.layers.attention.qsa.kernel.qsa_fast_topk` (pin 23) | around: accept `deterministic`. When it is omitted, compute it with the fork's expression (`get_context().is_config_namespace_published("exec") and get_exec().deterministic.enable_deterministic_inference`). At the pin the only callers are these two and T03, and in the fork each passes exactly that expression. False delegates to the original. Fallback: replace `topk_transform` (24) and `select_prefill_tokens` (61) | `QSAIndexerMetadata.topk_transform`, `QSAIndexer.select_prefill_tokens` (rely on the default) | W4 | U8 |
+| T03 | qsa/qsa_indexer.py:516-520, 534-538 | `select_decode_tokens`: under deterministic inference, skip the JIT `fast_topk` and pass the flag | model_compat | `sglang.srt.layers.attention.qsa.qsa_indexer.QSAIndexer.select_decode_tokens` (pin 491) | replace (51): mid-function branch predicate. The copy equals the reference's definition (the pin's `defer_expansion` plus the fork's change) | T02, T05, `qsa.mqa.qsa_mqa_decode`, `qsa.kernel.expand_qsa_block_indices`, `sglang.kernels.ops.attention.fast_topk.fast_topk` | W4 | U8 |
+| T04 | qsa/metadata.py:89-91, 234-235, 247-248 | `QSAIndexerMetadata.decode_score_width` field; `get_decode_mqa_inputs` uses it as the score stride | model_compat (with Q05) | `sglang.srt.layers.attention.qsa.metadata.QSAIndexerMetadata` (pin 46) | replace (class): a frozen msgspec subclass adding the field (default None) and overriding `get_decode_mqa_inputs` verbatim (53). A Struct field cannot be added otherwise (`test_replace_deltas.py` lists it in RESOLVED: the copy is a subclass, not the whole class) | `metadata.compressed_decode_view` | W4 | U8 |
+| T05 | kernels/jit/csrc/elementwise/fast_topk.cuh (12 hunks) | JIT `fast_topk` keeps every candidate when a radix threshold bin overflows the 4K shared-memory stage: it detects the overflow and refines from a full-row rescan (production 773f3c2d84, fork PR #6; upstream #36807) | model_compat: changes decode/prefill top-k selection on overflowing rows with HiSparse unset | `sglang.kernels.ops.attention.fast_topk.fast_topk` (pin 38) | around: in scope every call runs the plugin copy of the op wrapper (`kernels/fast_topk.py`: the pinned wrapper, identical in the reference, with its own JIT module name, cache directory and export) on the moved/owned kernel (`kernels/csrc/fast_topk/fast_topk.cuh`, byte-identical to the reference), so the in-tree module is never built there; out of scope the original. Callers (T03's copy, the pinned `qsa_fast_topk`) import the module attribute at call time | `fast_topk._jit_fast_topk_module`, `sglang.kernels.jit.utils` (`load_jit`, `resolve_sources`, `make_cpp_args`, `cache_once`, `is_arch_support_pdl`) | W4 | U8 |
 | A01 | layers/attention/qsa/sparse_attn.py:9-40 | `is_fp8_kv_dtype`, `_validate_sparse_gqa_dtypes`, `_unit_scale` | model_compat | none | moved/owned: `kernels/qsa_sparse_attn.py` | none | W4 | U6 |
 | A02 | sparse_attn.py:70-71, 93, 135-137, 143-148, 152-160 | `_sparse_gqa_prefill` Triton kernel: FP8 K/V cast, k/v scales, separate accumulation | model_compat | none (JITFunction, not hookable) | moved/owned | none | W4 | U6 |
 | A03 | sparse_attn.py:174-185, 200-201, 223 | `sparse_gqa_fwd_interface_triton`: dtype validation, scales, `KV_IS_FP8`, launch of the plugin kernel | model_compat | `sglang.srt.layers.attention.qsa.sparse_attn.sparse_gqa_fwd_interface_triton` (pin 125) | replace (54): the kernel signature changed, so the wrapper must launch the plugin copy | `sparse_attn._get_best_config` | W4 | U6 |
@@ -114,8 +116,10 @@ Conventions:
 | A06 | sparse_attn.py:440-442 | Comment | drop: comment only | none | none | none | W4 | none |
 | A07 | sparse_attn.py:474-475, 484, 519-525 | `_compact_kv` kernel: FP8 dequant with scales; implicit store cast | model_compat | none | moved/owned | none | W4 | U6 |
 | A08 | sparse_attn.py:529-531 | Docstring | drop: docstring only | none | none | none | W4 | none |
-| A09 | sparse_attn.py:555-556, 575-577, 592-593, 602 | `qwen_sparse_kv_extraction_compact_triton`: scale kwargs, dtype-pair check, `DEQUANTIZE_FP8`, plugin kernel | model_compat | `sglang.srt.layers.attention.qsa.sparse_attn.qwen_sparse_kv_extraction_compact_triton` (pin 510) | replace (63): same reason as A03 | none beyond A07 | W4 | U6 |
+| A09 | sparse_attn.py:622-623, 642-644, 659-660, 669 | `qwen_sparse_kv_extraction_compact_triton`: scale kwargs, dtype-pair check, `DEQUANTIZE_FP8`, plugin kernel | model_compat | `sglang.srt.layers.attention.qsa.sparse_attn.qwen_sparse_kv_extraction_compact_triton` (pin 510) | replace (63): same reason as A03 | none beyond A07 | W4 | U6 |
 | A10 | sparse_attn.py:609 | `__all__` adds `is_fp8_kv_dtype` | drop: the plugin exports it from its own module | none | none | none | W4 | none |
+| A11 | sparse_attn.py:406-417, 426, 443-444, 466 | `sparse_gqa_packed_decode_triton` (the pin's ROCm packed decode, which reuses the chunk-prefill kernel): optional `k_scale`/`v_scale`, dtype validation and `KV_IS_FP8` for A04's signature (production's re-merge of the fork's kernel change) | model_compat | none | moved/owned: `kernels/qsa_sparse_attn.py` (the reference's definition, launching the A04 copy), bound by Q12's copy as an import-level mechanical edit; the only pinned caller is Q12's target | `sparse_attn._get_best_config` | W4 | U6 |
+| A12 | qsa/kernel.py:334-335, 351, 361-362, 364-368, 371-372, 383-385, 388-390 | `qsa_sparse_attention` and `qsa_sparse_attention_reference` accept `k_scale`/`v_scale` and restore `stored * scale` in the torch reference (production bdb935d70f) | model_compat | none | moved/owned: `kernels/qsa_sparse_attn.py` (the reference's definitions), bound by Q08's and Q12's copies as an import-level mechanical edit; their targets are the only pinned callers, so pinned callers never pass scales | none | W4 | U6 |
 
 ### W5: model compatibility
 
@@ -123,29 +127,29 @@ Conventions:
 |---|---|---|---|---|---|---|---|---|
 | J01 | kernels/ops/moe/moe_wna16_marlin.py:20-23, 25, 73, 75-84, 153-155 | Op wrapper: `use_deterministic_reduce` kwarg and a 4th template arg. Requires blockM8 and no atomics | model_compat | none | moved/owned: `kernels/marlin_moe.py`, with its own JIT module (§3) | `sglang.kernels.jit.utils.load_jit` / `make_cpp_args` / `cache_once` | W5 | U8 |
 | J02 | kernels/jit/csrc/gemm/marlin_moe/marlin_template.h (4 hunks), moe_wna16_marlin.cuh (10 hunks), stripe_schedule.h (new) | `kDeterministicReduce` template parameter: whole-K stripe iteration and a fixed launch config | model_compat | none | moved/owned: `kernels/csrc/marlin_moe/` (§3) | in-tree `csrc/gemm/marlin/*.cuh` headers | W5 | U8 |
-| J03 | layers/moe/fused_moe_triton/fused_marlin_moe.py:6 (del), 8-11, 18 (del), 197-206, 255-258, 317-323, 352, 416 | Under deterministic inference: stable token alignment, `block_size_m = 8`, no atomic add, `use_deterministic_reduce` | model_compat: any Marlin MoE model with deterministic inference | `sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.fused_marlin_moe` (pin 134) | replace (315): mid-function. The pinned attribute is the eager custom-op packet `torch.ops.sglang.fused_marlin_moe`, so the copy must be registered with `register_custom_op(op_name=<distinct>, out_shape="hidden_states")` (§6, G4) | `fused_moe_triton.moe_align_block_size`, `fused_marlin_moe.get_scalar_type`, `situ_and_mul`, `swiglu_limit_func`, J01, J04 (`register_custom_op` cannot be fingerprinted: 5 overloads) | W5 | U8 |
+| J03 | layers/moe/fused_moe_triton/fused_marlin_moe.py:9-12, 213-222, 271-274, 333-339, 368, 432 | Under deterministic inference: stable token alignment, `block_size_m = 8`, no atomic add, `use_deterministic_reduce` | model_compat: any Marlin MoE model with deterministic inference | `sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.fused_marlin_moe` (pin 149) | replace (315): mid-function. The pinned attribute is the eager custom-op packet `torch.ops.sglang.fused_marlin_moe`, so the copy must be registered with `register_custom_op(op_name=<distinct>, out_shape="hidden_states")` (§6, G4) | `fused_moe_triton.moe_align_block_size`, `fused_marlin_moe.get_scalar_type`, `situ_and_mul`, `swiglu_limit_func`, J01, J04 (`register_custom_op` cannot be fingerprinted: 5 overloads) | W5 | U8 |
 | J04 | layers/moe/fused_moe_triton/stable_align.py (new) | `moe_align_block_size_stable` | model_compat | none | moved: `kernels/stable_align.py` (done) | none | W5 | U8 |
 | Z01 | hardware_backend/gpu/quantization/gptq_kernels.py:3-4, 279-280, 289-290, 294-299, 316-317 | Call `gc.collect()` and `torch.cuda.empty_cache()` after each repack. The w13 scale permute uses `size_k = scales.shape[1] * group` instead of `intermediate_size_per_partition` | model_compat: every GPTQ Marlin MoE load | `sglang.srt.hardware_backend.gpu.quantization.gptq_kernels.GPTQMarlinMoEKernel.process_weights_after_loading` (pin 225) | replace (91): mid-function | `gptq_kernels.gptq_marlin_moe_repack`, `layers.quantization.marlin_utils.marlin_moe_permute_scales`, `layers.quantization.utils.replace_parameter` | W5 | U7 |
 | Z02 | layers/quantization/gptq/schemes/gptq_moe.py:200, 239, 247 | w2 group scales are sized without `moe_tp_size`; w13/w2 scales use `params_dtype` instead of fp16 | model_compat | `sglang.srt.layers.quantization.gptq.schemes.gptq_moe.GPTQMarlinMoEScheme.create_weights` (pin 180) | replace (142): mid-function values | `utils.common.set_weight_attrs`, `FusedMoeWeightScaleSupported` | W5 | U7 |
 | Z03 | layers/quantization/auto_round.py:524-532 | When Marlin rejects g128 but accepts g64, use Marlin g64 and set `layer._marlin_g64_expand_scales` | model_compat | `sglang.srt.layers.quantization.auto_round.AutoRoundConfig.apply_gptq_quant_layer` (pin 437) | replace (142): mutates mid-function locals | `check_moe_marlin_supports_layer`, `AutoRoundConfig.get_layer_config`, `.get_gptq_config_kwargs` | W5 | U7 |
-| Z04 | layers/moe/fused_moe_triton/layer.py:1024-1028 | `weight_loader` applies `repeat_interleave(2, dim=0)` to `*_scales`/`*_qzeros` on flagged layers | model_compat (part of Z03) | `sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoE.weight_loader` (pin 1016) | before: the only preceding branch is the static-mxfp4 path, unreachable for AutoRound-flagged layers. Must handle positional and keyword calls. The bound `weight_loader` is captured at layer construction, after activation | `FusedMoE.weight_loader` | W5 | U7 |
+| Z04 | layers/moe/fused_moe_triton/layer.py:1028-1032 | `weight_loader` applies `repeat_interleave(2, dim=0)` to `*_scales`/`*_qzeros` on flagged layers | model_compat (part of Z03) | `sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoE.weight_loader` (pin 1003) | before: the only preceding branch is the static-mxfp4 path, unreachable for AutoRound-flagged layers. Must handle positional and keyword calls. The bound `weight_loader` is captured at layer construction, after activation | `FusedMoE.weight_loader` | W5 | U7 |
 | Z05 | layers/moe/fused_moe_triton/layer.py:497 | Deferred-finalize log message changes from debug to info | drop (deviation D1, owner-accepted 2026-10-07): log-only; reproducing it needs a 235-line replace of `FusedMoE.__init__` | none | none | none | W5 | none |
 | H01 | layers/hc_mix_triton.py:3-27 | Module docstring | drop | none | none | none | W5 | none |
 | H02 | hc_mix_triton.py:67 | Kernel docstring | drop: changes only the Triton source hash | none | none | none | W5 | none |
 | H03 | hc_mix_triton.py:161-297 | `_hc_mix_stable_persistent_kernel` (fixed-order split-K) | model_compat | none | moved/owned: `kernels/hc_mix.py` (calls the pinned `_grid_barrier`) | `sglang.kernels.ops.gemm.hc_mix._grid_barrier` (v0.5.21 moved `layers/hc_mix_triton.py` there unchanged, #41243) | W5 | U8 |
 | H04 | hc_mix_triton.py:317 (del) | Blank line | drop | none | none | none | W5 | none |
 | H05 | hc_mix_triton.py:319-323, 325-327 | `fused_hc_mix_supported(stable=)`: the stable path bypasses the deterministic early return | model_compat | none: only H08's copy passes `stable`; for every pinned caller the fork's predicate equals the pinned `sglang.kernels.ops.gemm.hc_mix.fused_hc_mix_supported` | moved/owned: `kernels/hc_mix.py` (verbatim), bound by H08's copy as an import-level mechanical edit. Was replace (23) until v0.5.21 | `sglang.kernels.ops.gemm.hc_mix._deterministic_inference` (declared by H08) | W5 | U8 |
-| H06 | hc_mix_triton.py:349-351, 359-365, 369, 378-411 | `fused_hc_mix(stable=, stable_splits=)` launches the stable kernel | model_compat | `sglang.kernels.ops.gemm.hc_mix.fused_hc_mix` (pin 182; moved unchanged from `layers/hc_mix_triton.py`, #41243) | around: `stable=False` goes to the original, which is identical to the fork's non-stable branch; `stable=True` runs the plugin copy of the fork body (70) | `gemm.hc_mix._get_counters`, H03 | W5 | U8 |
+| H06 | kernels/ops/gemm/hc_mix.py:349-351, 359-365, 369, 378-411 | `fused_hc_mix(stable=, stable_splits=)` launches the stable kernel | model_compat | `sglang.kernels.ops.gemm.hc_mix.fused_hc_mix` (pin 182; moved unchanged from `layers/hc_mix_triton.py`, #41243) | around: `stable=False` goes to the original, which is identical to the fork's non-stable branch; `stable=True` runs the plugin copy of the fork body (70) | `gemm.hc_mix._get_counters`, H03 | W5 | U8 |
 | H07 | layers/hyperconnection.py:93 | `HyperConnectionBase.mix(stable=)` signature | drop: unreachable. `GatedResidual`, the only subclass, overrides `mix`, and no caller passes `stable` to the base | none | none | none | W5 | none |
 | H08 | hyperconnection.py:222, 236-258 | `GatedResidual.mix(stable=)`: stable fused kernel, falling back to the torch.compile chain | model_compat | `sglang.srt.layers.hyperconnection.GatedResidual.mix` (pin 222) | around: `stable` defaults to E01's `_stable_hc()` when omitted. False goes to the original (identical to the fork's non-stable branch); True runs the plugin copy (79), whose `fused_hc_mix_supported` is the plugin copy of the fork's predicate (H05). Fallback: replace (79) plus E02's three replaces | H05, H06, `GroupedGemmaRMSNorm.forward` | W5 | U8 |
-| E01 | models/qwen4_exp.py:71, 103-109 | `_stable_hc()` (reads `get_exec`) | model_compat | none | moved/owned: plugin helper used by H08 | none | W5 | U8 |
+| E01 | models/qwen4_exp.py:85, 141-147 | `_stable_hc()` (reads `get_exec`) | model_compat | none | moved/owned: plugin helper used by H08 | none | W5 | U8 |
 | E02 | qwen4_exp.py:1407-1409, 1421-1423, 1772-1774 | The three `mix()` calls pass `stable=_stable_hc()` | model_compat | none (covered by H08's default; these are the only `mix()` call sites at the pin) | none. Fallback: replace `Qwen4ExpLayerExtensionMixin._prepare_qwen4_exp_attn` (34), `._prepare_qwen4_exp_mlp` (13), `Qwen4ExpModel.forward` (56) | H08 | W5 | U8 |
-| E03 | qwen4_exp.py:517-531, 535-552 | `Qwen4ExpNGramEmbedding.__init__`: the embedding is built on `meta` whenever `ple_offload_embedding`. int8/int8_row dtype. `ple_row_scale_mode` validation | model_compat | `sglang.srt.models.qwen4_exp.Qwen4ExpNGramEmbedding.__init__` (pin 452) | replace (111): mid-function. Rewrite the zero-argument `super()` (§6, G2). v0.5.21 already builds the table on `meta` for offload and wraps it in `Qwen4ExpPinnedHostEmbedding` here; the int8 dtype and `ple_row_scale_mode` are merged by hand before the wrapping (RESOLVED) | `VocabParallelEmbedding.__init__`, `qwen4_exp._ple_table_is_fp8`, `._use_attn_tp_ngram`, `Qwen4ExpNGramEmbedding._build_head_vocab_and_offsets`, `runtime_context.get_parallel`, E06 | W5 | U7 |
+| E03 | qwen4_exp.py:621-623, 628 (del), 632-649 | `Qwen4ExpNGramEmbedding.__init__`: the embedding is built on `meta` whenever `ple_offload_embedding`. int8/int8_row dtype. `ple_row_scale_mode` validation | model_compat | `sglang.srt.models.qwen4_exp.Qwen4ExpNGramEmbedding.__init__` (pin 540) | replace (110): mid-function. Rewrite the zero-argument `super()` (§6, G2). The pin already builds the table on `meta` for offload and wraps it in `Qwen4ExpPinnedHostEmbedding` here; the reference sets the int8 dtype and `ple_row_scale_mode` before the wrapping (the copy equals its definition) | `VocabParallelEmbedding.__init__`, `qwen4_exp._ple_table_is_fp8`, `._use_attn_tp_ngram`, `Qwen4ExpNGramEmbedding._build_head_vocab_and_offsets`, `runtime_context.get_parallel`, E06 | W5 | U7 |
 | E04 | qwen4_exp.py:769, 774-775, 786-787, 795-798 | `_gather_ple_embedding_from_pinned_kernel`: int8 pointer and per-row scale | model_compat | none | moved/owned: `kernels/ple_gather.py` | none | W5 | U7 |
 | E05 | qwen4_exp.py:811-813 | Class docstring | drop | none | none | none | W5 | none |
-| E06 | qwen4_exp.py:847-851, 853-854, 891-904 | `Qwen4ExpPinnedHostEmbedding.__init__`: accept int8; pinned NaN-filled `row_scale` buffer | model_compat | `sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.__init__` (pin 814) | replace (72): mid-function | `qwen4_exp_ple_table.allocate_ple_host_table`, `make_ple_file_prefetcher`, `make_ple_file_rss_trimmer` | W5 | U7 |
-| E07 | qwen4_exp.py:950, 955-956 | `gather` passes the `row_scale` pointer and the `is_int8`/`has_row_scale` constexprs to E04 | model_compat | `sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.gather` (pin 881) | replace (40): kernel arguments changed | `Qwen4ExpPinnedHostEmbedding.allocate_output`, E04 | W5 | U7 |
-| E08 | qwen4_exp.py:1979-1981, 1990-2015, 2057-2067, 2258-2271 | `load_weights`: `row_scale` shards, int8 storage consistency errors, post-load NaN coverage check | model_compat | `sglang.srt.models.qwen4_exp.Qwen4ExpForConditionalGeneration.load_weights` (pin 1923) | replace (418): changes are inside the nested closure `load_qwen4_exp_ple_shard`, which cannot be hooked (v0.5.21's edits do not overlap them) | `Qwen4ExpForConditionalGeneration._load_qwen4_exp_ple_buffer`, `layers.utils.common.get_layer_id`, E06 | W5 | U7 |
+| E06 | qwen4_exp.py:953-957, 959-960, 997-1008 | `Qwen4ExpPinnedHostEmbedding.__init__`: accept int8; pinned NaN-filled `row_scale` buffer | model_compat | `sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.__init__` (pin 902) | replace (70): mid-function | `qwen4_exp_ple_table.allocate_ple_host_table`, `make_ple_file_prefetcher`, `make_ple_file_rss_trimmer` | W5 | U7 |
+| E07 | qwen4_exp.py:1054, 1059-1060 | `gather` passes the `row_scale` pointer and the `is_int8`/`has_row_scale` constexprs to E04 | model_compat | `sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.gather` (pin 969) | replace (40): kernel arguments changed | `Qwen4ExpPinnedHostEmbedding.allocate_output`, E04 | W5 | U7 |
+| E08 | qwen4_exp.py:2243-2245, 2254-2279, 2321-2331, 2539-2549 | `load_weights`: `row_scale` shards, int8 storage consistency errors, post-load NaN coverage check | model_compat | `sglang.srt.models.qwen4_exp.Qwen4ExpForConditionalGeneration.load_weights` (pin 2082) | replace (415): changes are inside the nested closure `load_qwen4_exp_ple_shard`, which cannot be hooked | `Qwen4ExpForConditionalGeneration._load_qwen4_exp_ple_buffer`, `layers.utils.common.get_layer_id`, E06 | W5 | U7 |
 | U01 | utils/common.py:4001 | `freeze_gc` logs at info instead of debug (fork commit 39a3373d77) | drop (deviation D2, owner-accepted 2026-10-07): log-only | none | none | none | W5 | none |
 
 ### W1: new files (moved)
@@ -467,18 +471,18 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 
 | File (under python/sglang/) | Hunk | Row |
 |---|---|---|
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +16,2 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +60,3 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +106,2 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +112,1 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +129,1 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +132,1 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +146,22 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +181,1 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +190,3 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +194,18 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +227,20 | ? |
-| kernels/jit/csrc/elementwise/fast_topk.cuh | +258,6 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +16,2 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +60,3 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +106,2 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +112,1 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +129,1 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +132,1 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +146,22 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +181,1 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +190,3 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +194,18 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +227,20 | T05 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +258,6 | T05 |
 | kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +27,1 | J02 |
 | kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +59,2 | J02 |
 | kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +303,2 | J02 |
@@ -521,13 +525,13 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | srt/layers/attention/qsa/kernel.py | +80,6 | T02 |
 | srt/layers/attention/qsa/kernel.py | +89,2 | T02 |
 | srt/layers/attention/qsa/kernel.py | +123,2 | T02 |
-| srt/layers/attention/qsa/kernel.py | +334,2 | ? |
-| srt/layers/attention/qsa/kernel.py | +351,1 | ? |
-| srt/layers/attention/qsa/kernel.py | +361,2 | ? |
-| srt/layers/attention/qsa/kernel.py | +364,5 | ? |
-| srt/layers/attention/qsa/kernel.py | +371,2 | ? |
-| srt/layers/attention/qsa/kernel.py | +383,3 | ? |
-| srt/layers/attention/qsa/kernel.py | +388,3 | ? |
+| srt/layers/attention/qsa/kernel.py | +334,2 | A12 |
+| srt/layers/attention/qsa/kernel.py | +351,1 | A12 |
+| srt/layers/attention/qsa/kernel.py | +361,2 | A12 |
+| srt/layers/attention/qsa/kernel.py | +364,5 | A12 |
+| srt/layers/attention/qsa/kernel.py | +371,2 | A12 |
+| srt/layers/attention/qsa/kernel.py | +383,3 | A12 |
+| srt/layers/attention/qsa/kernel.py | +388,3 | A12 |
 | srt/layers/attention/qsa/metadata.py | +15,1 | T02 |
 | srt/layers/attention/qsa/metadata.py | +89,3 | T04 |
 | srt/layers/attention/qsa/metadata.py | +129,10 | T02 |
@@ -556,10 +560,10 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | srt/layers/attention/qsa/sparse_attn.py | +358,1 | A05 |
 | srt/layers/attention/qsa/sparse_attn.py | +376,2 | A05 |
 | srt/layers/attention/qsa/sparse_attn.py | +399,1 | A05 |
-| srt/layers/attention/qsa/sparse_attn.py | +406,12 | ? |
-| srt/layers/attention/qsa/sparse_attn.py | +426,1 | ? |
-| srt/layers/attention/qsa/sparse_attn.py | +443,2 | A09 |
-| srt/layers/attention/qsa/sparse_attn.py | +466,1 | ? |
+| srt/layers/attention/qsa/sparse_attn.py | +406,12 | A11 |
+| srt/layers/attention/qsa/sparse_attn.py | +426,1 | A11 |
+| srt/layers/attention/qsa/sparse_attn.py | +443,2 | A11 |
+| srt/layers/attention/qsa/sparse_attn.py | +466,1 | A11 |
 | srt/layers/attention/qsa/sparse_attn.py | +507,3 | A06 |
 | srt/layers/attention/qsa/sparse_attn.py | +541,2 | A07 |
 | srt/layers/attention/qsa/sparse_attn.py | +551,1 | A07 |
@@ -567,7 +571,7 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | srt/layers/attention/qsa/sparse_attn.py | +596,3 | A08 |
 | srt/layers/attention/qsa/sparse_attn.py | +622,2 | A09 |
 | srt/layers/attention/qsa/sparse_attn.py | +642,3 | A09 |
-| srt/layers/attention/qsa/sparse_attn.py | +659,2 | ? |
+| srt/layers/attention/qsa/sparse_attn.py | +659,2 | A09 |
 | srt/layers/attention/qsa/sparse_attn.py | +669,1 | A09 |
 | srt/layers/attention/qsa/sparse_attn.py | +676,1 | A10 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +11,1 | Q03 |
@@ -575,41 +579,41 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | srt/layers/attention/qwen_sparse_attn_backend.py | +61,1 | Q12 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +69,11 | Q09 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +130,9 | Q01 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +237,0 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +237,0 | Q03 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +274,5 | Q02 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +281,19 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +306,38 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +281,19 | Q03 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +306,38 | Q04 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +756,1 | Q05 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +793,10 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +793,10 | Q05 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +843,1 | Q05 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +865,2 | Q06 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +994,1 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +994,1 | Q03 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +1067,12 | Q07 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1444,12 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1526,6 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1444,12 | Q03 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1526,6 | Q13 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +1581,1 | Q08 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1602,2 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1606,2 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1610,1 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1648,4 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1654,3 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1658,1 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1673,1 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1805,99 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1602,2 | Q08 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1606,2 | Q08 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1610,1 | Q08 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1648,4 | Q08 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1654,3 | Q08 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1658,1 | Q08 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1673,1 | Q08 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1805,99 | Q09 |
 | srt/layers/attention/qwen_sparse_attn_backend.py | +1962,1 | Q10 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2010,2 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2074,9 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2100,8 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2111,20 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2143,50 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2195,57 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2253,0 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2254,0 | ? |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +2255,0 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2010,2 | Q10 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2074,9 | Q11 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2100,8 | Q12 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2111,20 | Q12 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2143,50 | Q12 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2195,57 | Q12 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2253,0 | Q12 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2254,0 | Q12 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2255,0 | Q12 |
 | srt/layers/hyperconnection.py | +93,1 | H07 |
 | srt/layers/hyperconnection.py | +222,1 | H08 |
 | srt/layers/hyperconnection.py | +236,23 | H08 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +9,4 | ? |
+| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +9,4 | J03 |
 | srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +213,10 | J03 |
 | srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +271,4 | J03 |
 | srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +333,7 | J03 |
@@ -700,11 +704,11 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | srt/model_executor/runner/decode_cuda_graph_runner.py | +1490,1 | G02 |
 | srt/model_executor/runner/decode_cuda_graph_runner.py | +1516,4 | G03 |
 | srt/model_executor/runner/decode_cuda_graph_runner.py | +1539,3 | G03 |
-| srt/models/qwen4_exp.py | +85,1 | ? |
+| srt/models/qwen4_exp.py | +85,1 | E01 |
 | srt/models/qwen4_exp.py | +141,7 | E01 |
-| srt/models/qwen4_exp.py | +621,3 | ? |
-| srt/models/qwen4_exp.py | +628,0 | ? |
-| srt/models/qwen4_exp.py | +632,18 | ? |
+| srt/models/qwen4_exp.py | +621,3 | E03 |
+| srt/models/qwen4_exp.py | +628,0 | E03 |
+| srt/models/qwen4_exp.py | +632,18 | E03 |
 | srt/models/qwen4_exp.py | +873,1 | E04 |
 | srt/models/qwen4_exp.py | +878,2 | E04 |
 | srt/models/qwen4_exp.py | +890,2 | E04 |
@@ -712,7 +716,7 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | srt/models/qwen4_exp.py | +915,3 | E05 |
 | srt/models/qwen4_exp.py | +953,5 | E06 |
 | srt/models/qwen4_exp.py | +959,2 | E06 |
-| srt/models/qwen4_exp.py | +997,12 | ? |
+| srt/models/qwen4_exp.py | +997,12 | E06 |
 | srt/models/qwen4_exp.py | +1054,1 | E07 |
 | srt/models/qwen4_exp.py | +1059,2 | E07 |
 | srt/models/qwen4_exp.py | +1566,3 | E02 |
@@ -721,7 +725,7 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | srt/models/qwen4_exp.py | +2243,3 | E08 |
 | srt/models/qwen4_exp.py | +2254,26 | E08 |
 | srt/models/qwen4_exp.py | +2321,11 | E08 |
-| srt/models/qwen4_exp.py | +2539,11 | ? |
+| srt/models/qwen4_exp.py | +2539,11 | E08 |
 | srt/utils/common.py | +4294,1 | U01 |
 | srt/utils/numa_utils.py | +217,5 | ? |
 | srt/utils/numa_utils.py | +224,1 | ? |

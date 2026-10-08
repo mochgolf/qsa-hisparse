@@ -90,11 +90,11 @@
     "sha256": "26a5de55e7d1a922c5ade4c88b9c1f99da8aa494f3829173ffdf6774acb04516"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1295,
+    "def_line": 1294,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1295,
+    "first_line": 1294,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   }

@@ -16,9 +16,9 @@ from sglang_qsa_hisparse import patching, scope
 from sglang_qsa_hisparse.features import Features
 
 W4_ROWS = frozenset(
-    {f"Q{i:02d}" for i in range(1, 13)}
-    | {"T01", "T02", "T03", "T04"}
-    | {f"A{i:02d}" for i in range(1, 11)}
+    {f"Q{i:02d}" for i in range(1, 14)}
+    | {"T01", "T02", "T03", "T04", "T05"}
+    | {f"A{i:02d}" for i in range(1, 13)}
 )
 BOTH = Features(model_compat=True, hisparse_mode="p2-offload")
 BACKEND_MODULE = "sglang.srt.layers.attention.qwen_sparse_attn_backend"

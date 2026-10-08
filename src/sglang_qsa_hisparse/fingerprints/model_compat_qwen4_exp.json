@@ -1,19 +1,19 @@
 {
   "sglang.srt.layers.dp_attention.is_dp_attention_enabled": {
-    "def_line": 467,
+    "def_line": 454,
     "file": "sglang/srt/layers/dp_attention.py",
-    "first_line": 467,
+    "first_line": 454,
     "kind": "function",
-    "module_sha256": "93a2fe6a000428c5b81004b3039a3ed773a036becc1b2ffd4fc8b13a3481e6f6",
+    "module_sha256": "f128669ebd206148f9ef4eb5cca9f4481702cf65177ed8a279a219b84c466915",
     "qualname": "is_dp_attention_enabled",
     "sha256": "360b3a70d453b54796551a58180b8d374a11a012f7b0c0adbc2b0f89ed18ae96"
   },
   "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoE.make_expert_params_mapping": {
-    "def_line": 1650,
+    "def_line": 1629,
     "file": "sglang/srt/layers/moe/fused_moe_triton/layer.py",
-    "first_line": 1649,
+    "first_line": 1628,
     "kind": "function",
-    "module_sha256": "d0da78b511c9e4434e15127343b0e1be749762439acf98f6de37f071d47a1c7c",
+    "module_sha256": "02edf99af4a0c8ca8e31bf8c9246e3764e56316c09761c068baf43a2d5d69563",
     "qualname": "FusedMoE.make_expert_params_mapping",
     "sha256": "5309d1e435f3e628d510e53537c31a099adc2b6167814a5df030dcf83686889b"
   },
@@ -31,16 +31,16 @@
     "file": "sglang/srt/layers/vocab_parallel_embedding.py",
     "first_line": 230,
     "kind": "function",
-    "module_sha256": "a50b43809cba9ba91157dc02bf2bf60cc0761c1ad8aa5828bbac133da614c8a1",
+    "module_sha256": "368f223b1e41d87bb8ad05e196861cdbd167354e6e6ebdd8529cd4dd4c3b2343",
     "qualname": "VocabParallelEmbedding.__init__",
-    "sha256": "b4848faa1251df77e86c176e0efa4441b03ba812c175906d769c03cf7c895c2b"
+    "sha256": "db47df07677df2e4d9cd29fa1fbdc959493a22a294b722200334273f68eff20b"
   },
   "sglang.srt.layers.vocab_parallel_embedding.VocabParallelEmbedding.weight_loader": {
-    "def_line": 452,
+    "def_line": 384,
     "file": "sglang/srt/layers/vocab_parallel_embedding.py",
-    "first_line": 452,
+    "first_line": 384,
     "kind": "function",
-    "module_sha256": "a50b43809cba9ba91157dc02bf2bf60cc0761c1ad8aa5828bbac133da614c8a1",
+    "module_sha256": "368f223b1e41d87bb8ad05e196861cdbd167354e6e6ebdd8529cd4dd4c3b2343",
     "qualname": "VocabParallelEmbedding.weight_loader",
     "sha256": "b1337fcb0218fed76bfc381a91560b4f3213f4ec8ef2767738dd1c7f383d601d"
   },
@@ -54,101 +54,101 @@
     "sha256": "df517500bb613301a0f8b7b10600db28005a4e1120c7012265990ccfadc3d33e"
   },
   "sglang.srt.models.qwen3_5.Qwen3_5GatedDeltaNet.finalize_fused_in_proj": {
-    "def_line": 632,
+    "def_line": 639,
     "file": "sglang/srt/models/qwen3_5.py",
-    "first_line": 632,
+    "first_line": 639,
     "kind": "function",
-    "module_sha256": "9ccff88d991fc492daff984e73b5f88fb4daac62d19a2c19c6c686c9bbe5499c",
+    "module_sha256": "e2a40d5be1b9fc479246176499259776d486d15487acacfaaa52daa807df6c63",
     "qualname": "Qwen3_5GatedDeltaNet.finalize_fused_in_proj",
     "sha256": "bcd3c3930455b1e9c123122052646c5c7c4175db8cdfcb0097825aaa93fdb152"
   },
   "sglang.srt.models.qwen4_exp.Qwen4ExpForConditionalGeneration._load_qwen4_exp_ple_buffer": {
-    "def_line": 1890,
+    "def_line": 2049,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 1890,
+    "first_line": 2049,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "Qwen4ExpForConditionalGeneration._load_qwen4_exp_ple_buffer",
     "sha256": "ec0e9642f34a36ed7a6a21b0336738a5c71bd3463526e101a5da1faffb48b3d0"
   },
   "sglang.srt.models.qwen4_exp.Qwen4ExpForConditionalGeneration.load_weights": {
-    "def_line": 1923,
+    "def_line": 2082,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 1923,
+    "first_line": 2082,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "Qwen4ExpForConditionalGeneration.load_weights",
     "sha256": "413bb5cd5bea5bc4bacae4ca5db32ad367d54fad1af59a8ba160ae24fa4e7d83"
   },
   "sglang.srt.models.qwen4_exp.Qwen4ExpNGramEmbedding.__init__": {
-    "def_line": 452,
+    "def_line": 540,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 452,
+    "first_line": 540,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "Qwen4ExpNGramEmbedding.__init__",
     "sha256": "3744c49d01fe4ba23b493cac71f92d8a1e573a885b49d421459e20a2ee7938d7"
   },
   "sglang.srt.models.qwen4_exp.Qwen4ExpNGramEmbedding._build_head_vocab_and_offsets": {
-    "def_line": 570,
+    "def_line": 658,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 570,
+    "first_line": 658,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "Qwen4ExpNGramEmbedding._build_head_vocab_and_offsets",
     "sha256": "2bce4ef27fc6fa51cf0308a6d37efff1b50b718953fd224a6eef1cd2fd2a75ca"
   },
   "sglang.srt.models.qwen4_exp.Qwen4ExpNGramEmbedding._build_layer_multipliers": {
-    "def_line": 550,
+    "def_line": 638,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 550,
+    "first_line": 638,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "Qwen4ExpNGramEmbedding._build_layer_multipliers",
     "sha256": "d1a429b791c23eca3ee7848ec0468433a2e46ac9e4174c0e914354a61fe85d03"
   },
   "sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.__init__": {
-    "def_line": 814,
+    "def_line": 902,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 814,
+    "first_line": 902,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "Qwen4ExpPinnedHostEmbedding.__init__",
     "sha256": "8b95488b3820c60f68c001143842fcf7bd728ef337ab3998818dc6f3f8a9a88d"
   },
   "sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.allocate_output": {
-    "def_line": 869,
+    "def_line": 957,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 869,
+    "first_line": 957,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "Qwen4ExpPinnedHostEmbedding.allocate_output",
     "sha256": "df45aa3f7429401d61d3b138a7eba873569d21faf3ad3d8d316558f257310b2b"
   },
   "sglang.srt.models.qwen4_exp.Qwen4ExpPinnedHostEmbedding.gather": {
-    "def_line": 881,
+    "def_line": 969,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 881,
+    "first_line": 969,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "Qwen4ExpPinnedHostEmbedding.gather",
     "sha256": "f329a3e432afc51c6368057a5f06d35955794bc307d27757413ccc920dd73f98"
   },
   "sglang.srt.models.qwen4_exp._ple_table_is_fp8": {
-    "def_line": 85,
+    "def_line": 95,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 85,
+    "first_line": 95,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "_ple_table_is_fp8",
     "sha256": "516f04cf2d37991d64663f3a182a8e8d262826edf75beb90ac57fa2db18a3778"
   },
   "sglang.srt.models.qwen4_exp._use_attn_tp_ngram": {
-    "def_line": 395,
+    "def_line": 483,
     "file": "sglang/srt/models/qwen4_exp.py",
-    "first_line": 395,
+    "first_line": 483,
     "kind": "function",
-    "module_sha256": "ff90b28c4a16cdbae81f6157a3dba699c992483a952743d74c418a8da50fe0c8",
+    "module_sha256": "32532ee53ff2581fc9b4a41cb4e76f39e18b490c1ab5ab5e7a89ef2a422d80d1",
     "qualname": "_use_attn_tp_ngram",
     "sha256": "42e87a4e2458552169a7dd230c53162d900aef8e0b60d77671542fd6be9fc87f"
   },
@@ -180,11 +180,11 @@
     "sha256": "9102c0b5aa1d8d197d0664ee309c4c86427be18b6063645e7a79aed50ffca556"
   },
   "sglang.srt.runtime_context.get_parallel": {
-    "def_line": 1262,
+    "def_line": 1261,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1262,
+    "first_line": 1261,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_parallel",
     "sha256": "75d1c5f8a754b0424f79d5ade3c47daa167bbbc6210e7afce34a82d03d193b71"
   }

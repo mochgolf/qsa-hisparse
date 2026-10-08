@@ -49,7 +49,7 @@
     "file": "sglang/kernels/ops/activation/activation.py",
     "first_line": 175,
     "kind": "function",
-    "module_sha256": "d0c39a06a4ed6b2e05910dc19cf695574a71259b47001216f39bb401f848da53",
+    "module_sha256": "416b4d2eb24d2abfbd215277f508b9786ade0c2fc736e470d37621cc3cd605bc",
     "qualname": "silu_and_mul",
     "sha256": "69f3b9e5242ce24f59f89032742244eee9984394e7a10bb435cbaa13a4dc54f2"
   },
@@ -72,58 +72,58 @@
     "sha256": "099fb2710d6c897cdef604946d668e3c02f9f9f56a3f5e6e4d019cd679d5f6dc"
   },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.fused_marlin_moe": {
-    "def_line": 135,
+    "def_line": 150,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 134,
+    "first_line": 149,
     "kind": "function",
-    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
     "qualname": "fused_marlin_moe",
     "sha256": "b5b24a0f31092c10112c11159b74f10b12e69e2daec9ed6a5522fd29912eb7fe"
   },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.get_scalar_type": {
-    "def_line": 84,
+    "def_line": 88,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 84,
+    "first_line": 88,
     "kind": "function",
-    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
     "qualname": "get_scalar_type",
     "sha256": "6fa1a08f7a18082c3f8453606e6e7213ca9d53c18595645a534db3b6744294fa"
   },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.situ_and_mul": {
-    "def_line": 56,
+    "def_line": 60,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 56,
+    "first_line": 60,
     "kind": "function",
-    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
     "qualname": "situ_and_mul",
     "sha256": "2211c004ea6d5e68468f1039672efed3af05294a3d47257fc611682fe419a781"
   },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.swiglu_gpt_oss_sigmoid_alpha_contiguous": {
-    "def_line": 122,
+    "def_line": 137,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 122,
+    "first_line": 137,
     "kind": "function",
-    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
     "qualname": "swiglu_gpt_oss_sigmoid_alpha_contiguous",
     "sha256": "17d2ed75a388208e0775f861e960dd8c9d77f8752b7d04c7cf31ee8f768f206f"
   },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.swiglu_limit_func": {
-    "def_line": 106,
+    "def_line": 110,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 106,
+    "first_line": 110,
     "kind": "function",
-    "module_sha256": "884a088ee56ad1ea8786c7a9ba1349f01a99442a5adf1f53a445acc6f3f9581c",
+    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
     "qualname": "swiglu_limit_func",
-    "sha256": "93b311cc8275ae35a3870a7daed77bee10a670641cd4540cedfd8a426f949841"
+    "sha256": "7ad15f80d5b0638a653437ac11eab4d270ae923eb66d50766932d4082d124bd6"
   },
   "sglang.srt.layers.moe.moe_runner.triton_utils.moe_align_block_size.moe_align_block_size": {
     "def_line": 32,
     "file": "sglang/srt/layers/moe/moe_runner/triton_utils/moe_align_block_size.py",
     "first_line": 32,
     "kind": "function",
-    "module_sha256": "3556aba5fc1142546f30d1f03034831e6893ee5ce05d868c29207485cb28df78",
+    "module_sha256": "b9fe04c12c7ace9a32d7489907dda5ce4de7646d45713aec589e5e5cec6d1fee",
     "qualname": "moe_align_block_size",
-    "sha256": "6ae4086d05bb8f32ab5f52f6d68cdf01b4409c72bfe34893678bede6cd9db529"
+    "sha256": "a3868290dc96f66d3af4c37996717327f8238fc29debb32501fcab68aca28e50"
   },
   "sglang.srt.layers.zero_copy_context.get_moe_output": {
     "def_line": 26,
@@ -135,29 +135,29 @@
     "sha256": "93cde228de99616503dd09b1dbf47e7b80065226f42da63bd85224a6a991d7a2"
   },
   "sglang.srt.runtime_context.get_context": {
-    "def_line": 1258,
+    "def_line": 1257,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1258,
+    "first_line": 1257,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_context",
     "sha256": "e259db7cb2d6e0339aac82725b374a0197b63969dbf34a35bbead7939eb95353"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1295,
+    "def_line": 1294,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1295,
+    "first_line": 1294,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
   "sglang.srt.utils.common.direct_register_custom_op": {
-    "def_line": 2882,
+    "def_line": 2903,
     "file": "sglang/srt/utils/common.py",
-    "first_line": 2882,
+    "first_line": 2903,
     "kind": "function",
-    "module_sha256": "71abb02aca154dfd2f30ed7e13b6550ac98ec9883b32e73e744e317552730fea",
+    "module_sha256": "cb4590357b253b06323a2bcb0533c3c535fa0684e79040cc97f846bc179e4d41",
     "qualname": "direct_register_custom_op",
     "sha256": "e1e3ba11ac053980936c2f2c528a66dcef44e2d9cb1ec0f42182aa2f1b84ffce"
   },

@@ -18,20 +18,20 @@
     "sha256": "a01423fa22c635753f0b065bb8d6d1b0b5a9f791ae13865f8a94a8bb73e9a82c"
   },
   "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoE.weight_loader": {
-    "def_line": 1016,
+    "def_line": 1003,
     "file": "sglang/srt/layers/moe/fused_moe_triton/layer.py",
-    "first_line": 1016,
+    "first_line": 1003,
     "kind": "function",
-    "module_sha256": "d0da78b511c9e4434e15127343b0e1be749762439acf98f6de37f071d47a1c7c",
+    "module_sha256": "02edf99af4a0c8ca8e31bf8c9246e3764e56316c09761c068baf43a2d5d69563",
     "qualname": "FusedMoE.weight_loader",
     "sha256": "aa83e0e5e7af6a2f042b8e6f33b57b29e4a28e73cca967e98ab50b23ca2bdd5a"
   },
   "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoeWeightScaleSupported": {
-    "def_line": 231,
+    "def_line": 230,
     "file": "sglang/srt/layers/moe/fused_moe_triton/layer.py",
-    "first_line": 231,
+    "first_line": 230,
     "kind": "class",
-    "module_sha256": "d0da78b511c9e4434e15127343b0e1be749762439acf98f6de37f071d47a1c7c",
+    "module_sha256": "02edf99af4a0c8ca8e31bf8c9246e3764e56316c09761c068baf43a2d5d69563",
     "qualname": "FusedMoeWeightScaleSupported",
     "sha256": "aa1eddd0c2877565b97e6c734ab234496c63b5677f22faf011cb5d643c733a2b"
   },
@@ -130,7 +130,7 @@
     "file": "sglang/srt/layers/quantization/unquant.py",
     "first_line": 432,
     "kind": "class",
-    "module_sha256": "48425087e763fdd6fd2c308709ec1de79d99a7080d050d19677b64d96594bc6d",
+    "module_sha256": "33ed3aac28267d4285f7fc29c661af5a17f4bc22fa8838f48e0c2a93fa8295c6",
     "qualname": "UnquantizedLinearMethod",
     "sha256": "dcb6d7d2de4d8bc7c30c95439aa5a1075757f5ec0c19cad32e0089fb5748f12f"
   },
@@ -144,11 +144,11 @@
     "sha256": "fbe1e420983cf940adc6eb284b54b29979556a42cf9447894b5db5a71c6ba431"
   },
   "sglang.srt.utils.common.set_weight_attrs": {
-    "def_line": 2506,
+    "def_line": 2527,
     "file": "sglang/srt/utils/common.py",
-    "first_line": 2506,
+    "first_line": 2527,
     "kind": "function",
-    "module_sha256": "71abb02aca154dfd2f30ed7e13b6550ac98ec9883b32e73e744e317552730fea",
+    "module_sha256": "cb4590357b253b06323a2bcb0533c3c535fa0684e79040cc97f846bc179e4d41",
     "qualname": "set_weight_attrs",
     "sha256": "232d4fe2dfe65812ff965576ff455b24f14d0da066b98517ca8a1cb734039e94"
   }

@@ -1,6 +1,7 @@
 """Exact stable QSA top-k (inventory T01), moved from fork ``qsa/kernel.py``.
 
-Copied verbatim from fork ``ee8fe158d6`` lines 12-59. Selection is routed here
+Copied verbatim from the reference (production ``897286b12a``, unchanged
+since fork ``ee8fe158d6``) lines 12-59. Selection is routed here
 by the ``qsa_fast_topk`` hook (T02) when deterministic inference is enabled.
 """
 

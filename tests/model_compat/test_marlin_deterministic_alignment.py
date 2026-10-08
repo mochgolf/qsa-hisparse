@@ -1,14 +1,19 @@
 """Integer oracle for the Marlin run-to-run determinism regression.
 
-Ported from fork test/qsa_hisparse/test_marlin_deterministic_alignment.py
-(ee8fe158d6) with its assertions unchanged. The code under test is the
+Ported from the reference's
+test/qsa_hisparse/test_marlin_deterministic_alignment.py (production
+897286b12a) with its assertions unchanged. The code under test is the
 plugin's: the stable alignment helper (J04), the copied ``fused_marlin_moe``
 body (J03), the copied op wrapper (J01) and the copied stripe schedule (J02).
-The fork loaded the first two by executing its source files with stubbed
+The reference loads the first two by executing its source files with stubbed
 packages; the port imports the plugin modules and substitutes the same stubs
-for their module globals instead. GPU checks are marked ``gpu``; the whole-K
-one runs the fork's test/manual/marlin_batch_invariance.py (from QSA_FORK_ROOT)
-through tools/evidence/plugin_probe.py and fails if the script is missing.
+for their module globals instead. The reference's two extra stubs
+(``get_platform`` and ``silu_and_mul_with_activation_rounding``) serve its
+loader, which executes the source with ``is_cuda`` stubbed true; here the
+pinned ``swiglu_limit_func`` sees the real ``_is_cuda`` (false on CPU). GPU
+checks are marked ``gpu``; the whole-K one runs the fork's
+test/manual/marlin_batch_invariance.py (from QSA_FORK_ROOT) through
+tools/evidence/plugin_probe.py and fails if the script is missing.
 """
 
 import importlib.util

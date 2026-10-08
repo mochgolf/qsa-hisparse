@@ -1,10 +1,15 @@
-"""QSA sparse GQA kernels with FP8 K/V descales (inventory A01-A09).
+"""QSA sparse GQA kernels with FP8 K/V descales (inventory A01-A12).
 
-Moved verbatim from fork ``ee8fe158d6`` ``layers/attention/qsa/sparse_attn.py``:
-the dtype helpers (A01), both prefill kernels (A02, A04), the compaction kernel
-(A07) and their launchers (A03, A05, A09). Definitions the fork left unchanged
-(``_get_best_config`` and the valid-count kernels) are used from the pinned
-module. ``patches/model_compat/qsa_attention.py`` installs the launchers.
+Moved verbatim from the reference (production ``897286b12a``)
+``layers/attention/qsa/sparse_attn.py``: the dtype helpers (A01), both prefill
+kernels (A02, A04), the compaction kernel (A07) and their launchers (A03, A05,
+A09), and the packed decode launcher (A11), which reuses the A04 kernel.
+Definitions the reference left unchanged (``_get_best_config`` and the
+valid-count kernels) are used from the pinned module. From the reference's
+``layers/attention/qsa/kernel.py``: the torch reference attention with FP8
+descales (A12). ``patches/model_compat/qsa_attention.py`` installs the A03,
+A05 and A09 launchers and binds A11 and A12 in its backend copies, the only
+callers that pass descales or reach the packed decode in scope.
 """
 
 from typing import Optional
@@ -392,6 +397,73 @@ def sparse_gqa_fwd_interface_triton_ck(
     return out
 
 
+def sparse_gqa_packed_decode_triton(
+    q,
+    k,
+    v,
+    indices,
+    cu_q,
+    cu_k,
+    kv_lens,
+    scale,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+):
+    """Run one packed sparse-attention row per request without a host sync.
+
+    Reuses the chunk-prefill kernel at a fixed query length of one, so graph
+    capture never hits the ``.item()`` that the general interface needs to
+    derive ``max_q``.
+    """
+
+    k, v = k.contiguous(), v.contiguous()
+    kv_is_fp8 = _validate_sparse_gqa_dtypes(q, k, v)
+    total_q, num_q_heads, head_dim = q.shape
+    num_kv_heads = k.shape[1]
+    group_size = num_q_heads // num_kv_heads
+    block_m = max(16, triton.next_power_of_2(group_size))
+    block_n, warps, stages = _get_best_config(total_q)
+    out = torch.empty_like(q)
+    _sparse_gqa_chunk_prefill[(1, (cu_q.shape[0] - 1) * num_kv_heads)](
+        q,
+        k,
+        v,
+        out,
+        indices,
+        cu_q,
+        cu_k,
+        kv_lens,
+        scale,
+        _unit_scale(k_scale),
+        _unit_scale(v_scale),
+        indices.shape[-1],
+        q.stride(0),
+        q.stride(1),
+        q.stride(2),
+        k.stride(0),
+        k.stride(1),
+        k.stride(2),
+        v.stride(0),
+        v.stride(1),
+        v.stride(2),
+        out.stride(0),
+        out.stride(1),
+        out.stride(2),
+        indices.stride(0),
+        indices.stride(1) if indices.ndim == 3 else 0,
+        indices.stride(2) if indices.ndim == 3 else indices.stride(1),
+        NUM_KV_HEADS=num_kv_heads,
+        GROUP_SIZE=group_size,
+        BLOCK_M=block_m,
+        BLOCK_N=block_n,
+        HEAD_DIM=head_dim,
+        KV_IS_FP8=kv_is_fp8,
+        num_warps=warps,
+        num_stages=stages,
+    )
+    return out
+
+
 @triton.jit
 def _compact_kv(
     k,
@@ -520,3 +592,73 @@ def qwen_sparse_kv_extraction_compact_triton(
         ZERO_FILL=zero_fill,
         num_warps=8,
     )
+
+
+# A12: from layers/attention/qsa/kernel.py -----------------------------------
+
+
+def qsa_sparse_attention(
+    q: torch.Tensor,
+    k_cache: torch.Tensor,
+    v_cache: torch.Tensor,
+    token_slots: torch.Tensor,
+    softmax_scale: Optional[float] = None,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+) -> torch.Tensor:
+    """Torch reference for sparse GQA over physical token slots."""
+
+    if q.ndim != 3 or k_cache.ndim != 3 or v_cache.ndim != 3:
+        raise ValueError("q, k_cache and v_cache must be rank-3 tensors")
+    if token_slots.ndim != 2 or token_slots.shape[0] != q.shape[0]:
+        raise ValueError(
+            "token slots must be [query_tokens, selected_tokens], got "
+            f"{token_slots.shape}"
+        )
+    if q.shape[-1] != k_cache.shape[-1] or q.shape[-1] != v_cache.shape[-1]:
+        raise ValueError("Q/K/V head dimensions must match")
+    if q.shape[1] % k_cache.shape[1] != 0:
+        raise ValueError("query heads must be divisible by KV heads")
+    return qsa_sparse_attention_reference(
+        q, k_cache, v_cache, token_slots, softmax_scale, k_scale, v_scale
+    )
+
+
+def qsa_sparse_attention_reference(
+    q: torch.Tensor,
+    k_cache: torch.Tensor,
+    v_cache: torch.Tensor,
+    token_slots: torch.Tensor,
+    softmax_scale: Optional[float] = None,
+    k_scale: Optional[float] = None,
+    v_scale: Optional[float] = None,
+) -> torch.Tensor:
+    """Device-agnostic sparse GQA reference.
+
+    FP8 pools store ``cast_fp8(x / scale)``; the positive layer scales restore
+    the cached K/V before the attention math runs.
+    """
+
+    scale = softmax_scale or q.shape[-1] ** -0.5
+    k_scale = 1.0 if k_scale is None else float(k_scale)
+    v_scale = 1.0 if v_scale is None else float(v_scale)
+    outputs = []
+    repeats = q.shape[1] // k_cache.shape[1]
+    for row in range(q.shape[0]):
+        valid = token_slots[row] >= 0
+        slots = token_slots[row, valid].long()
+        if slots.numel() == 0:
+            outputs.append(torch.zeros_like(q[row]))
+            continue
+        keys = k_cache.index_select(0, slots).repeat_interleave(repeats, dim=1)
+        values = v_cache.index_select(0, slots).repeat_interleave(repeats, dim=1)
+        scores = (
+            torch.einsum("hd,khd->hk", q[row].float(), keys.float() * k_scale) * scale
+        )
+        probabilities = torch.softmax(scores, dim=-1)
+        outputs.append(
+            torch.einsum("hk,khd->hd", probabilities, values.float() * v_scale).to(
+                q.dtype
+            )
+        )
+    return torch.stack(outputs)
