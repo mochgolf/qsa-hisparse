@@ -18,6 +18,15 @@ def token_bytes(tokens):
     return array("q", tokens).tobytes()
 
 
+def image_key(identity, length):
+    """Track I: the image key a checkpoint of ``length`` holds; None for text."""
+    return None if identity is None else identity.key_at(length)
+
+
+def key_digest(key):
+    return None if key is None else hashlib.sha256(repr(key).encode()).hexdigest()
+
+
 def tensors(value):
     if isinstance(value, torch.Tensor):
         yield value
@@ -48,6 +57,7 @@ class PrefixSnapshot:
     pending: tuple
     rope: torch.Tensor
     mamba: tuple
+    image_key: tuple = None  # ImagePrefixIdentity.key_at(length); None for text.
 
     @property
     def length(self):
@@ -55,7 +65,12 @@ class PrefixSnapshot:
 
     @property
     def signature(self):
-        return self.namespace, self.length, hashlib.sha256(self.tokens).hexdigest()
+        return (
+            self.namespace,
+            self.length,
+            hashlib.sha256(self.tokens).hexdigest(),
+            key_digest(self.image_key),
+        )
 
 
 class PrefixReader:
@@ -121,15 +136,18 @@ class HostPrefixCache:
                 return True
         return False
 
-    def acquire(self, namespace, tokens, limit=None, *, count=True):
+    def acquire(self, namespace, tokens, limit=None, *, count=True, identity=None):
         with self.lock:
             cap = len(tokens) // 8 if limit is None else limit
+            if identity is not None:  # Image keys exist within M-RoPE coverage.
+                cap = min(cap, 64 * len(identity.page_digests))
             best = None
             for entry_id, (snapshot, _) in self.entries.items():
                 if (
                     snapshot.namespace == namespace
                     and snapshot.length <= cap
                     and tokens.startswith(snapshot.tokens)
+                    and snapshot.image_key == image_key(identity, snapshot.length)
                     and (best is None or snapshot.length > best[1].length)
                 ):
                     best = entry_id, snapshot

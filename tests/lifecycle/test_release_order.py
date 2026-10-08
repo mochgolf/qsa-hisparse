@@ -274,7 +274,7 @@ def test_failed_restore_rolls_back_before_the_error_propagates():
         namespace=(rt.prefix_namespace, 0, None, None, None),
     )
     reader = SimpleNamespace(snapshot=snapshot, entry_id=1, close=Mock())
-    rt.prefix_cache.acquire = lambda namespace, tokens, count: reader
+    rt.prefix_cache.acquire = lambda namespace, tokens, count, identity=None: reader
     for name in (
         "prepare_prefix_for_extend",
         "note_extend_allocation",

@@ -225,6 +225,16 @@
       ],
       "attach": []
     },
+    "I1": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.multimodal.processors.qwen_vl.QwenVLImageProcessor.compose_image_artifacts",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
     "J03": {
       "feature": "model_compat",
       "patches": [

@@ -1,0 +1,175 @@
+--- fork/prefix.py
++++ plugin/prefix.py
+@@ -16,6 +16,15 @@
+ 
+ def token_bytes(tokens):
+     return array("q", tokens).tobytes()
++
++
++def image_key(identity, length):
++    """Track I: the image key a checkpoint of ``length`` holds; None for text."""
++    return None if identity is None else identity.key_at(length)
++
++
++def key_digest(key):
++    return None if key is None else hashlib.sha256(repr(key).encode()).hexdigest()
+ 
+ 
+ def tensors(value):
+@@ -48,6 +57,7 @@
+     pending: tuple
+     rope: torch.Tensor
+     mamba: tuple
++    image_key: tuple = None  # ImagePrefixIdentity.key_at(length); None for text.
+ 
+     @property
+     def length(self):
+@@ -55,7 +65,12 @@
+ 
+     @property
+     def signature(self):
+-        return self.namespace, self.length, hashlib.sha256(self.tokens).hexdigest()
++        return (
++            self.namespace,
++            self.length,
++            hashlib.sha256(self.tokens).hexdigest(),
++            key_digest(self.image_key),
++        )
+ 
+ 
+ class PrefixReader:
+@@ -121,15 +136,18 @@
+                 return True
+         return False
+ 
+-    def acquire(self, namespace, tokens, limit=None, *, count=True):
++    def acquire(self, namespace, tokens, limit=None, *, count=True, identity=None):
+         with self.lock:
+             cap = len(tokens) // 8 if limit is None else limit
++            if identity is not None:  # Image keys exist within M-RoPE coverage.
++                cap = min(cap, 64 * len(identity.page_digests))
+             best = None
+             for entry_id, (snapshot, _) in self.entries.items():
+                 if (
+                     snapshot.namespace == namespace
+                     and snapshot.length <= cap
+                     and tokens.startswith(snapshot.tokens)
++                    and snapshot.image_key == image_key(identity, snapshot.length)
+                     and (best is None or snapshot.length > best[1].length)
+                 ):
+                     best = entry_id, snapshot
+--- fork/prefix_cache.py
++++ plugin/prefix_cache.py
+@@ -7,7 +7,9 @@
+ from sglang.srt.environ import envs
+ from sglang.srt.mem_cache.base_prefix_cache import MatchResult
+ from sglang.srt.mem_cache.chunk_cache import ChunkCache
+-from sglang_qsa_hisparse.hisparse.prefix import token_bytes
++from sglang_qsa_hisparse.hisparse.image_identity import ImagePrefixIdentity
++from sglang_qsa_hisparse.hisparse.image_request import identity_for
++from sglang_qsa_hisparse.hisparse.prefix import image_key, key_digest, token_bytes
+ 
+ 
+ class QSAHostPrefixCache(ChunkCache):
+@@ -19,11 +21,15 @@
+         self.restoring = {}
+ 
+     def _namespace(self, req):
+-        # Exact model/position identity for plain text; unsupported inputs miss.
++        # Exact model/position identity for plain text and supported images
++        # (whose image identity is matched separately); unsupported inputs miss.
++        image = identity_for(req)
++        if image is not None and not isinstance(image, ImagePrefixIdentity):
++            return None  # Track I bypass set.
+         if any(
+             getattr(req, name, None) is not None
+             for name in (
+-                "multimodal_inputs",
++                *(("multimodal_inputs",) if image is None else ()),
+                 "positional_embed_overrides",
+                 "input_embeds",
+                 "position_ids",
+@@ -69,7 +75,12 @@
+         ):
+             self._converge((handle, namespace, None))
+             return super().match_prefix(params)
+-        reader = self.host.acquire(namespace, token_bytes(params.key), len(params.key))
++        reader = self.host.acquire(
++            namespace,
++            token_bytes(params.key),
++            len(params.key),
++            identity=identity_for(req),
++        )
+         try:
+             # A rank-local hit changes chunk shape and logical admission demand.
+             # Converge before either rank can make those scheduler decisions.
+@@ -106,6 +117,7 @@
+ 
+         Salt does not change checkpoint scheduling. A salted miss computes the
+         prefix before its unaligned suffix and supplies an uncached control.
++        Supported image requests split the same way, also inside an image.
+         """
+         if self._namespace(req) is None or getattr(
+             req, "skip_radix_cache_insert", False
+@@ -285,6 +297,7 @@
+                 namespace,
+                 length,
+                 hashlib.sha256(tokens).hexdigest(),
++                key_digest(image_key(identity_for(req), length)),
+                 captured is not None,
+             )
+             self._converge(
+--- fork/runtime.py
++++ plugin/runtime.py
+@@ -1042,9 +1042,11 @@
+ 
+     def capture_prefix(self, req, namespace, tokens):
+         """Capture only an actual complete forward boundary, before handoff."""
++        from sglang_qsa_hisparse.hisparse.image_request import identity_for
+         from sglang_qsa_hisparse.hisparse.prefix import (
+             PrefixSegment,
+             PrefixSnapshot,
++            image_key,
+         )
+ 
+         state = self._request(req.kv.req_pool_idx, req.rid)
+@@ -1058,7 +1060,10 @@
+             return None
+         if len(tokens) != length * 8:
+             raise RuntimeError("QSA prefix token/checkpoint boundary differs")
+-        previous = self.prefix_cache.acquire(namespace, tokens, count=False)
++        identity = identity_for(req)
++        previous = self.prefix_cache.acquire(
++            namespace, tokens, count=False, identity=identity
++        )
+         reservation = None
+         retained = False
+         try:
+@@ -1073,7 +1078,11 @@
+                 previous = None
+                 if state.prefix_basis_length:
+                     previous = self.prefix_cache.acquire(
+-                        namespace, tokens, state.prefix_basis_length, count=False
++                        namespace,
++                        tokens,
++                        state.prefix_basis_length,
++                        count=False,
++                        identity=identity,
+                     )
+                     if (
+                         previous is not None
+@@ -1127,7 +1136,13 @@
+             rope = self.pool.qsa_rope_position_buffer[ring].to("cpu", copy=True)
+             mamba = self._capture_mamba(int(req.kv.mamba_pool_idx))
+             snapshot = PrefixSnapshot(
+-                namespace, tokens, tuple(segments), pending, rope, mamba
++                namespace,
++                tokens,
++                tuple(segments),
++                pending,
++                rope,
++                mamba,
++                image_key(identity, length),
+             )
+             return reservation, snapshot
+         except BaseException:

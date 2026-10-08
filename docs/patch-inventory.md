@@ -442,6 +442,17 @@ P02, B06, K01-K03, C01, C02, R01, R02, G01-G03, Q03, Q06 and Q07.
 - Top-level docs and `archive/` (design notes, experiments, results): no code
   impact.
 
+## 8. Track I: image prefix reuse (plugin-only, no fork hunks)
+
+Rows added in Phase 3 (PLAN.md "Track I"). They map no fork hunk, so they are
+outside §1 and Appendix A. The prefix matching rule and signatures (I2) are
+plugin code in `hisparse/{image_request,prefix,prefix_cache,runtime}.py`, not
+hooks.
+
+| ID | Fork file:lines | Behavior | Feature: justification | Hook target (pin) | Type: why | depends (key) | WS | U |
+|---|---|---|---|---|---|---|---|---|
+| I1 | none | Record each Qwen-VL fast-path image item's full artifact key (content digest, modality, processor fingerprint, preprocessing kwargs) in `model_specific_data["artifact_key"]`, which the tokenizer-to-scheduler transport carries | hisparse: only host prefixes read the key; the extra string is inert upstream | `sglang.srt.multimodal.processors.qwen_vl.QwenVLImageProcessor.compose_image_artifacts` (pin 864) | after: the method builds one item per artifact, in order, from a deepcopy of the artifact's `model_specific_data`, and returns None on fallback | `cache.identity.build_artifact_key`, `MediaArtifactCacheMixin._artifact_key`, `MultimodalDataItem`, `MultimodalInputs.from_processor_output` | I-A | #41792 (`MultimodalDataItem.identity`) |
+
 ## Appendix A. Hunk → row map (generated; every hunk exactly once)
 
 Generated from `git diff -U0 76e06febab ee8fe158d6 -- python/sglang`: 31 modified files, 196 hunks, 15 new files, 89 rows. Hunk = new-side `+start,count`.
