@@ -77,6 +77,10 @@ def _bypass_cases():
             MultimodalInputFormat.PRECOMPUTED_EMBEDDING
         )
 
+    def processor_output_format(req):
+        # A caller-supplied processor output may copy another image's key.
+        req.multimodal_inputs.mm_items[0].format = MultimodalInputFormat.PROCESSOR_OUTPUT
+
     def multi_span(req):
         req.multimodal_inputs.mm_items[0].offsets = [(10, 20), (30, 40)]
 
@@ -92,7 +96,7 @@ def _bypass_cases():
     def no_items(req):
         req.multimodal_inputs.mm_items = []
 
-    return [video, audio, embeddings, embedding_format, multi_span, no_offsets,
+    return [video, audio, embeddings, embedding_format, processor_output_format, multi_span, no_offsets,
             no_artifact_key, no_mrope, no_items]  # fmt: skip
 
 

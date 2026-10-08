@@ -156,8 +156,11 @@ content digest and grid of each Qwen-VL image item to the scheduler, aligned
 with draft #41792 where possible; define the bypass set (video/audio,
 precomputed embeddings, skipped hashing, multi-span items, unscoped hashes).
 Processor hooks run where plugins load (tokenizer manager in the main
-process; plugins are not loaded in tokenizer-worker subprocesses at the pin,
-so multi-tokenizer mode is rejected while image reuse is on).
+process). Plugins are not loaded in tokenizer-worker subprocesses at the pin,
+so in multi-tokenizer mode image items carry no artifact key and bypass host
+prefixes (text reuse is unaffected); this loses image reuse but cannot cause
+a wrong hit, so it is documented rather than rejected. Image reuse also
+requires `--mm-preprocess-cache-size-mb > 0` (artifact fast path).
 I2 matching (owner: I2 agent): snapshot schema with the image records
 intersecting `[0, L)` and a page-cumulative M-RoPE digest; acquisition and TP
 signatures. I1 and I2 start from an `ImagePrefixIdentity` contract the

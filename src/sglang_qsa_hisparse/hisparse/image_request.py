@@ -7,6 +7,7 @@ and M-RoPE positions into the ``ImagePrefixIdentity`` of ``image_identity.py``.
 """
 
 from sglang.srt.environ import envs
+from sglang.srt.managers.schedule_batch import MultimodalInputFormat
 from sglang_qsa_hisparse.hisparse.image_identity import (
     ImagePrefixIdentity,
     ImageRecord,
@@ -48,6 +49,9 @@ def _identity(mm, positions):
         key = item.model_specific_data.get(ARTIFACT_KEY)
         if (
             not item.is_image()
+            # Only items the processor built itself: caller-supplied processor
+            # outputs can carry a copied artifact key with other features.
+            or item.format is not MultimodalInputFormat.NORMAL
             or item.is_precomputed_embedding()
             or item.precomputed_embeddings is not None
             or item.offsets is None
