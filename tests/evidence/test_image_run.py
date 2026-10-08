@@ -64,9 +64,17 @@ def fake(evidence, tmp_path, monkeypatch):
     (package / "launch.py").write_text(FAKE_LAUNCHER)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    (bin_dir / "nvidia-smi").write_text("#!/bin/sh\n")
+    # Counts its calls; lists a compute process for calls in [BUSY_FROM, BUSY_UNTIL).
+    (bin_dir / "nvidia-smi").write_text(
+        '#!/bin/sh\nn=$(cat "$FAKE_SMI_COUNT" 2>/dev/null || echo 0)\n'
+        'echo $((n + 1)) > "$FAKE_SMI_COUNT"\n'
+        'if [ "$n" -ge "${FAKE_SMI_BUSY_FROM:-999999}" ] && [ "$n" -lt "${FAKE_SMI_BUSY_UNTIL:-999999}" ]; then\n'
+        '  echo "4242, 100 MiB"\nfi\n'
+    )
     (bin_dir / "nvidia-smi").chmod(0o755)
+    monkeypatch.setenv("FAKE_SMI_COUNT", str(tmp_path / "smi-count"))
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(run, "GPU_IDLE_POLL", 0.01)
     monkeypatch.setenv("SGLANG_VLM_CACHE_SIZE_MB", "77")  # Never reaches the cache-on session.
     for name, value in (
         ("PYTHON", Path(sys.executable)),
@@ -171,3 +179,25 @@ def test_a_reference_of_other_text_fixtures_stops_before_any_server(fake, tmp_pa
     with pytest.raises(SystemExit, match="not the fixtures"):
         run.main(arguments(tmp_path, free_port(), reference_sha="0" * 64))
     assert not (tmp_path / "out").exists() and not calls
+
+
+def test_second_session_waits_until_the_gpus_are_idle(fake, tmp_path, monkeypatch):
+    """Window 2: the first server's processes were still listed when the second
+    session's preflight ran. nvidia-smi call 0 is session 1's preflight."""
+    run, calls, _ = fake
+    monkeypatch.setenv("FAKE_SMI_BUSY_FROM", "1")
+    monkeypatch.setenv("FAKE_SMI_BUSY_UNTIL", "3")  # Calls 1 and 2 still list a process.
+    assert run.main(arguments(tmp_path, free_port())) == 0
+    assert len(calls) == 2
+    # Session 1 preflight, three idle-wait polls, session 2 preflight.
+    assert (tmp_path / "smi-count").read_text().strip() == "5"
+
+
+def test_gpus_that_stay_busy_stop_the_run_before_the_second_session(fake, tmp_path, monkeypatch):
+    run, calls, _ = fake
+    monkeypatch.setattr(run, "GPU_IDLE_TIMEOUT", 0.2)
+    monkeypatch.setenv("FAKE_SMI_BUSY_FROM", "1")
+    with pytest.raises(SystemExit, match="still listed after"):
+        run.main(arguments(tmp_path, free_port()))
+    assert len(calls) == 1 and not (tmp_path / "out" / "vit-cache-off").exists()
+    assert list(json.loads((tmp_path / "out" / "summary.json").read_text())) == ["vit-cache-on"]

@@ -10,9 +10,19 @@
 Image cases (image_fixtures.py) run one request at a time through
 ``/generate``, each case in fresh salts: cold (the case prompt, unique salt),
 seed (the case's seed prompt in the warm salt), warm (the case prompt in the
-warm salt). Greedy, the fixture's max_new_tokens, output logprobs with top 5
-(input logprobs from the case's logprob_start_len), prompt token IDs (image
-spans are the runs of at least 64 equal IDs). A case passes when:
+warm salt). Greedy, the fixture's max_new_tokens, prompt token IDs (image
+spans are the runs of at least 64 equal IDs). Image requests ask for no
+logprobs, except the cold and warm requests of a case with
+``logprob_start_len``, which ask for input logprobs (top 5) and generate one
+token. Reason (inherited from the pin and the fork):
+``Scheduler._build_hisparse_decode_batch`` (pin scheduler.py:3566-3568) sets
+``batch.token_ids_logprobs`` to every request's padded ``origin_input_ids``
+whenever the batch returns logprobs; image pad values exceed the vocabulary,
+so the first HiSparse decode step indexes out of bounds in
+``get_token_ids_logprobs`` (logprob_processor.py:151) and the server dies. A
+one-token request finishes at prefill and never builds that batch; input
+logprobs are computed during prefill, where image ids are clamped. A case
+passes when:
 
 - cold and seed reuse 0 tokens; warm output IDs equal cold output IDs;
 - warm cached_tokens equals the frozen ``cached`` and is below prompt_tokens
@@ -39,7 +49,8 @@ Text control: the G2-2 qualification cases with prefix_length <=
 ``--text-max-prefix``, replayed like the fork harness (cold_0, cold_1, seed,
 warm, repeated_warm; same payloads and salt grouping); output IDs and
 cached_tokens must equal the reference (the Phase 2 fork arm). Logprob
-equality is recorded, not judged.
+equality is recorded, not judged. (Text ids are in the vocabulary, so the
+decode-batch bug above only wastes work there, as in Phase 2.)
 
 Exit 0 only if everything passes. The report is rewritten after every case.
 """
@@ -105,24 +116,26 @@ def image_spans(ids):
     return spans
 
 
-def image_request(url, fixtures, prompt, salt, logprob_start_len):
+def image_request(url, fixtures, prompt, salt, logprob_start_len=None):
+    """Without logprobs; with input logprobs from ``logprob_start_len``, one
+    token only (see the module docstring: inherited decode-batch bug)."""
     data = []
     for item in prompt["images"]:
         image = "data:image/png;base64," + fixtures["images"][item["name"]]["png_base64"]
         data.append(image if "detail" not in item else {"url": image, "detail": item["detail"]})
-    result, raw = generate(
-        url,
-        {
-            "text": prompt["text"],
-            "image_data": data,
-            "cache_salt": salt,
-            "sampling_params": {"temperature": 0, "max_new_tokens": fixtures["max_new_tokens"]},
-            "return_logprob": True,
-            "logprob_start_len": logprob_start_len,
-            "top_logprobs_num": TOP_LOGPROBS,
-            "return_prompt_token_ids": True,
-        },
-    )
+    payload = {
+        "text": prompt["text"],
+        "image_data": data,
+        "cache_salt": salt,
+        "sampling_params": {"temperature": 0, "max_new_tokens": fixtures["max_new_tokens"]},
+        "return_prompt_token_ids": True,
+    }
+    if logprob_start_len is not None:
+        payload["sampling_params"]["max_new_tokens"] = 1
+        payload.update(
+            return_logprob=True, logprob_start_len=logprob_start_len, top_logprobs_num=TOP_LOGPROBS
+        )
+    result, raw = generate(url, payload)
     ids = raw["prompt_token_ids"]
     result["prompt_sha256"] = hashlib.sha256(json.dumps(ids).encode()).hexdigest()
     result["image_spans"] = image_spans(ids)
@@ -234,10 +247,10 @@ def judge(case, row):
 
 def run_case(url, fixtures, case, salt, vit_log, cache_off, observer_log, tp_size):
     row = {"name": case["name"], "cached": case["cached"], "hit_inside": case["hit_inside"]}
-    start = case.get("logprob_start_len", -1)
+    start = case.get("logprob_start_len")
     try:
         row["cold"] = image_request(url, fixtures, case["prompt"], f"{salt}-cold", start)
-        row["seed"] = image_request(url, fixtures, case["seed"], f"{salt}-warm", -1)
+        row["seed"] = image_request(url, fixtures, case["seed"], f"{salt}-warm")
         row["warm"] = image_request(url, fixtures, case["prompt"], f"{salt}-warm", start)
         failures = judge(case, row)
         if observer_log is not None:
@@ -250,7 +263,6 @@ def run_case(url, fixtures, case, salt, vit_log, cache_off, observer_log, tp_siz
             for kind in ("cold", "seed", "warm"):
                 attach_vit(row[kind], rows)
                 failures += judge_vit(kind, row[kind], ranks, cache_off)
-        row["logprobs_equal"] = all(row["warm"][k] == row["cold"][k] for k in OUTPUT_LOGPROBS)
     except Exception as exc:  # Recorded as this case's failure; later cases still run.
         failures = [f"{type(exc).__name__}: {exc}"]
     row["failures"] = failures
