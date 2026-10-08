@@ -203,3 +203,11 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 - G2 closed by the orchestrator after the third re-check: no parity issue;
   comparator hardened (exact signatures, inventory, verbose skip IDs); see
   `reviews/G2-response.md`.
+- G3-U follow-ups done (CPU side): U9b `445e71bb34` (CustomTestCase), U7 split
+  message `5b20ecdda8`, U1 `b8d2e16836` (gate tests pin the flag), U6a
+  `6fa6778afc`, U6b `20509a88ca`, U8 `5e9921bba7` (CPU tests moved to CPU-
+  registered unit files; GPU tests written, not run; numerical reference in
+  U8). Docs corrected (U4: K02/K03 can use `_resolve_kv_pool_class` at the
+  next pin; U5, U7, U8, U23). Ready for owner decision: U1, U9a, U9b, U7 w13
+  (contribution to #35955). Need GPU validation before opening: U6a, U6b
+  (with U6a on SM89), U8, U7 group split.
