@@ -19,11 +19,12 @@ keys exist only on the preprocess-cache path) and the ViT encode observer
   encodes the images it computes (straddling images on hits, and the batch
   invariance check of image_prefix_harness.py).
 
-Each session runs image_prefix_harness.py (image cases and the text control)
-into ``<session>/image-prefix.json``, stops its server, then checks the
-observers: every TP rank wrote a ViT log and a checkpoint log with a capture
-and a restore, and every restore equals the capture it restored
-(compare.py). ``summary.json`` holds each session's harness exit status and
+Each session runs image_prefix_harness.py (image cases and the text control,
+with both observer directories, so each image hit needs its own restore at
+the expected length on every rank) into ``<session>/image-prefix.json``,
+stops its server, then checks the observers: every TP rank wrote a ViT log
+and a checkpoint log with a capture and a restore, and every restore equals
+the capture it restored (compare.py). ``summary.json`` holds each session's harness exit status and
 observer problems; the exit status is 0 only if both sessions pass.
 """
 
@@ -86,6 +87,7 @@ def session(base, output, vlm_cache_mb, harness_args):
             (output / "server_info.json").write_bytes(response.read())
         status = image_prefix_harness.main(
             ["--url", url, *harness_args, "--vit-log", str(output / "vit"),
+             "--observer-log", str(output / "observer"),
              "--output", str(output / "image-prefix.json")]
         )  # fmt: skip
     finally:
