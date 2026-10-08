@@ -303,3 +303,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   production interpreter. Appendix A remapped (`tools/remap_hunks.py`): 187
   of 263 production hunks carried, 76 `?` to map (`docs/phase5-survey.md`).
   Tasks P5-A..D started.
+- Phase 5 tasks merged into `phase5` (`docs/phase5-results.md`): every
+  production hunk mapped (no `?`), every REPLACE copy equals production,
+  runtime equals production; production-only changes in the plugin (T05,
+  A11/A12, Q13, U02–U04, M05/M06, R01). REPLACE 31 → 32 (M06). CPU suite on
+  the production interpreter passes (686 + 4 + 26), 390 fingerprints.
+  Next: G5-CPU review.
