@@ -150,8 +150,10 @@ pinned definitions (`def`/`class` line). Module paths drop `sglang.srt.`.
 | `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_prepare` (869) | `num_real_reqs.fill_(bs)` during capture |
 
 The other callers (`Scheduler`, `SchedulerBatchResultProcessor`,
-`ModelRunner._forward_raw`, `DecodeCudaGraphRunner.load_batch`/`execute`/
-`capture_one_shape`) are W2/W3 patch targets and are pinned by those rows.
+`DecodeCudaGraphRunner.load_batch`/`capture_one_shape`) are W2/W3 patch
+targets and are pinned by those rows; `ModelRunner._forward_raw` and
+`DecodeCudaGraphRunner.execute` are pinned as `depends` of the R02/G03 hooks
+(D6, D7).
 
 ### CUDA graph configuration and native backend
 
