@@ -31,14 +31,20 @@ FAILED tests/qsa/test_qsa.py::test_known
 """
 
 
-def run(tmp_path, fork=FORK, plugin=PLUGIN, inventory=INVENTORY, known=KNOWN, supplement=SUPPLEMENT):
+def run(tmp_path, fork=FORK, plugin=PLUGIN, inventory=INVENTORY, known=KNOWN, supplement=SUPPLEMENT,
+        plugin_inventory=None):
     (tmp_path / "f.log").write_text(fork)
     (tmp_path / "p.log").write_text(plugin)
     (tmp_path / "inventory.txt").write_text(inventory)
     (tmp_path / "s.log").write_text(supplement)
+    extra = []
+    if plugin_inventory is not None:
+        (tmp_path / "plugin-inventory.txt").write_text(plugin_inventory)
+        extra = ["--plugin-inventory", str(tmp_path / "plugin-inventory.txt")]
     return pytest_outcomes.main(
         ["--fork", str(tmp_path / "f.log"), "--plugin", str(tmp_path / "p.log"),
-         "--inventory", str(tmp_path / "inventory.txt"), "--supplement", str(tmp_path / "s.log"), *known]
+         "--inventory", str(tmp_path / "inventory.txt"), "--supplement", str(tmp_path / "s.log"),
+         *extra, *known]
     )
 
 
@@ -101,3 +107,15 @@ def test_v0_5_21_renamed_hc_mix_file_keeps_its_reference_ids(tmp_path):
     fork = "PASSED test/registered/kernel/hyperconnection/test_hc_mix_triton.py::test_mix\n1 passed in 1.00s\n"
     plugin = "PASSED registered/kernels/ops/gemm/test_hc_mix.py::test_mix\n1 passed in 1.00s\n"
     assert run(tmp_path, fork, plugin, "test_hc_mix_triton.py::test_mix\n", []) == 0
+
+
+def test_verbose_plugin_run_against_the_run2_reference(tmp_path):
+    """G4: run2's fork reference names skips by file; a -v plugin run names
+    them by test against its own inventory, and the arms agree by file."""
+    assert run(tmp_path, FORK, VERBOSE_PLUGIN, INVENTORY, plugin_inventory=VERBOSE_INVENTORY) == 0
+    other = VERBOSE_PLUGIN.replace("::test_sm121 SKIPPED", "::test_unrelated SKIPPED")
+    assert run(tmp_path, FORK, other, INVENTORY, plugin_inventory=VERBOSE_INVENTORY) == 1
+    assert run(tmp_path, FORK, VERBOSE_PLUGIN, INVENTORY, plugin_inventory=INVENTORY) == 1
+    reason = VERBOSE_PLUGIN.replace("SM121-only kernel", "no GPU")
+    assert run(tmp_path, FORK, reason, INVENTORY,
+               plugin_inventory=VERBOSE_INVENTORY.replace("SM121-only kernel", "no GPU")) == 1

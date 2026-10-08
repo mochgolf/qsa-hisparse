@@ -2,8 +2,8 @@
 """Compare per-test pytest outcomes of two arms (G2-1 kernel tests).
 
     pytest_outcomes.py --fork LOG [LOG ...] --plugin LOG [LOG ...]
-                       --inventory FILE [--supplement LOG ...]
-                       [--known FILE::TEST=SIGNATURE ...]
+                       --inventory FILE [--plugin-inventory FILE]
+                       [--supplement LOG ...] [--known FILE::TEST=SIGNATURE ...]
 
 Each log holds exactly one pytest run (one final summary line).
 
@@ -27,6 +27,9 @@ Inventory lines: ``FILE::TEST`` for a test with an outcome, and
 runs, whose ``<node id> SKIPPED`` lines identify the skipped tests.
 ``skip FILE <reason>`` (no test name) is accepted only for evidence recorded
 without ``-v`` (run2), where skips are reported by file and reason.
+``--plugin-inventory`` (default: ``--inventory``) gives the plugin arm its own
+frozen inventory, for a ``-v`` plugin run against the run2 fork reference;
+across arms, skips are then compared by file, reason and count.
 
 The reference fork arm is Phase 2's (pin 76e06febab). SGLang v0.5.21 moved
 the registered kernel tests to ``test/registered/kernels/ops/attention/qsa/``
@@ -107,11 +110,26 @@ def parse(path, tests, skips):
     return problems
 
 
+def read_inventory(path):
+    ids, skips = set(), Counter()
+    for line in Path(path).read_text().splitlines():
+        if line.startswith("skip "):
+            _, file, reason = line.split(" ", 2)
+            if "::" in file:
+                skips[("id", file)] += 1
+                file = file.split("::", 1)[0]
+            skips[(file, reason)] += 1
+        elif line.strip() and not line.startswith("#"):
+            ids.add(line.strip())
+    return ids, skips
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--fork", nargs="+", required=True)
     parser.add_argument("--plugin", nargs="+", required=True)
     parser.add_argument("--inventory", required=True)
+    parser.add_argument("--plugin-inventory")
     parser.add_argument("--supplement", nargs="*", default=[])
     parser.add_argument("--known", nargs="*", default=[], help="FILE::TEST=SIGNATURE")
     args = parser.parse_args(argv)
@@ -122,17 +140,9 @@ def main(argv=None):
         for log in logs:
             problems += [f"{arm}: {p}" for p in parse(log, tests, skips)]
         arms[arm] = (tests, skips, None)
-    ids, skip_inventory = set(), Counter()
-    for line in Path(args.inventory).read_text().splitlines():
-        if line.startswith("skip "):
-            _, file, reason = line.split(" ", 2)
-            if "::" in file:
-                skip_inventory[("id", file)] += 1
-                file = file.split("::", 1)[0]
-            skip_inventory[(file, reason)] += 1
-        elif line.strip() and not line.startswith("#"):
-            ids.add(line.strip())
-    for arm, (tests, skips, _) in arms.items():
+    for arm, inventory in (("F", args.inventory), ("P", args.plugin_inventory or args.inventory)):
+        tests, skips, _ = arms[arm]
+        ids, skip_inventory = read_inventory(inventory)
         if set(tests) != ids:
             problems.append(f"{arm}: IDs differ from inventory: missing {sorted(ids - set(tests))}, "
                             f"extra {sorted(set(tests) - ids)}")
@@ -164,8 +174,9 @@ def main(argv=None):
         p = verdict(key, plugin[key]) if key in plugin else "missing"
         if f != p or f not in ("passed", "known failure"):
             problems.append(f"{key}: F {f}; P {p}")
-    if arms["F"][1] != arms["P"][1]:
-        problems.append(f"skips differ: F {dict(arms['F'][1])}, P {dict(arms['P'][1])}")
+    by_file = [Counter({k: v for k, v in arms[arm][1].items() if k[0] != "id"}) for arm in "FP"]
+    if by_file[0] != by_file[1]:
+        problems.append(f"skips differ: F {dict(by_file[0])}, P {dict(by_file[1])}")
     print(f"{len(fork)} outcomes + {sum(arms['F'][1].values())} skipped per arm (F); "
           f"declared known failures: {sorted(known)}")
     for problem in problems:
