@@ -1,21 +1,21 @@
 {
   "sglang.srt.managers.schedule_batch.MultimodalDataItem": {
-    "def_line": 358,
+    "def_line": 364,
     "file": "sglang/srt/managers/schedule_batch.py",
-    "first_line": 358,
+    "first_line": 364,
     "kind": "class",
-    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "module_sha256": "b2f78c781de88c36ce27cc5d44b343420338b4da299e885c575665d6fab843ca",
     "qualname": "MultimodalDataItem",
     "sha256": "e70bee8d888aabbc3c84863811c35ee84c1f391f07e5c02a81d034afc743d6ac"
   },
   "sglang.srt.managers.schedule_batch.MultimodalInputs.from_processor_output": {
-    "def_line": 704,
+    "def_line": 740,
     "file": "sglang/srt/managers/schedule_batch.py",
-    "first_line": 703,
+    "first_line": 739,
     "kind": "function",
-    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "module_sha256": "b2f78c781de88c36ce27cc5d44b343420338b4da299e885c575665d6fab843ca",
     "qualname": "MultimodalInputs.from_processor_output",
-    "sha256": "74009a01cb8341714039e85a4fc4b529a25d084504ce2481d4dfeae32aa7f0be"
+    "sha256": "49d79fe7aef9cb6d4050ce9e52d0144667fb12b06c3399119c448f3a92886fb8"
   },
   "sglang.srt.multimodal.cache.identity.build_artifact_key": {
     "def_line": 311,

@@ -53,11 +53,13 @@ def _activate_through_loader(rank):
     from sglang.srt.plugins import load_plugins
 
     load_plugins()
+    from sglang.srt.runtime_context import get_parallel
     from sglang_qsa_hisparse.patches.framework import _verify_scheduler_activation
 
-    # The arguments run_scheduler_process passes: server_args, gpu_id,
-    # tp_rank, attn_cp_rank, moe_dp_rank, moe_ep_rank, pp_rank, dp_rank.
-    _verify_scheduler_activation(None, 0, rank, 0, 0, 0, 0, None)
+    # run_scheduler_process publishes this process's ranks, then passes
+    # configure_scheduler_process only server_args and gpu_id.
+    get_parallel().override_permanently(tp_rank=rank, pp_rank=0, dp_rank=None)
+    _verify_scheduler_activation(None, 0)
 
 
 def _write_record(mode, rank):

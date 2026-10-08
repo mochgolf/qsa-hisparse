@@ -27,6 +27,13 @@ Inventory lines: ``FILE::TEST`` for a test with an outcome, and
 runs, whose ``<node id> SKIPPED`` lines identify the skipped tests.
 ``skip FILE <reason>`` (no test name) is accepted only for evidence recorded
 without ``-v`` (run2), where skips are reported by file and reason.
+
+The reference fork arm is Phase 2's (pin 76e06febab). SGLang v0.5.21 moved
+the registered kernel tests to ``test/registered/kernels/ops/attention/qsa/``
+(``test_qsa_indexer.py``, ``test_qsa_strided_zero_fill.py``) and
+``test/registered/kernels/ops/gemm/`` and renamed ``test_hc_mix_triton.py`` to
+``test_hc_mix.py`` (same test names); ``RENAMED`` keys the renamed file under
+its reference name.
 """
 
 import argparse
@@ -42,6 +49,13 @@ SECTION = re.compile(r"^_{3,} (\S+) _{3,}$")
 EXCEPTION = re.compile(r"^E\s+((?:\w+\.)*\w*(?:Error|Exception|Exit|Interrupt)\b.*)$")
 SUMMARY = re.compile(r"^=*\s*((?:\d+ \w+(?:, )?)+) in [\d.]+s")
 SUMMARY_ITEM = re.compile(r"(\d+) (passed|failed|skipped|xfailed|xpassed|errors?|deselected|warnings?|subtests passed)")
+# Upstream test file renamed after the reference run -> its reference name.
+RENAMED = {"test_hc_mix.py": "test_hc_mix_triton.py"}
+
+
+def file_key(path):
+    name = Path(path).name
+    return RENAMED.get(name, name)
 
 
 def parse(path, tests, skips):
@@ -60,7 +74,7 @@ def parse(path, tests, skips):
         if match := OUTCOME.match(line):
             status, node, message = match.groups()
             file, _, name = node.partition("::")
-            key = f"{Path(file).name}::{name}"
+            key = f"{file_key(file)}::{name}"
             if status == "FAILED" and not message:
                 message = raised.get(name, "")
             outcome = (status, message or "")
@@ -70,10 +84,10 @@ def parse(path, tests, skips):
             counted[status] += 1
         elif match := SKIPPED.match(line):
             count, file, reason = match.groups()
-            skips[(Path(file).name, reason)] += int(count)
-            run_skips[(Path(file).name, reason)] += int(count)
+            skips[(file_key(file), reason)] += int(count)
+            run_skips[(file_key(file), reason)] += int(count)
         elif match := VERBOSE_SKIP.match(line):
-            skips[("id", f"{Path(match.group(1)).name}::{match.group(2)}")] += 1
+            skips[("id", f"{file_key(match.group(1))}::{match.group(2)}")] += 1
         elif match := SUMMARY.match(line.strip("= ")):
             summary = Counter()
             for number, kind in SUMMARY_ITEM.findall(match.group(1)):

@@ -95,3 +95,9 @@ def test_a_different_skipped_test_fails(tmp_path):
 
 def test_verbose_logs_require_named_skips_in_the_inventory(tmp_path):
     assert run(tmp_path, VERBOSE_FORK, VERBOSE_PLUGIN, INVENTORY) == 1
+
+
+def test_v0_5_21_renamed_hc_mix_file_keeps_its_reference_ids(tmp_path):
+    fork = "PASSED test/registered/kernel/hyperconnection/test_hc_mix_triton.py::test_mix\n1 passed in 1.00s\n"
+    plugin = "PASSED registered/kernels/ops/gemm/test_hc_mix.py::test_mix\n1 passed in 1.00s\n"
+    assert run(tmp_path, fork, plugin, "test_hc_mix_triton.py::test_mix\n", []) == 0

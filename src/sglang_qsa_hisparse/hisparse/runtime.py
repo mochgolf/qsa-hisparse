@@ -229,7 +229,7 @@ class QSAHiSparseRuntime:
             raise ValueError(
                 "QSA P2 raw backing geometry/capacity does not match the lease layout"
             )
-        self.device, self.rank = self.pool.device, runner.ps.tp_rank
+        self.device, self.rank = self.pool.device, runner.tp_rank
         self.layer_ids = list(self.pool.full_attention_layer_id_mapping)
         self.raw_ptrs = [t.data_ptr() for t in self.full.k_buffer + self.full.v_buffer]
         self.index_ptr = self.pool.qsa_compressed_flat.data_ptr()
