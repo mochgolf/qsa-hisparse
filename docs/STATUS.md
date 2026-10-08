@@ -139,3 +139,15 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 - G1 findings fixed (W5 `46669a3`, W8 `af67564`/`1f4299d`, lock `fb4f627`);
   CPU runner 408 + 3 + 26 passed. G1 re-check running.
 - G1 cleared (re-check: all five findings resolved, no new findings).
+- Phase 3 started (owner, 2026-10-07): Track I agents I-A/I-B and Track U
+  agents UA/UB/UC (CPU only; upstream worktrees `.worktrees/upstream-U{A,B,C}`
+  at upstream main `b7b2975b57`). Contract: `hisparse/image_identity.py`.
+- Phase 2 window (owner authorized the orchestrator to stop and restore
+  production): production stopped 21:46 via `./qwen-service.sh stop` after a
+  ≥4 s idle check; pre-stop state in
+  `qwen:results/plugin-g2-20261007/production-before.txt` (running profile
+  `lab/results/dsh-local-promotion-20261004/promoted-8081-profile.json`,
+  byte-identical to `service/current.json`). Restore with
+  `./qwen-service.sh start --profile <that path>`, then check 8081 health and
+  models. Window script runs G2-1 (F, P), G2-2 deterministic (F, P, observer),
+  compat-only (F, P); G2-3 native checks deferred to a production cutover.
