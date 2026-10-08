@@ -328,9 +328,8 @@ class QSAHostPrefixCache(ChunkCache):
         self._capture(req)
         super().cache_unfinished_req(req, chunked=chunked)
 
-    def cache_finished_req(self, req, is_insert=True, *, kv_len_to_handle):
+    def on_release(self, req, *, inserted):
         self.release_aborted_request(req.cache_request_handle)
-        super().cache_finished_req(req, is_insert, kv_len_to_handle=kv_len_to_handle)
 
     def release_aborted_request(self, handle):
         # Failed restore submission can retain an undrained stream and its

@@ -1,14 +1,16 @@
 """Rows N01-N04: the runtime package and the ported tests are the fork's code.
 
 Each moved module must equal its fork file at the reference commit after
-exactly the import rewrites of PLAN.md ("Import mapping"), except the Track I
-divergences (PLAN.md Phase 3), which must equal the fork file plus exactly the
-diff recorded in ``track_i.diff`` (rerecord with ``python <this file>`` after
-an intended Track I change). ``depends.py`` and the Track I identity modules
-are the only plugin-owned modules in the package. The ported fork tests in this
-directory may differ only by the same rewrites plus an added ``pytest``
-import and ``integration`` marks. The fork is read with ``git show`` from
-``$QSA_FORK_ROOT`` (default ``../qsa-hisparse`` next to this repository).
+exactly the import rewrites of PLAN.md ("Import mapping") and the edits that
+``PIN_EDITS`` records for SGLang interfaces changed at the pin, except the
+Track I divergences (PLAN.md Phase 3), which must equal that reference plus
+exactly the diff recorded in ``track_i.diff`` (rerecord with ``python <this
+file>`` after an intended Track I change). ``depends.py`` and the Track I
+identity modules are the only plugin-owned modules in the package. The ported
+fork tests in this directory may differ only by the same rewrites and pin
+edits plus an added ``pytest`` import and ``integration`` marks. The fork is
+read with ``git show`` from ``$QSA_FORK_ROOT`` (default ``../qsa-hisparse``
+next to this repository).
 """
 
 import difflib
@@ -60,6 +62,26 @@ ALIASES = {  # N04, dropped
 ADDED_TEST_LINE = re.compile(
     rb"import pytest\n|( {4})?@pytest\.mark\.integration\(rows=\(.+\)\)\n"
 )
+# Fork code that uses an SGLang interface changed at the pin (v0.5.21), as
+# (fork text, plugin text) after the import rewrites; each fork text occurs
+# exactly once in its file.
+PIN_EDITS = {
+    # ModelRunner lost ``ps`` (ParallelState); init_torch_distributed sets tp_rank.
+    "runtime.py": ((b"runner.ps.tp_rank", b"runner.tp_rank"),),
+    "single_request.py": ((b"runner.ps.tp_rank", b"runner.tp_rank"),),
+    "test_single_request.py": ((b"ps=SimpleNamespace(tp_rank=0),", b"tp_rank=0,"),),
+    # ChunkCache lost cache_finished_req: release_kv_cache frees the request's
+    # row itself, then calls on_release (tests/prefix/test_release.py).
+    "prefix_cache.py": (
+        (
+            b"    def cache_finished_req(self, req, is_insert=True, *, kv_len_to_handle):\n"
+            b"        self.release_aborted_request(req.cache_request_handle)\n"
+            b"        super().cache_finished_req(req, is_insert, kv_len_to_handle=kv_len_to_handle)\n",
+            b"    def on_release(self, req, *, inserted):\n"
+            b"        self.release_aborted_request(req.cache_request_handle)\n",
+        ),
+    ),
+}
 
 
 def git(*args: str) -> bytes:
@@ -78,10 +100,19 @@ def rewrite(text: bytes) -> bytes:
     return text
 
 
+def reference(name: str, path: str) -> bytes:
+    """The fork file ``path`` after the import rewrites and ``name``'s pin edits."""
+    text = rewrite(fork_file(path))
+    for old, new in PIN_EDITS.get(name, ()):
+        assert text.count(old) == 1, (name, old)
+        text = text.replace(old, new)
+    return text
+
+
 def track_i_diff() -> str:
     diff = []
     for module in DIVERGED:
-        fork = rewrite(fork_file(MOVED[module])).decode().splitlines(keepends=True)
+        fork = reference(module, MOVED[module]).decode().splitlines(keepends=True)
         ours = (PACKAGE / module).read_text().splitlines(keepends=True)
         diff += difflib.unified_diff(fork, ours, f"fork/{module}", f"plugin/{module}")
     return "".join(diff)
@@ -105,7 +136,7 @@ def test_package_holds_exactly_the_moved_modules():
 
 @pytest.mark.parametrize("module", sorted(set(MOVED) - set(DIVERGED)))
 def test_moved_module_is_the_fork_file(module):
-    assert (PACKAGE / module).read_bytes() == rewrite(fork_file(MOVED[module]))
+    assert (PACKAGE / module).read_bytes() == reference(module, MOVED[module])
 
 
 def test_track_i_divergences_are_the_recorded_diff():
@@ -114,7 +145,7 @@ def test_track_i_divergences_are_the_recorded_diff():
 
 @pytest.mark.parametrize("name", PORTED)
 def test_ported_test_differs_only_by_imports_and_marks(name):
-    fork = rewrite(fork_file(f"test/qsa_hisparse/{name}")).splitlines(keepends=True)
+    fork = reference(name, f"test/qsa_hisparse/{name}").splitlines(keepends=True)
     ours = (Path(__file__).parent / name).read_bytes().splitlines(keepends=True)
     added = []
     matcher = difflib.SequenceMatcher(None, fork, ours, autojunk=False)

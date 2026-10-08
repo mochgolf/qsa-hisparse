@@ -78,7 +78,7 @@ class QSAHiSparseSingleRequest:
         if self.capacity != 262144:
             raise ValueError("QSA V3 requires request-table capacity >=262144")
         self.layer_ids = list(self.pool.full_attention_layer_id_mapping)
-        self.rank = runner.ps.tp_rank
+        self.rank = runner.tp_rank
         self.copy_stream = torch.cuda.Stream(device=self.device)
         self.owner = None
         self.owner_rid = None

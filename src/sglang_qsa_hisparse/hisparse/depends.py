@@ -12,7 +12,7 @@ RUNTIME_DEPENDS = (
     # Runner, pools and allocator handed to the runtime constructors.
     "sglang.srt.model_executor.model_runner.ModelRunner.__init__",
     "sglang.srt.model_executor.model_runner.ModelRunner.alloc_memory_pool",
-    "sglang.srt.distributed.parallel_state_wrapper.ParallelState",
+    "sglang.srt.model_executor.model_runner.ModelRunner.init_torch_distributed",
     "sglang.srt.configs.model_config.ModelConfig.__init__",
     "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool",
     "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool.__init__",
@@ -95,6 +95,7 @@ RUNTIME_DEPENDS = (
     "sglang.srt.arg_groups.fields.spec.Spec",
     # prefix_cache.py (row N02 code; its behavior is W6's).
     "sglang.srt.mem_cache.chunk_cache.ChunkCache",
+    "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.on_release",
     "sglang.srt.mem_cache.base_prefix_cache.MatchPrefixParams",
     "sglang.srt.mem_cache.base_prefix_cache.MatchResult",
     "sglang.srt.mem_cache.radix_cache.RadixKey",
