@@ -103,11 +103,14 @@ def _bind_max_running_requests(original, self, *, sizes, **kwargs):
         "sglang.srt.runtime_context.max_speculative_num_draft_tokens",
     ),
     reason=(
-        "Fork body copied verbatim (_build_hybrid_linear_kv_pool below): with "
-        "SGLANG_QSA_HISPARSE_V3=p2-offload it validates the bounded logical "
-        "capacity and builds the raw staging MHATokenToKVPool passed as "
-        "full_kv_pool, which must enter extra_args mid-function. Mechanical "
-        "edit: the QSAHiSparseSlots import is rewritten to the plugin package. "
+        "Pinned body with the fork change carried over "
+        "(_build_hybrid_linear_kv_pool below; the target is unchanged at "
+        "v0.5.21): with SGLANG_QSA_HISPARSE_V3=p2-offload it validates the "
+        "bounded logical capacity (including the configurator's use_mla_backend "
+        "and post_capture_kv_active) and builds the raw staging MHATokenToKVPool "
+        "passed as full_kv_pool, which must enter extra_args mid-function, "
+        "before pool_class(...). Mechanical edit: the QSAHiSparseSlots import is "
+        "rewritten to the plugin package. "
         "The replacement keeps the pinned signature and supplies the fork's "
         "extra max_running_requests argument from K01. hisparse: env-gated."
     ),

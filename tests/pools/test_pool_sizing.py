@@ -36,6 +36,8 @@ INDEX_KV_HEADS, INDEX_HEAD_DIM, RATIO, BF16_BYTES = 1, 128, 4, 2
 
 RAW_BYTES_PER_TOKEN = LAYERS * KV_HEADS * (HEAD_DIM + HEAD_DIM) * FP8_BYTES
 LOGICAL_BYTES_PER_TOKEN = LAYERS * INDEX_KV_HEADS * INDEX_HEAD_DIM * BF16_BYTES // RATIO
+# TP2 for get_parallel().override, which validates the whole topology at v0.5.21.
+TP2 = dict(tp_size=2, attn_tp_size=2, moe_tp_size=2)
 
 
 def staging_tokens(requests):
@@ -89,7 +91,7 @@ def _p2_offload(requests, **extra):
             page_size=PAGE,
             **extra,
         ),
-        get_parallel().override(attn_tp_size=2),
+        get_parallel().override(**TP2),
     )
 
 
@@ -130,7 +132,7 @@ def test_configurator_prices_fixed_staging(case, requests):
         with pytest.raises(RuntimeError, match="Not enough memory"):
             cfg.calculate_pool_sizes(one_page - 1, PAGE)
 
-    with get_parallel().override(attn_tp_size=2), activated("C01", "C02"):
+    with get_parallel().override(**TP2), activated("C01", "C02"):
         plain = DefaultPoolConfigurator(kvc)  # SGLANG_QSA_HISPARSE_V3 unset
     assert plain._bias == 0
     assert plain._cell_size == RAW_BYTES_PER_TOKEN + LOGICAL_BYTES_PER_TOKEN
@@ -149,7 +151,7 @@ def test_configurator_requires_bounded_capacity(case, server_args):
     with (
         mock.patch.dict(os.environ, {"SGLANG_QSA_HISPARSE_V3": "p2-offload"}),
         get_context().override_server_args(**{"page_size": PAGE, **server_args}),
-        get_parallel().override(attn_tp_size=2),
+        get_parallel().override(**TP2),
         activated("C01", "C02"),
         pytest.raises(ValueError, match="bounded logical capacity"),
     ):
@@ -262,7 +264,7 @@ def test_no_raw_staging_without_p2_offload():
     with (
         mock.patch.dict(os.environ, {"SGLANG_QSA_HISPARSE_V3": "p2-resident"}),
         get_context().override_server_args(page_size=PAGE),
-        get_parallel().override(attn_tp_size=2),
+        get_parallel().override(**TP2),
         activated("K01", "K02"),
     ):
         pool = _build_kv_pool(4, 4 * CONTEXT)

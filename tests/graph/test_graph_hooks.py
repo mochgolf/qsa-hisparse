@@ -133,12 +133,14 @@ def _graph_runner(events, coordinator, backend):
     runner.pp_size = 1
     runner.capture_bs = [1, 2, 4, 8]
     runner.require_mlp_tp_gather = False
+    runner.require_attn_tp_gather = False
     runner.enable_two_batch_overlap = False
     runner.enable_pdmux = False
     runner.record_nolora_graph = False
     runner.attention_graph_variants = None
     runner._metadata_glue = None
     runner.is_dllm = False
+    runner.dllm_uses_input_embeds = False
     runner.capture_hidden_mode = CaptureHiddenMode.NULL
     runner.capture_forward_mode = ForwardMode.DECODE
     runner.seq_len_fill_value = 1

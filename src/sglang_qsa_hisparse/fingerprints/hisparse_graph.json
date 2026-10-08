@@ -1,73 +1,73 @@
 {
   "sglang.srt.layers.dp_attention.set_dp_buffer_len": {
-    "def_line": 274,
+    "def_line": 314,
     "file": "sglang/srt/layers/dp_attention.py",
-    "first_line": 274,
+    "first_line": 314,
     "kind": "function",
-    "module_sha256": "8815a7a383c22ac3cb4ca28df79904d222164d6d6502eb216a389dd00c9fe426",
+    "module_sha256": "93a2fe6a000428c5b81004b3039a3ed773a036becc1b2ffd4fc8b13a3481e6f6",
     "qualname": "set_dp_buffer_len",
     "sha256": "6375f85c678090911739eb4f13ffef7ab8c56b426e03cc2b96efc936895bef11"
   },
   "sglang.srt.layers.dp_attention.set_is_extend_in_batch": {
-    "def_line": 330,
+    "def_line": 390,
     "file": "sglang/srt/layers/dp_attention.py",
-    "first_line": 330,
+    "first_line": 390,
     "kind": "function",
-    "module_sha256": "8815a7a383c22ac3cb4ca28df79904d222164d6d6502eb216a389dd00c9fe426",
+    "module_sha256": "93a2fe6a000428c5b81004b3039a3ed773a036becc1b2ffd4fc8b13a3481e6f6",
     "qualname": "set_is_extend_in_batch",
     "sha256": "6976b54114a8422bac34a5f4ebc6f15a767534f8533dc6c373ba10f15ff96f96"
   },
   "sglang.srt.layers.logits_processor.LogitsProcessorOutput": {
-    "def_line": 203,
+    "def_line": 211,
     "file": "sglang/srt/layers/logits_processor.py",
-    "first_line": 202,
+    "first_line": 210,
     "kind": "class",
-    "module_sha256": "d24c845abbc8729179a60670f55ab8041da0cd0bd85c6854d0855da81516fb8e",
+    "module_sha256": "cfa7d5aaf8b37078a956c2fefd61ca0f069b6a4159f97e0e618c0f0ddf0b4ea9",
     "qualname": "LogitsProcessorOutput",
-    "sha256": "b18e8e62d67708bf6c9e6fd6ba871cadec05c7f88094684755b35964ff2c7be9"
+    "sha256": "64bb03456bcc85239ef8c1c1835e9743778a53035f6cfb79b773f71281e1115f"
   },
   "sglang.srt.managers.schedule_batch.ScheduleBatch": {
-    "def_line": 2258,
+    "def_line": 2335,
     "file": "sglang/srt/managers/schedule_batch.py",
-    "first_line": 2257,
+    "first_line": 2334,
     "kind": "class",
-    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "module_sha256": "b2f78c781de88c36ce27cc5d44b343420338b4da299e885c575665d6fab843ca",
     "qualname": "ScheduleBatch",
-    "sha256": "115b034e5566781df231c2374725c40952873cbaf9ba8cffaed381cf05ada3d3"
+    "sha256": "32826a795279d9ac609a3ec04c2e212cc88d39152b1c378ea4acb4ef60dbcf09"
   },
   "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.extract_buffer": {
-    "def_line": 473,
+    "def_line": 480,
     "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
-    "first_line": 473,
+    "first_line": 480,
     "kind": "function",
-    "module_sha256": "f13d41c14a5f4f1484d04d5394d847da059ea721a571693b8d8015b0dedc7ee9",
+    "module_sha256": "839a1a077a6c7ec50148d4a6481e37880baa8947432db7ac09574b7e601f0d78",
     "qualname": "CudaGraphBufferRegistry.extract_buffer",
     "sha256": "c2555c71b3038b4857f791addd94c66a2fc924460c5e244c9b1602915a75024d"
   },
   "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.fill_from": {
-    "def_line": 381,
+    "def_line": 388,
     "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
-    "first_line": 381,
+    "first_line": 388,
     "kind": "function",
-    "module_sha256": "f13d41c14a5f4f1484d04d5394d847da059ea721a571693b8d8015b0dedc7ee9",
+    "module_sha256": "839a1a077a6c7ec50148d4a6481e37880baa8947432db7ac09574b7e601f0d78",
     "qualname": "CudaGraphBufferRegistry.fill_from",
     "sha256": "373a9776f51f5e43ee864bef0b8b435edfb7d2e5af7280bbe8e0aca81a6d2bcc"
   },
   "sglang.srt.model_executor.forward_batch_info.ForwardBatch.init_new": {
-    "def_line": 764,
+    "def_line": 904,
     "file": "sglang/srt/model_executor/forward_batch_info.py",
-    "first_line": 763,
+    "first_line": 903,
     "kind": "function",
-    "module_sha256": "586a4243f4e543fd99e5a6fce54b4ac17fe0cd81698be658b8b8441838a45dc3",
+    "module_sha256": "ef4426b3ece1b515eeb5223d394de6a8d154d912bcf62e7ed4bae20e17064797",
     "qualname": "ForwardBatch.init_new",
-    "sha256": "bf77b8358301104a85f97acfc02b8e374f93f790a6dfcae852073c2aa42518c2"
+    "sha256": "f3ecde71a5487b28b3ba87df242554edae9258cf78cc2adf0527885c19b2f63e"
   },
   "sglang.srt.model_executor.forward_batch_info.PPProxyTensors": {
-    "def_line": 1859,
+    "def_line": 2091,
     "file": "sglang/srt/model_executor/forward_batch_info.py",
-    "first_line": 1859,
+    "first_line": 2091,
     "kind": "class",
-    "module_sha256": "586a4243f4e543fd99e5a6fce54b4ac17fe0cd81698be658b8b8441838a45dc3",
+    "module_sha256": "ef4426b3ece1b515eeb5223d394de6a8d154d912bcf62e7ed4bae20e17064797",
     "qualname": "PPProxyTensors",
     "sha256": "da249d584d98afe7e35fd6d3f68c27d50cc8e94cabcc68d7fe67709c403207d6"
   },
@@ -99,272 +99,290 @@
     "sha256": "0848dad9c35c108afd4f4e6b01094ec9b3c9e092fb425d8e0754dcea517ec2f2"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._extend_forward_kwargs": {
-    "def_line": 1590,
+    "def_line": 1660,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1590,
+    "first_line": 1660,
     "kind": "function",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner._extend_forward_kwargs",
     "sha256": "532bfa3f55fff0c64589d752b054750474fe32f38dcac51d856cbc57ee167796"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._forward_raw": {
-    "def_line": 1782,
+    "def_line": 1856,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1782,
+    "first_line": 1856,
     "kind": "function",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner._forward_raw",
-    "sha256": "a1f79dbbcd14e5f348a5f7be3a8fa156e1183cbc76744dd7dd3dec7ca0d83659"
+    "sha256": "9e6f8e310c832959c518b68eb04131719b70ab44f9eec3ca424b5c631a945bd0"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._maybe_execute_deferred_mamba_cow_and_clear": {
-    "def_line": 1734,
+    "def_line": 1808,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1734,
+    "first_line": 1808,
     "kind": "function",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner._maybe_execute_deferred_mamba_cow_and_clear",
     "sha256": "314fe9b096535f7881c703874fe8679a073cab86f3778bb949a3ca36c1f7c8f9"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._prepare_eager_forward_batch": {
-    "def_line": 1548,
+    "def_line": 1616,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1548,
+    "first_line": 1616,
     "kind": "function",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner._prepare_eager_forward_batch",
-    "sha256": "c692f50d8dc1542029e4ce2c406ba6f13d1d997a8ffb11b86f4f60348bc4ffeb"
+    "sha256": "ba624785238f83177ac1efde096ceec59e7639b497046735dfaf81e13abb2ad9"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._prepare_replicated_q_proj": {
-    "def_line": 1041,
+    "def_line": 1033,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1041,
+    "first_line": 1033,
     "kind": "function",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner._prepare_replicated_q_proj",
     "sha256": "c0638fa201004ea2107878b783bb4b743ddd0a5118d8cdac4fb50c701969b5d9"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner.forward_split_prefill": {
-    "def_line": 1614,
+    "def_line": 1684,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1614,
+    "first_line": 1684,
     "kind": "function",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner.forward_split_prefill",
     "sha256": "f2659e2dce05f8fbafe62cd2ce83510145ce217d19f7c4e4033077a8e3d3f279"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner.init_attention_backends": {
-    "def_line": 1013,
+    "def_line": 1005,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1013,
+    "first_line": 1005,
     "kind": "function",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner.init_attention_backends",
     "sha256": "d05bbe5dd7803033546e1d36b30349a85726fb35f9493153b1685a1783046eef"
   },
   "sglang.srt.model_executor.model_runner.ModelRunnerOutput": {
-    "def_line": 274,
+    "def_line": 279,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 273,
+    "first_line": 278,
     "kind": "class",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunnerOutput",
     "sha256": "42e17999182b5ef2604ec8a14d9fd992f90e2d3d566b00bd0384fb7634aaf806"
   },
   "sglang.srt.model_executor.model_runner._prefill_cuda_graph_allows_context_parallel": {
-    "def_line": 263,
+    "def_line": 268,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 263,
+    "first_line": 268,
     "kind": "function",
-    "module_sha256": "a6c91db3d13f55bf04a9ce691a34aad2af79456b0c3a40e70c86b959cec44c17",
+    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "_prefill_cuda_graph_allows_context_parallel",
     "sha256": "cf5495e2a7eca56363d496b32563beb2d67bbf9f05e34cfb90bbeaca159bb483"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._capture_graph_size": {
-    "def_line": 549,
+    "def_line": 582,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 549,
+    "first_line": 582,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._capture_graph_size",
     "sha256": "87d0ec64c094e4dfd08997158f9384760003a981fa09df18e7b33f4e3915630c"
   },
-  "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._make_graph_key": {
-    "def_line": 539,
+  "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._global_num_tokens_for_graph": {
+    "def_line": 585,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 539,
+    "first_line": 585,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "qualname": "DecodeCudaGraphRunner._global_num_tokens_for_graph",
+    "sha256": "c94f248d5825f04a7fea432b1251dda83d78aab8888ba3e1a8c47532f4dc7888"
+  },
+  "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._make_graph_key": {
+    "def_line": 572,
+    "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
+    "first_line": 572,
+    "kind": "function",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._make_graph_key",
     "sha256": "1b92c3899b0beb866b30a18cc238d0db83c97e01578c3fc7d1b17d3b63cb6844"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._max_dp_batch_size": {
-    "def_line": 624,
+    "def_line": 664,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 623,
+    "first_line": 663,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._max_dp_batch_size",
     "sha256": "fd0e4f4559cf3aa99536828563e224f5e06685e3a1a29bbfbc79b34f4df3c5b3"
   },
-  "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._publish_read_done": {
-    "def_line": 500,
+  "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._process_output_after_replay": {
+    "def_line": 1558,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 500,
+    "first_line": 1558,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "qualname": "DecodeCudaGraphRunner._process_output_after_replay",
+    "sha256": "c196ee624c9d69b9b784a1572f129d7c869774fcb69fa4a058cf5491cf440ad6"
+  },
+  "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._publish_read_done": {
+    "def_line": 533,
+    "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
+    "first_line": 533,
+    "kind": "function",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._publish_read_done",
     "sha256": "b3c2ea285ec5d5106e12349608254637ef25382163c77bce9b1e8779905972b0"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._ragged_capture_slots": {
-    "def_line": 581,
+    "def_line": 621,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 581,
+    "first_line": 621,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._ragged_capture_slots",
     "sha256": "426f563de5525c2e2abab0c59243072f3f88dcf9e9bd77ed427ea978885a0d10"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._ragged_graph_num_tokens": {
-    "def_line": 1396,
+    "def_line": 1474,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1396,
+    "first_line": 1474,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._ragged_graph_num_tokens",
     "sha256": "8f0f5c7b96cc2d5b66cca5c107dbabc1021338b6e7da6ef6b2c8cfe8a12dccff"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._record_in_graph_metadata_prep_done": {
-    "def_line": 467,
+    "def_line": 500,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 467,
+    "first_line": 500,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._record_in_graph_metadata_prep_done",
     "sha256": "3826c5b4e07173205d567a072ee1b1a98bdef2a36c448a5c73756c4bcfc29e75"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._replay_attn_backend": {
-    "def_line": 484,
+    "def_line": 517,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 484,
+    "first_line": 517,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._replay_attn_backend",
     "sha256": "0253be7bfd2cf35fcc3beb09c1f0a5b67ea81243c0349dae2ff2390decf099b5"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._resolve_attention_variant": {
-    "def_line": 552,
+    "def_line": 592,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 552,
+    "first_line": 592,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._resolve_attention_variant",
     "sha256": "7a5c5a77bd340e1c7787cc2499bc002b55f3708d8239d48763aabe7e689dabac"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._resolve_lora_variant": {
-    "def_line": 556,
+    "def_line": 596,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 556,
+    "first_line": 596,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._resolve_lora_variant",
     "sha256": "5844f24caa80b1af40c5400173644b2943ce5f4168940417bab0c490c0adca8e"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._resolve_shared_read_ends": {
-    "def_line": 490,
+    "def_line": 523,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 490,
+    "first_line": 523,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._resolve_shared_read_ends",
     "sha256": "eab03806176246a4a1559e3bfee1b9be1a5c3fe0370fd1a96b4305ee8621a474"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._stage_ragged_verify_layout": {
-    "def_line": 609,
+    "def_line": 649,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 609,
+    "first_line": 649,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._stage_ragged_verify_layout",
     "sha256": "c108b9c2a38efc3dff318abecf48a0ad182159d61f3019f019150884ec255bd6"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._validate_capture_hidden_mode": {
-    "def_line": 1221,
+    "def_line": 1264,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1221,
+    "first_line": 1264,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner._validate_capture_hidden_mode",
     "sha256": "cfc9e1f83384c5013712b4783dd41eac0760f995786dc15c1cb8bb824f94379c"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.can_run_graph": {
-    "def_line": 632,
+    "def_line": 672,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 632,
+    "first_line": 672,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner.can_run_graph",
     "sha256": "4baa48638d8ae3757005ff38923d88b48d6c49fd11f00a8fe72793aa30d19b0b"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_one_shape": {
-    "def_line": 1105,
+    "def_line": 1143,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1105,
+    "first_line": 1143,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner.capture_one_shape",
-    "sha256": "08fe231bbca5d13254268866d6569bcf21054a775fcf93cd970bb05cb132bce1"
+    "sha256": "64e8a326685d44db2ccd3359a0c2087ae73ad3284bb8ee7a72ee677abcb7746b"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_prepare": {
-    "def_line": 830,
+    "def_line": 869,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 830,
+    "first_line": 869,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner.capture_prepare",
-    "sha256": "5ba879aa709e6e7176dfd37b9f2a7e1f864d4ccf1b538d30c41b250f11da0121"
+    "sha256": "72fc7dc374dbae944fe64a83aa1cfdd2e86af75c82e65fbf5afbe7c2e32da900"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.execute": {
-    "def_line": 1401,
+    "def_line": 1479,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1401,
+    "first_line": 1479,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner.execute",
-    "sha256": "e7c4c1133452b9521f17f5986c678c17de38cab1773b7349ba990b71fe3f00b7"
+    "sha256": "fe0eaf40ef7ff7879618264d40cfa012fa1e3ab3481f334f83b736f44d464cb0"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.load_batch": {
-    "def_line": 1228,
+    "def_line": 1271,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1228,
+    "first_line": 1271,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "DecodeCudaGraphRunner.load_batch",
-    "sha256": "381514669b585e76bcb2fe1c786f9af67ef2fa92ca19baf0d8c4d0c8863211c8"
+    "sha256": "a7c6c743f64123fe596fd3f7b08ec2016c7ea075d9ec8202f35f4d063934b022"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.build_replay_fb_view": {
-    "def_line": 151,
+    "def_line": 152,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 151,
+    "first_line": 152,
     "kind": "function",
-    "module_sha256": "1be527d4cc682b0be39229f84d995229f82d7874d6dccb7ce450da82ade9ce6a",
+    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
     "qualname": "build_replay_fb_view",
-    "sha256": "763501e7e7b58134b108fcc2592124bb1326a94d4a322b5964e06dab78af43e0"
+    "sha256": "821b02644f19100e6c44b897940201f346b83513ad5b3d2600483ee0a33af741"
   },
   "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch": {
-    "def_line": 183,
+    "def_line": 182,
     "file": "sglang/srt/model_executor/runner/eager_runner.py",
-    "first_line": 183,
+    "first_line": 182,
     "kind": "function",
-    "module_sha256": "9868a79ab6c7f637a88659caa6beba50006dba557ce916e65b940b13daf37683",
+    "module_sha256": "a04d7344319eccbeacefad3f60e559c716f412e680ed0f712645ef149238a6b5",
     "qualname": "EagerRunner.load_batch",
     "sha256": "c24823b6fdcb71f43f4153c45991752b76b27f21c4b43606d419b70a993eb5fd"
   },
   "sglang.srt.model_executor.runner.flashinfer_autotune.maybe_flashinfer_autotune_speculative_draft": {
-    "def_line": 310,
+    "def_line": 311,
     "file": "sglang/srt/model_executor/runner/flashinfer_autotune.py",
-    "first_line": 310,
+    "first_line": 311,
     "kind": "function",
-    "module_sha256": "cddbf6f4a2bed8e4811b9977e7fe4b2c03ac292b88392df0e8810c946fd0deb8",
+    "module_sha256": "307184b7d7ae4db4c14bee5bba419c9598429776eebce0e0f38bb89469a5b05a",
     "qualname": "maybe_flashinfer_autotune_speculative_draft",
     "sha256": "92aa28bac45f1ea7ec06e15e1314a947dea0bee8804691afda02ad3b93bed48d"
   },
@@ -373,16 +391,16 @@
     "file": "sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py",
     "first_line": 77,
     "kind": "class",
-    "module_sha256": "0dc52a9a581636a20f5070cbb81d921bc56e4fb3394a9a1cf601747271c6905b",
+    "module_sha256": "fcfca3c5d286a77594742fd05791fe5ad4c7fd46327ab7f126b2cdcf697b685d",
     "qualname": "FullCudaGraphBackend",
-    "sha256": "36f9edf6059d847b6477c393bcb64e6b6b7d5711c12d22980d8414825af732fd"
+    "sha256": "813667c275441d1074827d6b785973f9152121766bbe92dcb18de19186abbbfc"
   },
   "sglang.srt.model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend.replay": {
-    "def_line": 201,
+    "def_line": 203,
     "file": "sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py",
-    "first_line": 201,
+    "first_line": 203,
     "kind": "function",
-    "module_sha256": "0dc52a9a581636a20f5070cbb81d921bc56e4fb3394a9a1cf601747271c6905b",
+    "module_sha256": "fcfca3c5d286a77594742fd05791fe5ad4c7fd46327ab7f126b2cdcf697b685d",
     "qualname": "FullCudaGraphBackend.replay",
     "sha256": "f30c688eae933c767722c5587ae551e19ac31c7edf60bffbd2663fda9afb905f"
   },
@@ -396,20 +414,20 @@
     "sha256": "e92eee5b3fdf5b284331af3e65d8411831fc15020ff86677a6189b14ad32f177"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1388,
+    "def_line": 1295,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1388,
+    "first_line": 1295,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
   "sglang.srt.runtime_context.get_global_dwdp_manager": {
-    "def_line": 1675,
+    "def_line": 1615,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1675,
+    "first_line": 1615,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_global_dwdp_manager",
     "sha256": "1e1f503d960be79880193ccc9412766a05c134abf808a4f5344ef4f54d70a959"
   },
@@ -423,11 +441,11 @@
     "sha256": "2de71b0625fe553b3614e2716beed2b45d6eefb190dee773cea6d9f49f8fdea9"
   },
   "sglang.srt.utils.common.empty_context": {
-    "def_line": 3342,
+    "def_line": 3606,
     "file": "sglang/srt/utils/common.py",
-    "first_line": 3342,
+    "first_line": 3606,
     "kind": "function",
-    "module_sha256": "0f6387b5ed3c1dcd8d822fe52fa5433dbb4eb29aed42a253bc9e7e968591a49d",
+    "module_sha256": "71abb02aca154dfd2f30ed7e13b6550ac98ec9883b32e73e744e317552730fea",
     "qualname": "empty_context",
     "sha256": "af0a27516ba80b0a1d717f9a1da63c72a8ab7c747c4d065c4cef6cbd9b2278ae"
   },

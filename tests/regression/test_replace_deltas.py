@@ -30,7 +30,22 @@ MANIFEST = REPO / "src" / "sglang_qsa_hisparse" / "manifest.json"
 # row: (patch module under patches/, qualname of the copy in it, mechanical
 #       edits as (fork text, plugin text) including any rename of the copy
 #       [, the target's module file at the fork if upstream moved it])
-COPIES: dict[str, tuple] = {}
+COPIES: dict[str, tuple] = {
+    "K02": (
+        "hisparse/pools.py",
+        "_build_hybrid_linear_kv_pool",
+        (
+            (
+                "            from sglang.srt.mem_cache.qsa_hisparse.slots import QSAHiSparseSlots",
+                "            from sglang_qsa_hisparse.hisparse.slots import QSAHiSparseSlots",
+            ),
+        ),
+    ),
+    "R02": ("hisparse/graph.py", "_forward_raw", ()),
+    "G01": ("hisparse/graph.py", "capture_one_shape", ()),
+    "G02": ("hisparse/graph.py", "load_batch", ()),
+    "G03": ("hisparse/graph.py", "execute", ()),
+}
 
 # row: why the copy differs from "pin + fork change" (an upstream edit overlaps
 # the fork's change and was merged by hand).

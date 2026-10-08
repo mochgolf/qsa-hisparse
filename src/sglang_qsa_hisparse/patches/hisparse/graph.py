@@ -6,15 +6,17 @@ runner's batch copy) and G01-G03
 (``model_executor/runner/decode_cuda_graph_runner.py``). All are hisparse: every
 fork change is gated on a ``qsa_hisparse`` runtime on the KV pool or on the
 coordinator's ``adapter``, which upstream ``HiSparseCoordinator`` lacks.
-REPLACE bodies are copied verbatim from the fork; they run with this module's
-globals, which import the same objects the pinned modules use.
+REPLACE bodies are the pinned definitions with the fork's change carried over
+(PLAN.md Phase 4 rule P1); they run with this module's globals, which import
+the same objects the pinned modules use.
 """
 
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import inspect
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, cast
 
 from sglang.srt.environ import envs
 from sglang.srt.layers.attention.base_attn_backend import SharedReadEnds
@@ -158,11 +160,12 @@ def _attach_qsa_coordinator(result, self):
         "sglang.srt.utils.device_timer.device_timer_ctx",
     ),
     reason=(
-        "Fork body copied verbatim, no edits: raise when QSA full-graph decode "
-        "cannot run the graph (needs the local can_run_graph) and skip "
-        "num_real_reqs.fill_ when the QSA graph is enabled (a mid-function "
-        "statement). hisparse: gated on hisparse_coordinator.adapter, which "
-        "upstream HiSparseCoordinator lacks."
+        "Pinned body with the fork change carried over, no edits: raise when QSA "
+        "full-graph decode cannot run the graph (needs the local can_run_graph) "
+        "and skip num_real_reqs.fill_ when the QSA graph is enabled (a "
+        "mid-function statement; no hook can drop it without cross-call state). "
+        "hisparse: gated on hisparse_coordinator.adapter, which upstream "
+        "HiSparseCoordinator lacks."
     ),
 )
 def _forward_raw(
@@ -242,6 +245,7 @@ def _forward_raw(
             and not isinstance(self.prefill_cuda_graph_runner, EagerRunner)
             and self.prefill_cuda_graph_runner is not None
             and self.prefill_cuda_graph_runner.can_run_graph(forward_batch)
+            and forward_batch.token_indices_to_pool is None
             and _prefill_cuda_graph_allows_context_parallel(
                 self.prefill_cuda_graph_runner, forward_batch
             )
@@ -301,13 +305,15 @@ def _forward_raw(
         "sglang.srt.utils.common.empty_context",
     ),
     reason=(
-        "Fork body copied verbatim, no edits: require FullCudaGraphBackend under "
-        "the QSA graph, compute shape_key before forward_context (moved out of "
-        "canary_ctx; pure, inventory section 4 item 3), enter qsa.graph_capture "
-        "after capture_prepare, and chain qsa.after_graph_warmup after the "
-        "attention warmup hook (a closure). FullCudaGraphBackend is imported "
-        "here as the fork imports it into the runner module. hisparse: gated on "
-        "hisparse_coordinator.adapter."
+        "Pinned body with the fork change carried over, no edits: require "
+        "FullCudaGraphBackend under the QSA graph, compute shape_key before "
+        "forward_context (moved out of canary_ctx; pure, inventory section 4 "
+        "item 3), enter qsa.graph_capture after capture_prepare (which fills "
+        "num_real_reqs, the runtime's real-row count that graph_capture zeroes, "
+        "so an around on this method would not reproduce it), and chain "
+        "qsa.after_graph_warmup after the attention warmup hook (a closure). "
+        "FullCudaGraphBackend is imported here as the fork imports it into the "
+        "runner module. hisparse: gated on hisparse_coordinator.adapter."
     ),
 )
 def capture_one_shape(
@@ -382,8 +388,13 @@ def capture_one_shape(
                     {k: v.clone() for k, v in pp_proxy_tensors.tensors.items()}
                 )
             if (
-                self.model_runner.spec_algorithm.is_dflash_family()
-                and self.model_runner.is_draft_worker
+                (
+                    self.dllm_uses_input_embeds
+                    or (
+                        self.model_runner.spec_algorithm.is_dflash_family()
+                        and self.model_runner.is_draft_worker
+                    )
+                )
                 and "input_embeds" in inspect.signature(forward).parameters
                 and not hasattr(self.model_runner.model, "forward_embed")
             ):
@@ -444,6 +455,7 @@ def capture_one_shape(
     row="G02",
     depends=(
         f"{_GRAPH}._capture_graph_size",
+        f"{_GRAPH}._global_num_tokens_for_graph",
         f"{_GRAPH}._make_graph_key",
         f"{_GRAPH}._max_dp_batch_size",
         f"{_GRAPH}._ragged_capture_slots",
@@ -459,10 +471,12 @@ def capture_one_shape(
         "sglang.srt.speculative.ragged_verify.resolve_ragged_verify_layout",
     ),
     reason=(
-        "Fork body copied verbatim, no edits: reject external preplanning under "
-        "the QSA graph, call qsa.prepare_graph_replay before buffer_registry."
-        "fill_from, and skip num_real_reqs.fill_ (three mid-function insertions). "
-        "hisparse: gated on hisparse_coordinator.adapter."
+        "Pinned body with the fork change carried over, no edits: reject external "
+        "preplanning under the QSA graph, call qsa.prepare_graph_replay(batch, bs) "
+        "after bs is computed and before buffer_registry.fill_from, and skip "
+        "num_real_reqs.fill_ (three mid-function insertions; no runner seam lies "
+        "between the bucket choice and fill_from). hisparse: gated on "
+        "hisparse_coordinator.adapter."
     ),
 )
 def load_batch(
@@ -470,6 +484,10 @@ def load_batch(
     forward_batch: ForwardBatch,
     pp_proxy_tensors: Optional[PPProxyTensors] = None,
 ):
+    if self.dllm_uses_input_embeds and forward_batch.input_embeds is None:
+        raise ValueError(
+            "Diffusion graph replay requires prepared input embeddings"
+        )
     ragged_layout = (
         resolve_ragged_verify_layout(forward_batch)
         if self.ragged_verify_mode
@@ -503,9 +521,27 @@ def load_batch(
         self.buffers.input_ids[: self.raw_num_token].copy_(forward_batch.input_ids)
         self.buffers.positions[: self.raw_num_token].copy_(forward_batch.positions)
         if (
+            pp_proxy_tensors is not None
+            and self.buffers.pp_proxy_tensors is not None
+        ):
+            # PP + spec verify: the pre-planned load ran without the proxy
+            # (eagle_prepare_for_verify has no access to it), so the
+            # graph's proxy input buffers must be refreshed here -- the
+            # captured graph reads these rows (mirrors fill_from's
+            # side-slot copy).
+            for k, v in pp_proxy_tensors.tensors.items():
+                buf = self.buffers.pp_proxy_tensors.get(k)
+                if buf is not None:  # skip markers like __msg_type__
+                    buf[: v.shape[0]].copy_(v)
+        if (
             not is_ragged
-            and self.model_runner.spec_algorithm.is_dflash_family()
-            and self.model_runner.is_draft_worker
+            and (
+                self.dllm_uses_input_embeds
+                or (
+                    self.model_runner.spec_algorithm.is_dflash_family()
+                    and self.model_runner.is_draft_worker
+                )
+            )
             and forward_batch.input_embeds is not None
         ):
             self.buffers.input_embeds[: self.raw_num_token].copy_(
@@ -564,8 +600,13 @@ def load_batch(
 
     if (
         not is_ragged
-        and self.model_runner.spec_algorithm.is_dflash_family()
-        and self.model_runner.is_draft_worker
+        and (
+            self.dllm_uses_input_embeds
+            or (
+                self.model_runner.spec_algorithm.is_dflash_family()
+                and self.model_runner.is_draft_worker
+            )
+        )
         and forward_batch.input_embeds is not None
     ):
         buffers.input_embeds[:raw_num_token].copy_(forward_batch.input_embeds)
@@ -592,10 +633,18 @@ def load_batch(
         bs=bs,
         raw_bs=raw_bs,
         num_tokens=padded_num_tokens,
+        global_num_tokens_cpu=self._global_num_tokens_for_graph(padded_num_tokens),
         seq_len_fill_value=self.seq_len_fill_value,
         capture_forward_mode=self.capture_forward_mode,
         is_encoder_decoder=self.is_encoder_decoder,
     )
+    if (
+        self.model_runner.lora_manager is not None
+        and self.model_runner.lora_manager.enable_dp_attention
+    ):
+        self.model_runner.lora_manager.prepare_lora_batch(
+            cast(ForwardBatch, fb_view)
+        )
     # Glue-graph fast path: pointer-stable prep (static buffers + pool
     # tensors only) is captured per key; guards keep every python-visible
     # branch inside the backends constant for that key.
@@ -648,6 +697,7 @@ def load_batch(
     feature=HISPARSE,
     row="G03",
     depends=(
+        f"{_GRAPH}._process_output_after_replay",
         f"{_GRAPH}._publish_read_done",
         f"{_GRAPH}._ragged_capture_slots",
         f"{_GRAPH}._replay_attn_backend",
@@ -660,10 +710,13 @@ def load_batch(
         "sglang.srt.utils.device_timer.device_timer_ctx",
     ),
     reason=(
-        "Fork body copied verbatim, no edits: enter qsa.graph_replay_scope inside "
-        "timer_ctx and replay_session, and call qsa.finish_graph_replay directly "
-        "after backend.replay, before _publish_read_done. logger is the runner "
-        "module's logger. hisparse: gated on hisparse_coordinator.adapter."
+        "Pinned body with the fork change carried over, no edits: enter "
+        "qsa.graph_replay_scope inside timer_ctx and replay_session, and call "
+        "qsa.finish_graph_replay directly after backend.replay, before "
+        "_publish_read_done (the pinned _process_output_after_replay seam runs "
+        "after _publish_read_done, so it does not reproduce that order). logger "
+        "is the runner module's logger. hisparse: gated on "
+        "hisparse_coordinator.adapter."
     ),
 )
 def execute(
@@ -710,6 +763,8 @@ def execute(
         if shared_read_ends is SharedReadEnds.POST_REPLAY:
             self._publish_read_done(in_graph=False)
 
+        output = self._process_output_after_replay(output, forward_batch)
+
     if isinstance(output, LogitsProcessorOutput):
         if self.is_dllm:
             next_token_logits = None
@@ -726,7 +781,9 @@ def execute(
                 else None
             )
 
-        return LogitsProcessorOutput(
+        # Preserve extension fields produced by the eager output processor.
+        return dataclasses.replace(
+            output,
             next_token_logits=next_token_logits,
             full_logits=full_logits,
             hidden_states=(
@@ -734,8 +791,15 @@ def execute(
                 if output.hidden_states is not None
                 else None
             ),
-            customized_info=output.customized_info,
         )
     else:
         assert isinstance(output, PPProxyTensors)
-        return PPProxyTensors({k: v[: self.bs] for k, v in output.tensors.items()})
+        # Slice in token rows, not request rows: under speculative verify
+        # each request carries captured_req_width tokens (identical for
+        # plain decode, where captured_req_width == 1).
+        return PPProxyTensors(
+            {
+                k: v[: self.bs * self.captured_req_width]
+                for k, v in output.tensors.items()
+            }
+        )
