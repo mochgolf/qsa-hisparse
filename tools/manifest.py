@@ -30,12 +30,6 @@ OVERRIDES = {
             {"target": "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.__init__", "hook_type": "before"},
         ]
     },
-    "F01": {
-        "patches": [
-            {"target": "sglang.srt.model_executor.forward_batch_info.ForwardBatch.init_new", "hook_type": "after"},
-            {"target": "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch", "hook_type": "after"},
-        ]
-    },
     "Q01": {
         "patches": [
             {"target": "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func", "hook_type": "replace"},

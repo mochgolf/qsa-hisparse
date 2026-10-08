@@ -1,8 +1,7 @@
 """Model runner coordinator, ForwardBatch metadata and decode graph hooks.
 
 Rows R01, R02 (``model_executor/model_runner.py``), F01
-(``model_executor/forward_batch_info.py``, deviation D3, plus the eager
-runner's batch copy) and G01-G03
+(``model_executor/forward_batch_info.py``, deviation D3) and G01-G03
 (``model_executor/runner/decode_cuda_graph_runner.py``). All are hisparse: every
 fork change is gated on a ``qsa_hisparse`` runtime on the KV pool or on the
 coordinator's ``adapter``, which upstream ``HiSparseCoordinator`` lacks.
@@ -68,44 +67,34 @@ _FULL_BACKEND = (
     "after",
     feature=HISPARSE,
     row="F01",
-    depends=("sglang.srt.managers.schedule_batch.ScheduleBatch",),
+    depends=(
+        "sglang.srt.managers.schedule_batch.ScheduleBatch",
+        "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.extract_buffer",
+        "sglang.srt.model_executor.cuda_graph_buffer_registry.build_decode_registry",
+        "sglang.srt.model_executor.cuda_graph_buffer_registry.build_eager_registry",
+        "sglang.srt.model_executor.forward_batch_info.ForwardBatch",
+        "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch",
+    ),
     reason=(
         "Deviation D3: the fork adds ForwardBatch fields req_pool_indices_cpu "
         "(read by the runtime's begin_batch) and kv_allocated_lens_cpu (no reader; "
-        "dropped). The plugin sets req_pool_indices_cpu as an instance attribute "
-        "only when the KV pool carries a qsa_hisparse runtime; dataclass fields are "
-        "unchanged, so two-batch overlap's filter_batch is unaffected. The after "
-        "hook covers every return of init_new, and nothing inside init_new reads "
-        "the attribute at the pin. The EagerRunner.load_batch hook below keeps "
-        "it on the eager runner's copy."
+        "dropped) and fills req_pool_indices_cpu in init_new for every batch. "
+        "v0.5.21 declares the req_pool_indices_cpu field and fills it only for "
+        "extend without speculative decoding. When the KV pool carries a "
+        "qsa_hisparse runtime this hook sets the field from the ScheduleBatch for "
+        "every mode (for that extend case it is the object upstream already set); "
+        "otherwise the field stays exactly as upstream sets it. The after hook "
+        "covers every return of init_new, and nothing in init_new reads the field "
+        "after constructing the batch. EagerRunner.load_batch's copy "
+        "(dataclasses.replace directly or in extract_buffer, whose eager registry "
+        "from build_eager_registry/build_decode_registry has no "
+        "req_pool_indices_cpu slot) carries the field, so the eager paths hand it "
+        "to init_forward_metadata without a second hook."
     ),
 )
 def _carry_req_pool_indices_cpu(ret, cls, batch, model_runner, *args, **kwargs):
     if getattr(model_runner.token_to_kv_pool, "qsa_hisparse", None) is not None:
         ret.req_pool_indices_cpu = batch.req_pool_indices_cpu
-
-
-@patch(
-    "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch",
-    "after",
-    feature=HISPARSE,
-    row="F01",
-    depends=(
-        "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.extract_buffer",
-    ),
-    reason=(
-        "Second half of F01 under D3 (added in W3; not yet in the inventory). "
-        "EagerRunner.load_batch returns a dataclasses.replace copy (extract_buffer, "
-        "or replace() with SGLANG_EAGER_INPUT_NO_COPY), which carries the fork's "
-        "field but drops an instance attribute; the eager extend/decode paths "
-        "pass that copy to init_forward_metadata, where the runtime's "
-        "begin_batch reads req_pool_indices_cpu. Copy it when F01 set it; "
-        "otherwise the hook does nothing."
-    ),
-)
-def _keep_req_pool_indices_cpu(result, self, forward_batch, *args, **kwargs):
-    if hasattr(forward_batch, "req_pool_indices_cpu"):
-        result.req_pool_indices_cpu = forward_batch.req_pool_indices_cpu
 
 
 # R01 ---------------------------------------------------------------------------
