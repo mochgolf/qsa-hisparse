@@ -175,3 +175,8 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   `--mm-preprocess-cache-size-mb > 0` (documented, not forced); image keys
   not counted in the host footprint (~100 B each); text and image
   checkpoints never match each other.
+- UA done: U9a `qsa/U9-monotonic-req-generation` (M04) and U9b
+  `qsa/U9-hisparse-decode-mm-inputs` (S03), both real upstream bugs; U7: Z02
+  is open #35955 (support needs owner OK), `qsa/U7-gptq-moe-w13-scale-k` and
+  `qsa/U7-autoround-moe-marlin-group-split` stacked on it (split needs GPU
+  speed/GSM8K numbers); INT8-row PLE dropped this cycle (#41624 overlaps).
