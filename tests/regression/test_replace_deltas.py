@@ -2,20 +2,21 @@
 
 The reference fork changed each REPLACE target relative to its base commit
 (FORK_BASE_COMMIT). At any pin, the plugin's copy, with its mechanical edits
-reverted, must differ from the pinned definition by exactly the edit script
-that takes the fork base to the fork. At the fork base itself this means
-"verbatim fork copy"; after a pin upgrade it means the fork's change carried
-onto the new upstream body. A row whose fork change overlaps an upstream edit
-lists its hand resolution in RESOLVED; the review checks those.
+reverted, must equal the three-way merge (``git merge-file``) of the fork's
+change (fork base -> fork) into the pinned definition, so every changed line
+is checked in place. At the fork base itself this means "verbatim fork
+copy"; after a pin upgrade it means the fork's change carried onto the new
+upstream body. A row whose fork change conflicts with an upstream edit lists
+its hand resolution in RESOLVED; the review checks those.
 
 Sources are read as text (fork base and fork with ``git show`` in the pinned
 checkout, which is a worktree of the fork repository); nothing is imported.
 """
 
 import ast
-import difflib
 import json
 import subprocess
+import tempfile
 import textwrap
 from pathlib import Path
 
@@ -92,6 +93,16 @@ COPIES: dict[str, tuple] = {
 # row: why the copy differs from "pin + fork change" (an upstream edit overlaps
 # the fork's change and was merged by hand).
 RESOLVED: dict[str, str] = {
+    "M03": (
+        "v0.5.21 replaced the fork base's cache_finished_req handoff (and the blank "
+        "line the fork's first insertion follows) with claim_kv_row / insert_req / "
+        "free_kv_row / unpin / on_release, so git merge-file conflicts. Merged: the "
+        "fork's lease capture (before_release, qsa_hisparse.release) stays right "
+        "after the not-holds_kv early return, before the handoff (now claim_kv_row) "
+        "and the logical free; its after_release stays right after "
+        "mark_kv_released, and a streaming session that keeps the row still "
+        "returns before it (claim_kv_row, as cache_finished_req + holds_kv did)."
+    ),
     "E03": (
         "v0.5.21 already builds the n-gram table on meta for ple_offload_embedding "
         "(the fork's change, in upstream's form via a local offload_embedding) and "
@@ -168,13 +179,20 @@ def git_show(commit: str, path: str) -> str:
     ).stdout  # fmt: skip
 
 
-def changes(a: list[str], b: list[str]) -> list[tuple[list[str], list[str]]]:
-    matcher = difflib.SequenceMatcher(None, a, b, autojunk=False)
-    return [
-        (a[i1:i2], b[j1:j2])
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes()
-        if tag != "equal"
-    ]
+def carried(base: list[str], fork: list[str], pinned: list[str]) -> list[str] | None:
+    """The fork's change (base -> fork) merged into ``pinned``; None on conflict."""
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = []
+        for name, lines in (("pinned", pinned), ("base", base), ("fork", fork)):
+            path = Path(tmp) / name
+            path.write_text("".join(line + "\n" for line in lines))
+            paths.append(str(path))
+        result = subprocess.run(
+            ["git", "merge-file", "-p", "-q", *paths], capture_output=True, text=True
+        )
+    if result.returncode > 127:  # git reports errors as negative exit codes
+        raise RuntimeError(result.stderr)
+    return result.stdout.splitlines() if result.returncode == 0 else None
 
 
 def revert(text: str, edits) -> str:
@@ -184,8 +202,8 @@ def revert(text: str, edits) -> str:
     return text
 
 
-def deltas(row: str) -> tuple[list, list]:
-    """(fork base -> fork, pin -> plugin copy) edit scripts for a REPLACE row."""
+def sources(row: str) -> tuple[list[str], list[str], list[str], list[str]]:
+    """(fork base, fork, pinned, plugin copy) definitions of a REPLACE row."""
     module, copy_qualname, edits, *moved = COPIES[row]
     path, qualname = fingerprint.resolve_file(pin_root() / "python", replace_rows()[row])
     fork_path = moved[0] if moved else path
@@ -194,7 +212,7 @@ def deltas(row: str) -> tuple[list, list]:
     pinned = segment((pin_root() / "python" / path).read_text(), qualname)
     plugin_source = revert((PATCHES / module).read_text(), edits)
     plugin = segment(plugin_source, copy_qualname)
-    return changes(base, fork), changes(pinned, plugin)
+    return base, fork, pinned, plugin
 
 
 def test_every_replace_row_is_registered():
@@ -204,23 +222,29 @@ def test_every_replace_row_is_registered():
 
 @pytest.mark.parametrize("row", sorted(set(COPIES) - set(RESOLVED)))
 def test_copy_makes_the_fork_change_to_the_pin(row):
-    fork_change, plugin_change = deltas(row)
-    assert fork_change, f"{row}: the fork does not change its target"
-    assert plugin_change == fork_change
+    base, fork, pinned, plugin = sources(row)
+    assert base != fork, f"{row}: the fork does not change its target"
+    assert plugin == carried(base, fork, pinned)
 
 
 @pytest.mark.parametrize("row", sorted(RESOLVED))
 def test_resolved_rows_really_differ(row):
     """A RESOLVED entry is needed only while the mechanical check fails."""
-    fork_change, plugin_change = deltas(row)
-    assert plugin_change != fork_change, f"{row}: matches; drop its RESOLVED entry"
+    base, fork, pinned, plugin = sources(row)
+    assert plugin != carried(base, fork, pinned), f"{row}: matches; drop its RESOLVED entry"
 
 
-def test_changes_reports_an_edit_script():
-    base = ["def f(x):", "    a = 1", "    return a"]
-    fork = ["def f(x):", "    a = 1", "    hook(a)", "    return a"]
-    pinned = ["def f(x):", "    a = 2", "    return a"]
-    carried = ["def f(x):", "    a = 2", "    hook(a)", "    return a"]
-    dropped = ["def f(x):", "    a = 1", "    hook(a)", "    return a"]
-    assert changes(pinned, carried) == changes(base, fork) == [([], ["    hook(a)"])]
-    assert changes(pinned, dropped) != changes(base, fork)
+def test_carried_checks_each_change_in_place():
+    base = ["def f(x):", "    a = 1", "    b = a", "    release(a)", "    return b"]
+    fork = ["def f(x):", "    a = 1", "    b = a", "    release(a)", "    hook(a)", "    return b"]
+    pinned = ["def f(x):", "    a = 2", "    b = a", "    release(a)", "    return b"]
+    ported = ["def f(x):", "    a = 2", "    b = a", "    release(a)", "    hook(a)", "    return b"]
+    assert carried(base, fork, pinned) == ported
+    # The fork's line without upstream's edit, or in the wrong place (here
+    # before the release it must follow), is not the merge.
+    dropped = ["def f(x):", "    a = 1", "    b = a", "    release(a)", "    hook(a)", "    return b"]
+    moved = ["def f(x):", "    a = 2", "    b = a", "    hook(a)", "    release(a)", "    return b"]
+    assert carried(base, fork, pinned) not in (dropped, moved)
+    # An upstream edit adjacent to the fork's change conflicts: hand merge.
+    adjacent = ["def f(x):", "    a = 1", "    b = a", "    release(a, now=True)", "    return b"]
+    assert carried(base, fork, adjacent) is None

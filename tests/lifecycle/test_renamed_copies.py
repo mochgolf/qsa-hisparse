@@ -4,8 +4,8 @@ The fork split two REPLACE targets into a new wrapper and the renamed original
 body: P02 ``PrefillAdder.add_one_req`` -> ``_add_one_req`` and M01
 ``alloc_for_extend`` -> ``_alloc_for_extend``. ``test_replace_deltas.py``
 compares the target's qualname, i.e. the wrapper; this applies the same check
-to the renamed body: the plugin copy differs from the pinned target exactly as
-the fork's renamed body differs from the target at the fork base.
+to the renamed body: the plugin copy equals the fork's change (target at the
+fork base -> renamed body) merged into the pinned target.
 """
 
 import importlib.util
@@ -48,6 +48,5 @@ def test_renamed_body_makes_the_fork_change_to_the_pin(row):
     fork = deltas.segment(deltas.git_show(REFERENCE_FORK_COMMIT, path), fork_qualname)
     pinned = deltas.segment((root / path).read_text(), qualname)
     plugin = deltas.segment((deltas.PATCHES / module).read_text(), copy)
-    fork_change = deltas.changes(base, fork)
-    assert fork_change, f"{row}: the fork does not change its renamed body"
-    assert deltas.changes(pinned, plugin) == fork_change
+    assert base != fork, f"{row}: the fork does not change its renamed body"
+    assert plugin == deltas.carried(base, fork, pinned)

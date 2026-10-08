@@ -25,13 +25,18 @@ E03, E08, G01, G02, M03, P02 (`_add_one_req`), Q12, S04, S06, S07, T03.
 ## Port check
 
 `tests/regression/test_replace_deltas.py`: every REPLACE row is registered;
-each copy differs from the v0.5.21 definition by exactly the fork's edit
-script (fork base → fork), except four hand merges in `RESOLVED`: E03
-(upstream builds the table on meta and now wraps it in the constructor), Q12
-(upstream's new ROCm branch inside the fork's NVTX rewrite; HiSparse decode
-capture is not wired on ROCm, which is not a validated configuration), T04
-(class REPLACE as a subclass), P02 (the fork split `add_one_req`;
-`tests/lifecycle/test_renamed_copies.py` checks `_add_one_req` mechanically).
+each copy (mechanical edits reverted) equals `git merge-file` of the fork's
+change (fork base → fork) into the v0.5.21 definition, so each changed line
+is checked in place (G4-CPU finding: the first version compared edit text
+without positions). Five hand merges are in `RESOLVED`: E03 (upstream builds
+the table on meta and now wraps it in the constructor), Q12 (upstream's new
+ROCm branch inside the fork's NVTX rewrite; HiSparse decode capture is not
+wired on ROCm, which is not a validated configuration), T04 (class REPLACE as
+a subclass), P02 (the fork split `add_one_req`;
+`tests/lifecycle/test_renamed_copies.py` checks `_add_one_req` with the same
+merge), M03 (upstream rewrote the cache handoff next to the fork's
+insertion; the lease capture stays before the handoff and the logical free,
+`after_release` right after `mark_kv_released`).
 
 ## Upstream changes that needed plugin edits
 
