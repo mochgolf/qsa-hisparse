@@ -7,6 +7,7 @@ import torch
 from sglang.srt.environ import envs
 from sglang.srt.mem_cache.base_prefix_cache import MatchResult
 from sglang.srt.mem_cache.chunk_cache import ChunkCache
+from sglang_qsa_hisparse.hisparse.image_identity import ImagePrefixIdentity
 from sglang_qsa_hisparse.hisparse.image_request import identity_for
 from sglang_qsa_hisparse.hisparse.prefix import image_key, key_digest, token_bytes
 
@@ -20,11 +21,15 @@ class QSAHostPrefixCache(ChunkCache):
         self.restoring = {}
 
     def _namespace(self, req):
-        # Exact model/position identity for plain text; unsupported inputs miss.
+        # Exact model/position identity for plain text and supported images
+        # (whose image identity is matched separately); unsupported inputs miss.
+        image = identity_for(req)
+        if image is not None and not isinstance(image, ImagePrefixIdentity):
+            return None  # Track I bypass set.
         if any(
             getattr(req, name, None) is not None
             for name in (
-                "multimodal_inputs",
+                *(("multimodal_inputs",) if image is None else ()),
                 "positional_embed_overrides",
                 "input_embeds",
                 "position_ids",
@@ -112,6 +117,7 @@ class QSAHostPrefixCache(ChunkCache):
 
         Salt does not change checkpoint scheduling. A salted miss computes the
         prefix before its unaligned suffix and supplies an uncached control.
+        Supported image requests split the same way, also inside an image.
         """
         if self._namespace(req) is None or getattr(
             req, "skip_radix_cache_insert", False
