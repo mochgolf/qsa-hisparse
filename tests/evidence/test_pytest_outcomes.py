@@ -72,3 +72,26 @@ OTHER = SUPPLEMENT.replace("qsa_hisparse", "unrelated_regression")
 )
 def test_false_pass_cases_fail(tmp_path, fork, plugin, inventory, known, supplement):
     assert run(tmp_path, fork, plugin, inventory, known, supplement) == 1
+
+
+def test_signature_must_match_the_whole_exception_line(tmp_path):
+    wrapped = FORK.replace(f"E       {SIGNATURE}", f"E       RuntimeError: {SIGNATURE}")
+    assert run(tmp_path, fork=wrapped) == 1
+
+
+VERBOSE_FORK = FORK + "test/registered/kernel/qsa/test_qsa.py::test_sm121 SKIPPED (SM121-only kernel) [ 66%]\n"
+VERBOSE_PLUGIN = PLUGIN + "tests/qsa/test_qsa.py::test_sm121 SKIPPED (SM121-only kernel) [ 66%]\n"
+VERBOSE_INVENTORY = "test_qsa.py::test_ok[1]\ntest_qsa.py::test_known\nskip test_qsa.py::test_sm121 SM121-only kernel\n"
+
+
+def test_verbose_skip_ids_match_the_inventory(tmp_path):
+    assert run(tmp_path, VERBOSE_FORK, VERBOSE_PLUGIN, VERBOSE_INVENTORY) == 0
+
+
+def test_a_different_skipped_test_fails(tmp_path):
+    plugin = VERBOSE_PLUGIN.replace("::test_sm121 SKIPPED", "::test_unrelated SKIPPED")
+    assert run(tmp_path, VERBOSE_FORK, plugin, VERBOSE_INVENTORY) == 1
+
+
+def test_verbose_logs_require_named_skips_in_the_inventory(tmp_path):
+    assert run(tmp_path, VERBOSE_FORK, VERBOSE_PLUGIN, INVENTORY) == 1

@@ -31,3 +31,21 @@ same signature (run2: CPU rerun of the plugin test, which fails in
 `tools/evidence/g21_step8_inventory.txt` (from run2's fork arm; skips are
 keyed by file and reason because run2 used `-rA` without `-v`). 13
 counterexample tests, including the reviewer's two. Run2: PASS.
+
+## Third re-check (`reviews/G2r3.md`) and closure
+
+No parity issue was found; both items were fixed: known failures must equal
+the whole exception line, and with `-v` logs (future windows run step 8 with
+`-v -rA`) skipped tests are matched by node ID against the inventory. Run2
+was recorded without `-v`; its single skip is identified by source line:
+fork `test/registered/kernel/qsa/test_qsa.py:174` and plugin
+`tests/qsa/test_qsa.py:180` are both inside
+`test_qsa_sm121_compaction_and_attention_match_sparse_reference`. 17
+counterexample tests in `tests/evidence/test_pytest_outcomes.py`.
+
+**Closure (orchestrator, 2026-10-08):** G2 is cleared. Every finding from
+four review rounds is resolved, the reviewer reported the raw evidence
+supports parity in each round, and the remaining rounds only hardened this
+comparator against hand-edited logs. Per the owner's instruction to avoid
+over-engineering, no further review round is spent on this tool; the owner
+may overrule.

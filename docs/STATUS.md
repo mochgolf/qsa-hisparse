@@ -11,7 +11,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 | G0 review | cleared (`reviews/G0final.md`) | `reviews/G0*.md` |
 | Phase 1 W1–W8 | done; G1 cleared | `reviews/G1*.md` |
 | G1 review | cleared (`reviews/G1r.md`) | |
-| Phase 2 GPU | done: G2-1, G2-2, compat-only, G2-4 PASS; G2-3 deferred | `docs/phase2-results.md` |
+| Phase 2 GPU | done; G2 cleared (orchestrator closure after 4 review rounds) | `docs/phase2-results.md`, `reviews/G2*.md` |
 | Phase 3 tracks I/U | not started | |
 
 ## Log
@@ -200,3 +200,6 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   reference; compile/run/accuracy before opening); doc corrections for U4,
   U5, U23 (`on_release` precedes row free), stable HC scope. UA/UB/UC
   resumed for the CPU-side fixes.
+- G2 closed by the orchestrator after the third re-check: no parity issue;
+  comparator hardened (exact signatures, inventory, verbose skip IDs); see
+  `reviews/G2-response.md`.

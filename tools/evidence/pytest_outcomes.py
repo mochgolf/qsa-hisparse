@@ -17,13 +17,16 @@ Fails unless, for each arm: the final summary exists and its counts equal the
 parsed lines; the outcome IDs and the skips (file and reason) equal the frozen
 ``--inventory`` exactly; no ID has conflicting outcomes. Across arms: every
 key has the same outcome; every failure is a declared known failure whose
-exception line (from the FAILURES section) contains the declared SIGNATURE;
+exception line (from the FAILURES section) equals the declared SIGNATURE;
 an ``XFAIL`` is accepted only if a ``--supplement`` log (the same test run
 with ``--runxfail``) shows it FAILED with that signature; ``ERROR``,
 ``XPASS`` and ``[XPASS(strict)]`` are never accepted.
 
-Inventory lines: ``FILE::TEST`` for a test with an outcome, or
-``skip FILE <reason>`` for a skip as reported by ``-rA``.
+Inventory lines: ``FILE::TEST`` for a test with an outcome, and
+``skip FILE::TEST <reason>`` for a skip; logs must then come from ``-v``
+runs, whose ``<node id> SKIPPED`` lines identify the skipped tests.
+``skip FILE <reason>`` (no test name) is accepted only for evidence recorded
+without ``-v`` (run2), where skips are reported by file and reason.
 """
 
 import argparse
@@ -34,6 +37,7 @@ from pathlib import Path
 
 OUTCOME = re.compile(r"^(PASSED|FAILED|XFAIL|XPASS|ERROR) (\S+)(?: - (.*))?$")
 SKIPPED = re.compile(r"^SKIPPED \[(\d+)\] (\S+?):\d+: (.*)$")
+VERBOSE_SKIP = re.compile(r"^(\S+?)::(\S+) SKIPPED")
 SECTION = re.compile(r"^_{3,} (\S+) _{3,}$")
 EXCEPTION = re.compile(r"^E\s+((?:\w+\.)*\w*(?:Error|Exception|Exit|Interrupt)\b.*)$")
 SUMMARY = re.compile(r"^=*\s*((?:\d+ \w+(?:, )?)+) in [\d.]+s")
@@ -68,6 +72,8 @@ def parse(path, tests, skips):
             count, file, reason = match.groups()
             skips[(Path(file).name, reason)] += int(count)
             run_skips[(Path(file).name, reason)] += int(count)
+        elif match := VERBOSE_SKIP.match(line):
+            skips[("id", f"{Path(match.group(1)).name}::{match.group(2)}")] += 1
         elif match := SUMMARY.match(line.strip("= ")):
             summary = Counter()
             for number, kind in SUMMARY_ITEM.findall(match.group(1)):
@@ -106,6 +112,9 @@ def main(argv=None):
     for line in Path(args.inventory).read_text().splitlines():
         if line.startswith("skip "):
             _, file, reason = line.split(" ", 2)
+            if "::" in file:
+                skip_inventory[("id", file)] += 1
+                file = file.split("::", 1)[0]
             skip_inventory[(file, reason)] += 1
         elif line.strip() and not line.startswith("#"):
             ids.add(line.strip())
@@ -131,7 +140,7 @@ def main(argv=None):
             status, message = supplement.get(key, ("XFAIL", ""))
             if status != "FAILED":
                 return "xfail without --runxfail supplement evidence"
-        if known[key] not in message:
+        if known[key] != message.strip():
             return f"failed with {message!r}, declared {known[key]!r}"
         return "known failure"
 
