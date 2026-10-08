@@ -222,16 +222,57 @@ same `upstream/main` commit; U1 and U23 both touch scheduler release paths,
 so U23 rebases onto U1 if both are prepared. The rest are independent. Gate G3-U per batch, then
 owner confirmation per PR.
 
-## Phase 4: shrink REPLACE (after upstream merges)
+## Phase 4: next pin v0.5.21 and fewer REPLACE patches
 
-Each merged PR: new pin cycle, convert the matching REPLACE into a protocol
-implementation, re-run Phase 1 CPU and Phase 2 GPU gates. Known break at the
-next pin: upstream #42354 gives hybrid-SSM models (Qwen4-Exp) a
-`UnifiedRadixCache` under `--disable-radix-cache` and rejects caches without
-`supports_mamba()`, so the host prefix cache must become a registered radix
-cache backend. Upstream test paths also moved (QSA tests to
-`test/registered/kernels/ops/attention/qsa/`, `hc_mix_triton.py` to
-`kernels/ops/gemm/hc_mix.py`).
+Owner (2026-10-08): move to the next SGLang version and reduce whole-function
+replacement; upstream PRs stay on hold. Pin: `v0.5.21` (`e00930c548`), same
+native dependencies and interpreter (`docs/phase4-survey.md`). The previous
+plugin state is tag `pin-76e06febab-final`. Upstream main (#42354 host
+prefix cache as a radix-cache backend, torch 2.14.1) is the following cycle.
+
+Phase 4 rules (in addition to the shared rules; rule 3 is restated):
+
+- **P1 Port.** A REPLACE body is the new pin's definition plus the fork's
+  change (fork base `FORK_BASE_COMMIT` → fork). Register every REPLACE row
+  in `tests/regression/test_replace_deltas.py` `COPIES` (copy qualname,
+  mechanical edits); the test requires the copy's edit script against the
+  pin to equal the fork's. Where an upstream edit overlaps the fork's change,
+  merge by hand and record why in `RESOLVED`.
+- **P2 Hooks and depends.** For every row in your area whose target or
+  `depends` changed, re-check the assumptions in its `reason` against the new
+  pin and update the reason and inventory line references. If upstream
+  changed behavior the fork relies on, or already does what a row does, stop
+  and report: the orchestrator decides (DEVIATIONS.md).
+- **P3 Fewer REPLACE.** For each REPLACE row in your area decide: *keep*
+  (mid-function change, no narrower seam), *narrow* (a BEFORE/AFTER/AROUND
+  on the target or on a callee reproduces it), or *drop* (the new pin
+  already behaves like the fork; cite the upstream commit). Narrow only when
+  the hook is smaller than the copy and needs no new cross-call state (no
+  flags or context variables threaded between calls); each narrowing keeps
+  the ported tests passing and adds a test that fails without the hook.
+- **P4 Fingerprints and manifest.** Regenerate only your fingerprint files
+  against the new pin (`tools/fingerprint.py write`); update your inventory
+  rows; regenerate `manifest.json` with `tools/manifest.py` (the orchestrator
+  regenerates it after merging).
+
+| Task | Rows | Owned paths |
+|---|---|---|
+| P4-A scheduler, lifecycle | S01–S09, P01–P02, B02–B06, M01–M04 | `patches/hisparse/{scheduler,lifecycle}.py`, `patches/model_compat/{scheduler,lifecycle}.py`, their fingerprint files, `tests/lifecycle/` |
+| P4-B graph, pools | G01–G03, R01–R02, F01, C01–C02, K01–K03 | `patches/hisparse/{graph,pools}.py`, fingerprint files, `tests/{graph,pools}/` |
+| P4-C model, QSA, quantization | E*, H*, Q*, T*, A*, J03, Z* | `patches/model_compat/{qwen4_exp,hyperconnection,qsa_attention,quantization,marlin}.py`, `patches/hisparse/qsa_backend.py`, `kernels/`, fingerprint files, `tests/{model_compat,qsa}/` |
+| P4-D runtime, image, activation, evidence | N01–N03 runtime depends, I1, FW1 | `hisparse/` (runtime package), `patches/hisparse/image_identity.py`, `patches/framework.py`, `launch.py`, `fingerprints/{runtime,hisparse_image_identity,framework}.json`, `tests/{runtime,image,image_boundaries,launch,prefix,scope}/`, `tools/evidence/` |
+
+Shared files: rows of `docs/patch-inventory.md`, entries of `COPIES`/`RESOLVED`
+(keep row order), `manifest.json` (regenerated). Task cards:
+`docs/tasks/P4-{A,B,C,D}.md`.
+
+Gates: **G4-CPU** after merging A–D: the full CPU suite passes at v0.5.21,
+`tools/fingerprint.py check`, manifest current, `test_replace_deltas.py`
+covers every REPLACE row, and a REPLACE count table (before 37). Then
+**G4-GPU** in an owner-approved window: the Phase 2 evidence (G2-1 probe and
+per-test outcomes, G2-2 qualification against the Phase 2 fork reference,
+compat-only, G2-4 memory) and Track I I5 on v0.5.21. A difference from the
+fork reference is attributed to an upstream commit, never fitted.
 
 ## Review protocol
 

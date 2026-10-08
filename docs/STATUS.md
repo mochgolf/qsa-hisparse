@@ -261,3 +261,11 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 - G3-I (GPU) review (`reviews/G3IGPU.md`): cleared; one documentation fix
   (D5 result path). Track I is complete. Remaining: Phase 4 (next pin,
   shrink REPLACE patches) is future work; upstream PRs on hold (owner).
+- Owner (2026-10-08): start Phase 4 (next SGLang version, fewer REPLACE
+  patches); a research agent surveys what SGLang accepts as PRs
+  (`docs/upstream-acceptance.md`). Pin chosen: v0.5.21 (`e00930c548`), same
+  native dependencies and interpreter (`docs/phase4-survey.md`): 25 patch
+  targets changed (15 of 37 REPLACE), hc_mix moved. Tag
+  `pin-76e06febab-final` keeps the previous state. P4.0 infra:
+  `FORK_BASE_COMMIT`, default pin root, `tests/regression/test_replace_deltas.py`
+  (REPLACE copy = pin definition + fork change). Tasks P4-A..D started.

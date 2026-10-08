@@ -29,7 +29,7 @@ from run_compat import preflight, stop, wait_ready  # noqa: E402
 QWEN = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 FORK_ROOT = QWEN / ".worktrees" / "qsa-fork-ref-ee8fe158d6"
-PIN_ROOT = QWEN / ".worktrees" / "sglang-pin-76e06febab"
+PIN_ROOT = QWEN / ".worktrees" / "sglang-v0.5.21"
 PYTHON = QWEN / "service" / "runtime-env-sglang-20260923" / "bin" / "python"
 
 

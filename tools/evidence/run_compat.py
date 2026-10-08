@@ -177,7 +177,7 @@ def parse(argv):
         "--fork-root", type=Path, default=parent / ".worktrees/qsa-fork-ref-ee8fe158d6"
     )
     parser.add_argument(
-        "--pin-root", type=Path, default=parent / ".worktrees/sglang-pin-76e06febab"
+        "--pin-root", type=Path, default=parent / ".worktrees/sglang-v0.5.21"
     )
     parser.add_argument("--plugin-root", type=Path, default=PLUGIN_ROOT)
     parser.add_argument("--profile", type=Path, default=PROFILE)

@@ -1,8 +1,8 @@
 """Inventory completeness: every fork hunk maps to exactly one inventory row.
 
-The fork diff is read (read-only) from the pinned SGLang checkout, which is
-a worktree of the fork repository; the pinned checkout is the one the tests
-import SGLang from.
+The fork diff (fork base to fork) is read (read-only) in the pinned SGLang
+checkout, which is a worktree of the fork repository; the pinned checkout is
+the one the tests import SGLang from.
 """
 
 import re
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from sglang_qsa_hisparse import PINNED_SGLANG_COMMIT, REFERENCE_FORK_COMMIT
+from sglang_qsa_hisparse import FORK_BASE_COMMIT, REFERENCE_FORK_COMMIT
 
 REPO = Path(__file__).resolve().parents[2]
 INVENTORY = REPO / "docs" / "patch-inventory.md"
@@ -30,7 +30,7 @@ def fork_hunks() -> Counter:
     diff = subprocess.run(
         ["git", "--no-optional-locks", "-C", str(pin_root()), "diff", "-U0",
          "--no-color", "--no-ext-diff", "--no-renames", "--diff-algorithm=myers",
-         PINNED_SGLANG_COMMIT, REFERENCE_FORK_COMMIT, "--", "python/sglang"],
+         FORK_BASE_COMMIT, REFERENCE_FORK_COMMIT, "--", "python/sglang"],
         capture_output=True, text=True, check=True,
     ).stdout  # fmt: skip
     hunks: Counter = Counter()
