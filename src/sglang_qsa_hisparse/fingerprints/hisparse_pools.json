@@ -1,55 +1,55 @@
 {
   "sglang.srt.configs.hybrid_arch.mambaish_config": {
-    "def_line": 137,
+    "def_line": 145,
     "file": "sglang/srt/configs/hybrid_arch.py",
-    "first_line": 137,
+    "first_line": 145,
     "kind": "function",
-    "module_sha256": "5a9f5e2eaa4f92bd2e405a3c6210640c94f1fe2de1c83f65ddfeb04c92b2dac9",
+    "module_sha256": "0d8a23c8eb88abd930041c417923b0e2f43ad028a04bceced3784454926a33c3",
     "qualname": "mambaish_config",
-    "sha256": "7fb5a6f57ec61208bb48d7eccbee5ee4ead91d4412f6114fff2b947e5d2cf7e9"
+    "sha256": "ab0787bde144a2d2c5a4ab2d33f9e30970ef513ea8b0e3477c62af5de7bf2c31"
   },
   "sglang.srt.configs.model_config.dsa_layer_skips_topk": {
-    "def_line": 311,
+    "def_line": 356,
     "file": "sglang/srt/configs/model_config.py",
-    "first_line": 311,
+    "first_line": 356,
     "kind": "function",
-    "module_sha256": "85c36b134e3e4a39bce382d9172aa4fe4819f02996d55cbdf779846da4cfb8c8",
+    "module_sha256": "be3a0168bdd3b4a6b1f7778420b83f95c315535812b44e9422e1b48dd856a11e",
     "qualname": "dsa_layer_skips_topk",
     "sha256": "12711b33fb6993f40925a8fa8cdb7e9a51a38f11cec49a7463235767f1ac1237"
   },
   "sglang.srt.configs.model_config.get_dsa_index_head_dim": {
-    "def_line": 256,
+    "def_line": 301,
     "file": "sglang/srt/configs/model_config.py",
-    "first_line": 256,
+    "first_line": 301,
     "kind": "function",
-    "module_sha256": "85c36b134e3e4a39bce382d9172aa4fe4819f02996d55cbdf779846da4cfb8c8",
+    "module_sha256": "be3a0168bdd3b4a6b1f7778420b83f95c315535812b44e9422e1b48dd856a11e",
     "qualname": "get_dsa_index_head_dim",
     "sha256": "deeadcfc06ee7523376a7f45d87ab64151ea1bdf09e9c10bbba1d3bcca3c56b4"
   },
   "sglang.srt.configs.model_config.get_dsa_index_kpool": {
-    "def_line": 353,
+    "def_line": 398,
     "file": "sglang/srt/configs/model_config.py",
-    "first_line": 353,
+    "first_line": 398,
     "kind": "function",
-    "module_sha256": "85c36b134e3e4a39bce382d9172aa4fe4819f02996d55cbdf779846da4cfb8c8",
+    "module_sha256": "be3a0168bdd3b4a6b1f7778420b83f95c315535812b44e9422e1b48dd856a11e",
     "qualname": "get_dsa_index_kpool",
     "sha256": "f16f4754f92927aa5240de503feed951a41e1624450c2935fc8073ceaf8c4835"
   },
   "sglang.srt.configs.model_config.get_dsa_index_kpool_compress": {
-    "def_line": 364,
+    "def_line": 409,
     "file": "sglang/srt/configs/model_config.py",
-    "first_line": 364,
+    "first_line": 409,
     "kind": "function",
-    "module_sha256": "85c36b134e3e4a39bce382d9172aa4fe4819f02996d55cbdf779846da4cfb8c8",
+    "module_sha256": "be3a0168bdd3b4a6b1f7778420b83f95c315535812b44e9422e1b48dd856a11e",
     "qualname": "get_dsa_index_kpool_compress",
     "sha256": "efc0803d9cac8242e7bdc6fb7eda85aa30d3a028b329b5bcf4245a56be243e17"
   },
   "sglang.srt.configs.model_config.is_deepseek_dsa": {
-    "def_line": 144,
+    "def_line": 189,
     "file": "sglang/srt/configs/model_config.py",
-    "first_line": 144,
+    "first_line": 189,
     "kind": "function",
-    "module_sha256": "85c36b134e3e4a39bce382d9172aa4fe4819f02996d55cbdf779846da4cfb8c8",
+    "module_sha256": "be3a0168bdd3b4a6b1f7778420b83f95c315535812b44e9422e1b48dd856a11e",
     "qualname": "is_deepseek_dsa",
     "sha256": "26ab0bd8789b52fcafce5fbaf7dd5f98c7bea38b2141816d8ece504260433599"
   },
@@ -63,164 +63,164 @@
     "sha256": "1cec4b2134f597e3f75f21397d393c7950b12b7a396c3ab4194dd5939127f6b8"
   },
   "sglang.srt.mem_cache.kv_cache_configurator.KVCacheConfigurator._build_hybrid_linear_kv_pool": {
-    "def_line": 1854,
+    "def_line": 1860,
     "file": "sglang/srt/mem_cache/kv_cache_configurator.py",
-    "first_line": 1854,
+    "first_line": 1860,
     "kind": "function",
-    "module_sha256": "3e19c5d8cf3b028631155ff7fbf62f778745bf829b0f3912ccd6ccc9326db1c2",
+    "module_sha256": "27ea278a26c178e28b2af5a1bd14db8bae2d7bde6383cec4e6f3a5d8ca965623",
     "qualname": "KVCacheConfigurator._build_hybrid_linear_kv_pool",
     "sha256": "5e672b551b49d173934101f9f11f804d98d2a67d07c07b912650cb160e775efa"
   },
   "sglang.srt.mem_cache.kv_cache_configurator.KVCacheConfigurator._build_mha_quant_method": {
-    "def_line": 324,
+    "def_line": 346,
     "file": "sglang/srt/mem_cache/kv_cache_configurator.py",
-    "first_line": 324,
+    "first_line": 346,
     "kind": "function",
-    "module_sha256": "3e19c5d8cf3b028631155ff7fbf62f778745bf829b0f3912ccd6ccc9326db1c2",
+    "module_sha256": "27ea278a26c178e28b2af5a1bd14db8bae2d7bde6383cec4e6f3a5d8ca965623",
     "qualname": "KVCacheConfigurator._build_mha_quant_method",
     "sha256": "4f09dc90c66664f7bc8a0dc9781176ac755b82116f1241b945bbfb404ee7ed0e"
   },
   "sglang.srt.mem_cache.kv_cache_configurator.KVCacheConfigurator._build_token_to_kv_pool": {
-    "def_line": 1214,
+    "def_line": 1201,
     "file": "sglang/srt/mem_cache/kv_cache_configurator.py",
-    "first_line": 1214,
+    "first_line": 1201,
     "kind": "function",
-    "module_sha256": "3e19c5d8cf3b028631155ff7fbf62f778745bf829b0f3912ccd6ccc9326db1c2",
+    "module_sha256": "27ea278a26c178e28b2af5a1bd14db8bae2d7bde6383cec4e6f3a5d8ca965623",
     "qualname": "KVCacheConfigurator._build_token_to_kv_pool",
-    "sha256": "b3e87c3cd5fb3aa5653a94cbf6370da75861b4e02fc999e7c60ba77dbfe04c97"
+    "sha256": "1a6d50bb7a00770045731873dc79f7271b5781479cfc17a81ae3367e4e836a2f"
   },
   "sglang.srt.mem_cache.kv_cache_configurator.calculate_mla_kv_cache_dim": {
-    "def_line": 2570,
+    "def_line": 2572,
     "file": "sglang/srt/mem_cache/kv_cache_configurator.py",
-    "first_line": 2570,
+    "first_line": 2572,
     "kind": "function",
-    "module_sha256": "3e19c5d8cf3b028631155ff7fbf62f778745bf829b0f3912ccd6ccc9326db1c2",
+    "module_sha256": "27ea278a26c178e28b2af5a1bd14db8bae2d7bde6383cec4e6f3a5d8ca965623",
     "qualname": "calculate_mla_kv_cache_dim",
     "sha256": "5013a6a1f0ca6d6e84604fbec102e9263d2d23a77a9d0aeedb0ef57dbf34c594"
   },
   "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool": {
-    "def_line": 3771,
+    "def_line": 3862,
     "file": "sglang/srt/mem_cache/memory_pool.py",
-    "first_line": 3771,
+    "first_line": 3862,
     "kind": "class",
-    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
     "qualname": "HybridLinearKVPool",
-    "sha256": "ed696bd88553e6b5270fca4a757adeb60341fbfb35eb753e7b3cd111f6c0a4c2"
+    "sha256": "b1aa999618d4d30f7f0a934977c6f94d61dae12d8b8e44212049f3f30ceb39e9"
   },
   "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.__init__": {
-    "def_line": 3776,
+    "def_line": 3867,
     "file": "sglang/srt/mem_cache/memory_pool.py",
-    "first_line": 3776,
+    "first_line": 3867,
     "kind": "function",
-    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
     "qualname": "HybridLinearKVPool.__init__",
     "sha256": "9602425db3e3ea3f8eb33736221f510cb2b7127c42fc05348dd012bf14ec8524"
   },
   "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool": {
-    "def_line": 1950,
+    "def_line": 1971,
     "file": "sglang/srt/mem_cache/memory_pool.py",
-    "first_line": 1950,
+    "first_line": 1971,
     "kind": "class",
-    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
     "qualname": "MHATokenToKVPool",
-    "sha256": "4f4efec76f831be5b6ac69da4eb5671b130195f23e416557dbe37493e616768b"
+    "sha256": "11c325b7b854a07471403eeda7a2f611991e5a2ca9140543d286d8ad0fa9afb7"
   },
   "sglang.srt.mem_cache.memory_pool.MHATokenToKVPoolMXFP8": {
-    "def_line": 3408,
+    "def_line": 3491,
     "file": "sglang/srt/mem_cache/memory_pool.py",
-    "first_line": 3408,
+    "first_line": 3491,
     "kind": "class",
-    "module_sha256": "1f58f3b2e22cbcae47d5cd8f87322b7fb041c1d2730833b672af395e268e4650",
+    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
     "qualname": "MHATokenToKVPoolMXFP8",
-    "sha256": "dc740bdf2e9bf8cd4b40f737f3d2fc3d989569a588afd76fdb60529bd924561c"
+    "sha256": "b3fc2790cf6eb8f8a1f90776a8c6cb484b893c868b5d64ce778dab9ba5990432"
   },
   "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool": {
     "def_line": 29,
     "file": "sglang/srt/mem_cache/qsa_kv_pool.py",
     "first_line": 29,
     "kind": "class",
-    "module_sha256": "eaab189e2f70d18495a2e6e2d158efcbcbebbb951475fc4cf0b426c4c5598fa8",
+    "module_sha256": "b74e68c99261e0492caf702b803ade8cb253802733b495e38d63b0d08032c3ee",
     "qualname": "QSATokenToKVPool",
-    "sha256": "2a6084508d3d86fad2c73f0cb1beff99de4e36412e75e8fa838afb65bfe205d4"
+    "sha256": "2924534bbd106f1392a068c344cbc4ef7f7285de69e80cd5de29489ba92b44bd"
   },
   "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool.__init__": {
     "def_line": 49,
     "file": "sglang/srt/mem_cache/qsa_kv_pool.py",
     "first_line": 49,
     "kind": "function",
-    "module_sha256": "eaab189e2f70d18495a2e6e2d158efcbcbebbb951475fc4cf0b426c4c5598fa8",
+    "module_sha256": "b74e68c99261e0492caf702b803ade8cb253802733b495e38d63b0d08032c3ee",
     "qualname": "QSATokenToKVPool.__init__",
-    "sha256": "8e97beb4125ddf1739c56e8dddeb2189ee2c30cd7bbeeb828bf5e837ba249c19"
+    "sha256": "250feabba7f749b259d4bce7d68327e4e8c8d380382d14b7e9855e23d86e8bd4"
   },
   "sglang.srt.model_executor.pool_configurator.DefaultPoolConfigurator.__init__": {
-    "def_line": 205,
+    "def_line": 192,
     "file": "sglang/srt/model_executor/pool_configurator.py",
-    "first_line": 205,
+    "first_line": 192,
     "kind": "function",
-    "module_sha256": "e036d3a3f263bad0e7667cb49bb144e7706dc0b17f43c0d4d96ee50e4f487a31",
+    "module_sha256": "71f6f84ab82d1cbb2a855fa393123e14cdfb788659238c754a71f413e2163132",
     "qualname": "DefaultPoolConfigurator.__init__",
-    "sha256": "1095f139a8f97adb0e1b187f5e7cca22264f1af0f8b715e5a6f8d640020e240d"
+    "sha256": "5058ea50aa949953e4a57eda895f898045ba484851bc5e536e8bb1249acfd278"
   },
   "sglang.srt.model_executor.pool_configurator.DefaultPoolConfigurator._compute_qsa_cell_size": {
-    "def_line": 433,
+    "def_line": 452,
     "file": "sglang/srt/model_executor/pool_configurator.py",
-    "first_line": 432,
+    "first_line": 451,
     "kind": "function",
-    "module_sha256": "e036d3a3f263bad0e7667cb49bb144e7706dc0b17f43c0d4d96ee50e4f487a31",
+    "module_sha256": "71f6f84ab82d1cbb2a855fa393123e14cdfb788659238c754a71f413e2163132",
     "qualname": "DefaultPoolConfigurator._compute_qsa_cell_size",
     "sha256": "29e8715a0a7cc6194454bb004ae9aa9e872dc71c9db39395f9f22351662855b4"
   },
   "sglang.srt.model_executor.pool_configurator.DefaultPoolConfigurator.calculate_pool_sizes": {
-    "def_line": 534,
+    "def_line": 552,
     "file": "sglang/srt/model_executor/pool_configurator.py",
-    "first_line": 534,
+    "first_line": 552,
     "kind": "function",
-    "module_sha256": "e036d3a3f263bad0e7667cb49bb144e7706dc0b17f43c0d4d96ee50e4f487a31",
+    "module_sha256": "71f6f84ab82d1cbb2a855fa393123e14cdfb788659238c754a71f413e2163132",
     "qualname": "DefaultPoolConfigurator.calculate_pool_sizes",
     "sha256": "6a07613f1d9248a4cfc3ac94b43598a7f2536b3db2f7134c93a7855c8f4eb43c"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1388,
+    "def_line": 1295,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1388,
+    "first_line": 1295,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
   "sglang.srt.runtime_context.get_parallel": {
-    "def_line": 1355,
+    "def_line": 1262,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1355,
+    "first_line": 1262,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_parallel",
     "sha256": "75d1c5f8a754b0424f79d5ade3c47daa167bbbc6210e7afce34a82d03d193b71"
   },
   "sglang.srt.runtime_context.get_schedule": {
-    "def_line": 1392,
+    "def_line": 1299,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1392,
+    "first_line": 1299,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_schedule",
     "sha256": "9d366d93f808e81cc5da035ee77021a32ca17f085ee4067829d3515d8180329a"
   },
   "sglang.srt.runtime_context.get_spec": {
-    "def_line": 1400,
+    "def_line": 1307,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1400,
+    "first_line": 1307,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_spec",
     "sha256": "35b16c67cc0251bd79124092f06fc2d6a322ed2cf3b5a1120afd724aa41aab2f"
   },
   "sglang.srt.runtime_context.max_speculative_num_draft_tokens": {
-    "def_line": 2020,
+    "def_line": 1927,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 2020,
+    "first_line": 1927,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "max_speculative_num_draft_tokens",
     "sha256": "3c98d576bd87f78e9ed235d83631312ce1b892952646412ad4fcacd5eaaf2f37"
   }

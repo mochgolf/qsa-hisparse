@@ -3,7 +3,10 @@
 The fork test (``test/registered/unit/model_executor/test_pool_configurator.py``
 at ``ee8fe158d6``) is copied with its assertions unchanged and runs with the
 plugin's C01/C02 hooks active. Its helpers are the pinned upstream test's
-(unchanged by the fork).
+(unchanged by the fork). At v0.5.21 ``get_parallel().override`` validates the
+whole topology, so the fork's ``override(attn_tp_size=2)`` is spelled
+``override(tp_size=2, attn_tp_size=2, moe_tp_size=2)`` (upstream made the same
+change to its own ``mock_cpu_env``).
 """
 
 import os
@@ -67,7 +70,7 @@ class TestDefaultConfigurator(unittest.TestCase):
                 max_total_tokens=logical,
                 page_size=64,
             ),
-            get_parallel().override(attn_tp_size=2),
+            get_parallel().override(tp_size=2, attn_tp_size=2, moe_tp_size=2),
         ):
             cfg = DefaultPoolConfigurator(runner)
             self.assertEqual(
@@ -83,7 +86,7 @@ class TestDefaultConfigurator(unittest.TestCase):
 
         with (
             patch.dict(os.environ, {"SGLANG_QSA_HISPARSE_V3": "p2-resident"}),
-            get_parallel().override(attn_tp_size=2),
+            get_parallel().override(tp_size=2, attn_tp_size=2, moe_tp_size=2),
         ):
             resident = DefaultPoolConfigurator(runner)
         self.assertEqual(resident._bias, 0)
