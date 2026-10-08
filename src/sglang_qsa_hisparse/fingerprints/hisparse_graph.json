@@ -9,65 +9,65 @@
     "sha256": "65a4044926c91798082557e9e4998c2d3afbe8582cf1362381002657f964c4f3"
   },
   "sglang.srt.layers.attention.hybrid_linear_attn_backend.HybridLinearAttnBackend.shared_read_ends": {
-    "def_line": 1222,
+    "def_line": 1223,
     "file": "sglang/srt/layers/attention/hybrid_linear_attn_backend.py",
-    "first_line": 1222,
+    "first_line": 1223,
     "kind": "function",
-    "module_sha256": "8339a92ed5e4fd91f306f81f48d29c60f93a9e0e2ae4974cb6916f9f9a46f858",
+    "module_sha256": "d6dcae3b5f50138c493f600d5cc9d297dc29233e95bc2d9d46db08e051263554",
     "qualname": "HybridLinearAttnBackend.shared_read_ends",
     "sha256": "8807e3eaa30fe62e2b7964607b58eb9fd48f214d6b3d5429487a68fc20201997"
   },
   "sglang.srt.layers.attention.linear.gdn_backend.GDNAttnBackend": {
-    "def_line": 513,
+    "def_line": 515,
     "file": "sglang/srt/layers/attention/linear/gdn_backend.py",
-    "first_line": 513,
+    "first_line": 515,
     "kind": "class",
-    "module_sha256": "c12e054cbe9f85cf15b0590a8ea7e3e175f62121160c3f548e0aa7ce71d1af0d",
+    "module_sha256": "3e555260036d4d4e27a18e9af7f2e075f4cd9f5c98fa504ea43017b249b3e4ab",
     "qualname": "GDNAttnBackend",
-    "sha256": "acb7d71eaa9a32886dc8e359aea7bcc52fe503ca1eb6d2523d8e9ed33e5f6294"
+    "sha256": "fc0d2e68e5d701ac9c447ac80d404ea410e40856767ab72c127af462cbd9ddff"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend": {
-    "def_line": 172,
+    "def_line": 205,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 172,
+    "first_line": 205,
     "kind": "class",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend",
-    "sha256": "727cfb989e289a83495cebae60ee06a4af5c4e8accca91b025c0165b6f95c41d"
+    "sha256": "10e355d3147d000c37e52bbdd7615c888d4b52b01d5c31635f68e6866863bd5f"
   },
   "sglang.srt.layers.dp_attention.set_dp_buffer_len": {
-    "def_line": 314,
+    "def_line": 308,
     "file": "sglang/srt/layers/dp_attention.py",
-    "first_line": 314,
+    "first_line": 308,
     "kind": "function",
-    "module_sha256": "93a2fe6a000428c5b81004b3039a3ed773a036becc1b2ffd4fc8b13a3481e6f6",
+    "module_sha256": "f128669ebd206148f9ef4eb5cca9f4481702cf65177ed8a279a219b84c466915",
     "qualname": "set_dp_buffer_len",
     "sha256": "6375f85c678090911739eb4f13ffef7ab8c56b426e03cc2b96efc936895bef11"
   },
   "sglang.srt.layers.dp_attention.set_is_extend_in_batch": {
-    "def_line": 390,
+    "def_line": 384,
     "file": "sglang/srt/layers/dp_attention.py",
-    "first_line": 390,
+    "first_line": 384,
     "kind": "function",
-    "module_sha256": "93a2fe6a000428c5b81004b3039a3ed773a036becc1b2ffd4fc8b13a3481e6f6",
+    "module_sha256": "f128669ebd206148f9ef4eb5cca9f4481702cf65177ed8a279a219b84c466915",
     "qualname": "set_is_extend_in_batch",
     "sha256": "6976b54114a8422bac34a5f4ebc6f15a767534f8533dc6c373ba10f15ff96f96"
   },
   "sglang.srt.managers.schedule_batch.ScheduleBatch": {
-    "def_line": 2335,
+    "def_line": 2360,
     "file": "sglang/srt/managers/schedule_batch.py",
-    "first_line": 2334,
+    "first_line": 2359,
     "kind": "class",
-    "module_sha256": "b2f78c781de88c36ce27cc5d44b343420338b4da299e885c575665d6fab843ca",
+    "module_sha256": "9041283b11d1b7eac18b0167657d8a5a060cf9c54a838453e2a2421cdeff4003",
     "qualname": "ScheduleBatch",
-    "sha256": "32826a795279d9ac609a3ec04c2e212cc88d39152b1c378ea4acb4ef60dbcf09"
+    "sha256": "0c4e3ebd131855c4e25b3d30a90e44308fa0a204507e40ff236c765d4b0699ea"
   },
   "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.extract_buffer": {
     "def_line": 480,
     "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
     "first_line": 480,
     "kind": "function",
-    "module_sha256": "839a1a077a6c7ec50148d4a6481e37880baa8947432db7ac09574b7e601f0d78",
+    "module_sha256": "b33966823abf1f720dee2629495e9bd257b8aa598589d981b9771f3f0bb2fc8d",
     "qualname": "CudaGraphBufferRegistry.extract_buffer",
     "sha256": "c2555c71b3038b4857f791addd94c66a2fc924460c5e244c9b1602915a75024d"
   },
@@ -76,7 +76,7 @@
     "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
     "first_line": 388,
     "kind": "function",
-    "module_sha256": "839a1a077a6c7ec50148d4a6481e37880baa8947432db7ac09574b7e601f0d78",
+    "module_sha256": "b33966823abf1f720dee2629495e9bd257b8aa598589d981b9771f3f0bb2fc8d",
     "qualname": "CudaGraphBufferRegistry.fill_from",
     "sha256": "373a9776f51f5e43ee864bef0b8b435edfb7d2e5af7280bbe8e0aca81a6d2bcc"
   },
@@ -85,43 +85,61 @@
     "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
     "first_line": 516,
     "kind": "function",
-    "module_sha256": "839a1a077a6c7ec50148d4a6481e37880baa8947432db7ac09574b7e601f0d78",
+    "module_sha256": "b33966823abf1f720dee2629495e9bd257b8aa598589d981b9771f3f0bb2fc8d",
     "qualname": "build_decode_registry",
-    "sha256": "11f795f7d31017512e17a5f659ee2ed2634ff550e23f08722e0b147a166773f5"
+    "sha256": "5431fa5e75c7303396564f1336e546b798cda713422407eec09e20fea7d59a72"
   },
   "sglang.srt.model_executor.cuda_graph_buffer_registry.build_eager_registry": {
-    "def_line": 1011,
+    "def_line": 1015,
     "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
-    "first_line": 1011,
+    "first_line": 1015,
     "kind": "function",
-    "module_sha256": "839a1a077a6c7ec50148d4a6481e37880baa8947432db7ac09574b7e601f0d78",
+    "module_sha256": "b33966823abf1f720dee2629495e9bd257b8aa598589d981b9771f3f0bb2fc8d",
     "qualname": "build_eager_registry",
-    "sha256": "e90209558638b09ad7f4da4d3bc1772e7606c57278c3a64ee3ba2ebe4ba737c5"
+    "sha256": "2d6174be427f0dfd0e06fc62c6992e01a8b84a01fcaaa733aa6fd0edbda22db1"
   },
   "sglang.srt.model_executor.forward_batch_info.ForwardBatch": {
-    "def_line": 489,
+    "def_line": 505,
     "file": "sglang/srt/model_executor/forward_batch_info.py",
-    "first_line": 488,
+    "first_line": 504,
     "kind": "class",
-    "module_sha256": "ef4426b3ece1b515eeb5223d394de6a8d154d912bcf62e7ed4bae20e17064797",
+    "module_sha256": "9b95838f31331d9489e6f8e70885d8c09520ff1cc93f20e9a246111a348e7c74",
     "qualname": "ForwardBatch",
-    "sha256": "b7354dec262190fe358eadf3bb69d219f5dc7930e3d4b34ba86c04f6dc4b1305"
+    "sha256": "382e0214037731c6d7100133c3f5441d986900633babd658d250b2059aedc6b6"
   },
   "sglang.srt.model_executor.forward_batch_info.ForwardBatch.init_new": {
-    "def_line": 904,
+    "def_line": 930,
     "file": "sglang/srt/model_executor/forward_batch_info.py",
-    "first_line": 903,
+    "first_line": 929,
     "kind": "function",
-    "module_sha256": "ef4426b3ece1b515eeb5223d394de6a8d154d912bcf62e7ed4bae20e17064797",
+    "module_sha256": "9b95838f31331d9489e6f8e70885d8c09520ff1cc93f20e9a246111a348e7c74",
     "qualname": "ForwardBatch.init_new",
-    "sha256": "f3ecde71a5487b28b3ba87df242554edae9258cf78cc2adf0527885c19b2f63e"
+    "sha256": "eaab7d5de3a6e24b983fad1c7ba2ea21775f5bf186680c8682e493c45bde03d3"
+  },
+  "sglang.srt.model_executor.forward_batch_info.ForwardMode.is_decode": {
+    "def_line": 260,
+    "file": "sglang/srt/model_executor/forward_batch_info.py",
+    "first_line": 260,
+    "kind": "function",
+    "module_sha256": "9b95838f31331d9489e6f8e70885d8c09520ff1cc93f20e9a246111a348e7c74",
+    "qualname": "ForwardMode.is_decode",
+    "sha256": "f8a0b8db4b7f1757aa98dbce9262a2b7bd757aa548bf43f858309cd5cdb1e89b"
+  },
+  "sglang.srt.model_executor.forward_batch_info.ForwardMode.is_extend_without_speculative": {
+    "def_line": 304,
+    "file": "sglang/srt/model_executor/forward_batch_info.py",
+    "first_line": 304,
+    "kind": "function",
+    "module_sha256": "9b95838f31331d9489e6f8e70885d8c09520ff1cc93f20e9a246111a348e7c74",
+    "qualname": "ForwardMode.is_extend_without_speculative",
+    "sha256": "36a2f0e72d87fd8fc7a78ba51a8ec37e2fb5c028f587466a97ac4b779c7d9430"
   },
   "sglang.srt.model_executor.forward_batch_info.PPProxyTensors": {
-    "def_line": 2091,
+    "def_line": 2151,
     "file": "sglang/srt/model_executor/forward_batch_info.py",
-    "first_line": 2091,
+    "first_line": 2151,
     "kind": "class",
-    "module_sha256": "ef4426b3ece1b515eeb5223d394de6a8d154d912bcf62e7ed4bae20e17064797",
+    "module_sha256": "9b95838f31331d9489e6f8e70885d8c09520ff1cc93f20e9a246111a348e7c74",
     "qualname": "PPProxyTensors",
     "sha256": "da249d584d98afe7e35fd6d3f68c27d50cc8e94cabcc68d7fe67709c403207d6"
   },
@@ -144,38 +162,38 @@
     "sha256": "b30bf420a709394228a3f4e843e99743818360e57988318a193aee32ac681ae6"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._forward_raw": {
-    "def_line": 1856,
+    "def_line": 1865,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1856,
+    "first_line": 1865,
     "kind": "function",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
+    "module_sha256": "f7ba0019c6fc6ed800a81d6c23ebc57f9c73facab523c0bd4d5aed004fa98f95",
     "qualname": "ModelRunner._forward_raw",
     "sha256": "9e6f8e310c832959c518b68eb04131719b70ab44f9eec3ca424b5c631a945bd0"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._prepare_eager_forward_batch": {
-    "def_line": 1616,
+    "def_line": 1629,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1616,
+    "first_line": 1629,
     "kind": "function",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
+    "module_sha256": "f7ba0019c6fc6ed800a81d6c23ebc57f9c73facab523c0bd4d5aed004fa98f95",
     "qualname": "ModelRunner._prepare_eager_forward_batch",
-    "sha256": "ba624785238f83177ac1efde096ceec59e7639b497046735dfaf81e13abb2ad9"
+    "sha256": "7f758232baed6ecdfffcb098e2181915ff290dce1104d06547444a4a75cf0405"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._prepare_replicated_q_proj": {
-    "def_line": 1033,
+    "def_line": 1048,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1033,
+    "first_line": 1048,
     "kind": "function",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
+    "module_sha256": "f7ba0019c6fc6ed800a81d6c23ebc57f9c73facab523c0bd4d5aed004fa98f95",
     "qualname": "ModelRunner._prepare_replicated_q_proj",
     "sha256": "c0638fa201004ea2107878b783bb4b743ddd0a5118d8cdac4fb50c701969b5d9"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner.init_attention_backends": {
-    "def_line": 1005,
+    "def_line": 1020,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1005,
+    "first_line": 1020,
     "kind": "function",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
+    "module_sha256": "f7ba0019c6fc6ed800a81d6c23ebc57f9c73facab523c0bd4d5aed004fa98f95",
     "qualname": "ModelRunner.init_attention_backends",
     "sha256": "d05bbe5dd7803033546e1d36b30349a85726fb35f9493153b1685a1783046eef"
   },
@@ -184,7 +202,7 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 582,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._capture_graph_size",
     "sha256": "87d0ec64c094e4dfd08997158f9384760003a981fa09df18e7b33f4e3915630c"
   },
@@ -193,16 +211,16 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 585,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._global_num_tokens_for_graph",
-    "sha256": "c94f248d5825f04a7fea432b1251dda83d78aab8888ba3e1a8c47532f4dc7888"
+    "sha256": "10d4d95cc1b0c8138057f0e9715edc119423cad549da3f5ae3b92d15d2fe697d"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._make_graph_key": {
     "def_line": 572,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 572,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._make_graph_key",
     "sha256": "1b92c3899b0beb866b30a18cc238d0db83c97e01578c3fc7d1b17d3b63cb6844"
   },
@@ -211,16 +229,16 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 663,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._max_dp_batch_size",
     "sha256": "fd0e4f4559cf3aa99536828563e224f5e06685e3a1a29bbfbc79b34f4df3c5b3"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._process_output_after_replay": {
-    "def_line": 1558,
+    "def_line": 1565,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1558,
+    "first_line": 1565,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._process_output_after_replay",
     "sha256": "c196ee624c9d69b9b784a1572f129d7c869774fcb69fa4a058cf5491cf440ad6"
   },
@@ -229,7 +247,7 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 533,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._publish_read_done",
     "sha256": "b3c2ea285ec5d5106e12349608254637ef25382163c77bce9b1e8779905972b0"
   },
@@ -238,16 +256,16 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 621,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._ragged_capture_slots",
     "sha256": "426f563de5525c2e2abab0c59243072f3f88dcf9e9bd77ed427ea978885a0d10"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._ragged_graph_num_tokens": {
-    "def_line": 1474,
+    "def_line": 1481,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1474,
+    "first_line": 1481,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._ragged_graph_num_tokens",
     "sha256": "8f0f5c7b96cc2d5b66cca5c107dbabc1021338b6e7da6ef6b2c8cfe8a12dccff"
   },
@@ -256,7 +274,7 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 500,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._record_in_graph_metadata_prep_done",
     "sha256": "3826c5b4e07173205d567a072ee1b1a98bdef2a36c448a5c73756c4bcfc29e75"
   },
@@ -265,7 +283,7 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 517,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._replay_attn_backend",
     "sha256": "0253be7bfd2cf35fcc3beb09c1f0a5b67ea81243c0349dae2ff2390decf099b5"
   },
@@ -274,7 +292,7 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 592,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._resolve_attention_variant",
     "sha256": "7a5c5a77bd340e1c7787cc2499bc002b55f3708d8239d48763aabe7e689dabac"
   },
@@ -283,7 +301,7 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 596,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._resolve_lora_variant",
     "sha256": "5844f24caa80b1af40c5400173644b2943ce5f4168940417bab0c490c0adca8e"
   },
@@ -292,34 +310,34 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 523,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._resolve_shared_read_ends",
-    "sha256": "eab03806176246a4a1559e3bfee1b9be1a5c3fe0370fd1a96b4305ee8621a474"
+    "sha256": "15a14c14c236731f5f8ee08863cf9a78ed1e502fdd74c68ecc13d77c827df642"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._stage_ragged_verify_layout": {
     "def_line": 649,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 649,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._stage_ragged_verify_layout",
     "sha256": "c108b9c2a38efc3dff318abecf48a0ad182159d61f3019f019150884ec255bd6"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._validate_capture_hidden_mode": {
-    "def_line": 1264,
+    "def_line": 1271,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1264,
+    "first_line": 1271,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner._validate_capture_hidden_mode",
     "sha256": "cfc9e1f83384c5013712b4783dd41eac0760f995786dc15c1cb8bb824f94379c"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_one_shape": {
-    "def_line": 1143,
+    "def_line": 1150,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1143,
+    "first_line": 1150,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner.capture_one_shape",
     "sha256": "64e8a326685d44db2ccd3359a0c2087ae73ad3284bb8ee7a72ee677abcb7746b"
   },
@@ -328,43 +346,43 @@
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 869,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner.capture_prepare",
-    "sha256": "72fc7dc374dbae944fe64a83aa1cfdd2e86af75c82e65fbf5afbe7c2e32da900"
+    "sha256": "f577ed0da190b2122aa59b64aa8b76623aba4469cf06b65c8cb6bfa17f978654"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.execute": {
-    "def_line": 1479,
+    "def_line": 1486,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1479,
+    "first_line": 1486,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner.execute",
     "sha256": "fe0eaf40ef7ff7879618264d40cfa012fa1e3ab3481f334f83b736f44d464cb0"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.load_batch": {
-    "def_line": 1271,
+    "def_line": 1278,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 1271,
+    "first_line": 1278,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "DecodeCudaGraphRunner.load_batch",
-    "sha256": "a7c6c743f64123fe596fd3f7b08ec2016c7ea075d9ec8202f35f4d063934b022"
+    "sha256": "758ffa2fd38643ea801051a1b60ff3295cc7a45ac3647191487469d314ea836c"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.build_replay_fb_view": {
     "def_line": 152,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
     "first_line": 152,
     "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
+    "module_sha256": "e24a2c0fe18bf50bfe8bead0b4ad6446965b7bd9c75661ba30dcc96f22ad52dc",
     "qualname": "build_replay_fb_view",
-    "sha256": "821b02644f19100e6c44b897940201f346b83513ad5b3d2600483ee0a33af741"
+    "sha256": "3280c2cec1c4eb7ef67fe0afa31b4a13e8cb87ce3b37669166603cf3d044a9de"
   },
   "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch": {
-    "def_line": 182,
+    "def_line": 183,
     "file": "sglang/srt/model_executor/runner/eager_runner.py",
-    "first_line": 182,
+    "first_line": 183,
     "kind": "function",
-    "module_sha256": "a04d7344319eccbeacefad3f60e559c716f412e680ed0f712645ef149238a6b5",
+    "module_sha256": "77699638afcd1ebb4c43ecd1d70f9de105bbbc4e1e72483260093a92534b084f",
     "qualname": "EagerRunner.load_batch",
     "sha256": "c24823b6fdcb71f43f4153c45991752b76b27f21c4b43606d419b70a993eb5fd"
   },
@@ -373,25 +391,25 @@
     "file": "sglang/srt/model_executor/runner/flashinfer_autotune.py",
     "first_line": 311,
     "kind": "function",
-    "module_sha256": "307184b7d7ae4db4c14bee5bba419c9598429776eebce0e0f38bb89469a5b05a",
+    "module_sha256": "d412e894e0921aa1e3b6e9f317949225400fbd7ecd4bab838ae8d9e1e7e5eea1",
     "qualname": "maybe_flashinfer_autotune_speculative_draft",
     "sha256": "92aa28bac45f1ea7ec06e15e1314a947dea0bee8804691afda02ad3b93bed48d"
   },
   "sglang.srt.model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend": {
-    "def_line": 77,
+    "def_line": 78,
     "file": "sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py",
-    "first_line": 77,
+    "first_line": 78,
     "kind": "class",
-    "module_sha256": "fcfca3c5d286a77594742fd05791fe5ad4c7fd46327ab7f126b2cdcf697b685d",
+    "module_sha256": "737f6d589845a10a934e32bc06bfb4836fe028dcd73850ecf6f2241c57df8c9d",
     "qualname": "FullCudaGraphBackend",
-    "sha256": "813667c275441d1074827d6b785973f9152121766bbe92dcb18de19186abbbfc"
+    "sha256": "7149c30c3e10fa5a0fc6bd28d2f5e350d8020dddb40699bca628b426709197f4"
   },
   "sglang.srt.model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend.replay_session": {
-    "def_line": 200,
+    "def_line": 201,
     "file": "sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py",
-    "first_line": 199,
+    "first_line": 200,
     "kind": "function",
-    "module_sha256": "fcfca3c5d286a77594742fd05791fe5ad4c7fd46327ab7f126b2cdcf697b685d",
+    "module_sha256": "737f6d589845a10a934e32bc06bfb4836fe028dcd73850ecf6f2241c57df8c9d",
     "qualname": "FullCudaGraphBackend.replay_session",
     "sha256": "78fe856eed8797ed1cbb2023624b23a3c983ba7a39359f691b868c3200072c78"
   },
@@ -405,13 +423,22 @@
     "sha256": "e92eee5b3fdf5b284331af3e65d8411831fc15020ff86677a6189b14ad32f177"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1295,
+    "def_line": 1294,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1295,
+    "first_line": 1294,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
+  },
+  "sglang.srt.runtime_context.get_parallel": {
+    "def_line": 1261,
+    "file": "sglang/srt/runtime_context.py",
+    "first_line": 1261,
+    "kind": "function",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
+    "qualname": "get_parallel",
+    "sha256": "75d1c5f8a754b0424f79d5ade3c47daa167bbbc6210e7afce34a82d03d193b71"
   },
   "sglang.srt.speculative.ragged_verify.resolve_ragged_verify_layout": {
     "def_line": 219,
@@ -423,11 +450,11 @@
     "sha256": "2de71b0625fe553b3614e2716beed2b45d6eefb190dee773cea6d9f49f8fdea9"
   },
   "sglang.srt.utils.common.empty_context": {
-    "def_line": 3606,
+    "def_line": 3627,
     "file": "sglang/srt/utils/common.py",
-    "first_line": 3606,
+    "first_line": 3627,
     "kind": "function",
-    "module_sha256": "71abb02aca154dfd2f30ed7e13b6550ac98ec9883b32e73e744e317552730fea",
+    "module_sha256": "cb4590357b253b06323a2bcb0533c3c535fa0684e79040cc97f846bc179e4d41",
     "qualname": "empty_context",
     "sha256": "af0a27516ba80b0a1d717f9a1da63c72a8ab7c747c4d065c4cef6cbd9b2278ae"
   },
@@ -436,7 +463,7 @@
     "file": "sglang/srt/utils/device_timer.py",
     "first_line": 9,
     "kind": "function",
-    "module_sha256": "e9fea4957d945e67a1e6eef31edb9ea6a178558aff721b55bdbf32a01549b2d8",
+    "module_sha256": "15b0026c5e51028f28a9958e2cad66fdea0a54d02e3e9904a99593eee1cb2f3d",
     "qualname": "device_timer_ctx",
     "sha256": "0f18ef6d4de7dec7405e748dc3f57676fe419ffd8d9afb86a387f27d9c7fde5e"
   }

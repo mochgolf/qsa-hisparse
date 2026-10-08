@@ -6,8 +6,8 @@
 - FP8 descales (Q04, A09) and the hook-order independence of the two backend
   ``__init__`` hooks (inventory section 2, C3).
 - HiSparse runtime wiring (Q03, Q06, Q07) with stand-in runtimes.
-- The hand-merged v0.5.21 ROCm branch of Q12 (RESOLVED in
-  tests/regression/test_replace_deltas.py).
+- The ROCm packed decode of Q12 (the pin's branch, which the reference merged
+  into its NVTX ranges) and the routing of the fast_topk overflow fix (T05).
 """
 
 import sys
@@ -157,9 +157,9 @@ def test_paged_attention_routes_through_the_runtime_only_for_the_target_model(
         )
 
 
-def test_rocm_paged_decode_keeps_the_pinned_packed_kernel(target_model, monkeypatch):
-    """RESOLVED Q12: v0.5.21's ROCm branch runs after extraction and returns
-    before flash-attention is resolved; the merged copy keeps it."""
+def test_rocm_paged_decode_runs_the_packed_kernel(target_model, monkeypatch):
+    """Q12: the pin's ROCm branch runs after extraction and flash-attention is
+    never resolved on ROCm; the reference's merge keeps both."""
     backend = _backend(_Pool(), target_model, True)
     backend.forward_metadata = SimpleNamespace(
         row_req_pool_indices=torch.tensor([0]),
@@ -197,6 +197,97 @@ def test_rocm_paged_decode_keeps_the_pinned_packed_kernel(target_model, monkeypa
         )
     assert calls == ["extract", "packed"]
     assert output.shape == (1, 8) and bool((output == 1).all())
+
+
+def test_backend_copies_bind_the_packed_decode_and_reference_copies():
+    """A11/A12 have no hook: the Q08/Q12 copies, the only in-scope callers,
+    bind the reference's FP8-aware definitions, never the pinned ones."""
+    import importlib
+
+    from sglang_qsa_hisparse.kernels import qsa_sparse_attn as plugin
+
+    copies = importlib.import_module(COMPAT)
+    assert copies.sparse_gqa_packed_decode_triton is plugin.sparse_gqa_packed_decode_triton
+    assert copies.qsa_sparse_attention is plugin.qsa_sparse_attention
+    assert sparse_attn.sparse_gqa_packed_decode_triton is not plugin.sparse_gqa_packed_decode_triton
+    assert qsa_kernel.qsa_sparse_attention is not plugin.qsa_sparse_attention
+
+
+class _TopKModule:
+    def __init__(self, calls, name):
+        self.calls, self.name = calls, name
+
+    def __getattr__(self, export):
+        return lambda score, starts, indices, lengths: self.calls.append((self.name, export))
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_fast_topk_builds_the_overflow_fixed_kernel_only_for_the_target_model(
+    target_model, monkeypatch, active
+):
+    """T05: in scope the module attribute every caller imports at call time
+    loads the plugin JIT module (production's fast_topk.cuh); out of scope the
+    in-tree one."""
+    from sglang.kernels.ops.attention import fast_topk as pinned
+    from sglang_qsa_hisparse.kernels import fast_topk as plugin
+
+    calls = []
+    monkeypatch.setattr(pinned, "_jit_fast_topk_module", lambda k: _TopKModule(calls, "pin"))
+    monkeypatch.setattr(plugin, "_jit_fast_topk_module", lambda k: _TopKModule(calls, "plugin"))
+    target_model(active)
+    from sglang.kernels.ops.attention.fast_topk import fast_topk
+
+    indices = fast_topk(torch.zeros(2, 8), torch.full((2,), 8, dtype=torch.int32), 512)
+    assert indices.shape == (2, 512)
+    assert calls == (
+        [("plugin", "qsa_hisparse_fast_topk")] if active else [("pin", "fast_topk")]
+    )
+
+
+class _Fp8MhaPool:
+    is_quantized_kv_cache = False
+    dtype = FP8
+
+    def __init__(self):
+        self.k = torch.zeros((4, 1, 256)).to(FP8)
+
+    def get_key_buffer(self, layer_id):
+        return self.k
+
+    get_value_buffer = get_key_buffer
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_fused_kv_path_refuses_fp8_descales_only_for_the_target_model(
+    target_model, monkeypatch, active
+):
+    """Q13: out of scope the pinned fused attempt proceeds past the guard."""
+    monkeypatch.setattr(backend_module, "MHATokenToKVPool", _Fp8MhaPool)
+    monkeypatch.setattr(backend_module, "_resolve_trtllm_sparse_decode", lambda: object())
+    target_model(active)
+    backend = backend_module.QwenSparseAttnBackend()
+    backend.token_to_kv_pool = _Fp8MhaPool()
+    backend._fused_kv_pool_eligible = True
+    backend._resolve_metadata = lambda forward_batch: (_ for _ in ()).throw(_Stop())
+    layer = SimpleNamespace(
+        layer_id=0, tp_q_head_num=2, head_dim=256, k_scale_float=2.0, v_scale_float=0.5
+    )
+    batch = SimpleNamespace(
+        forward_mode=ForwardMode.DECODE,
+        out_cache_loc=torch.arange(1, dtype=torch.int32),
+        req_pool_indices=torch.tensor([0]),
+    )
+    kv = torch.zeros((1, 1, 256), dtype=torch.bfloat16)
+    with patch.object(torch.Tensor, "is_cuda", new_callable=PropertyMock, return_value=True):
+        call = lambda: backend._try_fused_kv_attention(  # noqa: E731
+            torch.zeros((1, 2, 256), dtype=torch.bfloat16), kv, kv, layer, batch,
+            torch.zeros((1, 1), dtype=torch.int32),
+        )
+        if active:
+            assert call() is None
+        else:
+            with pytest.raises(_Stop):
+                call()
 
 
 @pytest.mark.parametrize("active", [True, False])
@@ -347,10 +438,18 @@ def test_init_hooks_are_order_independent(monkeypatch):
     for order in ([_init_compat_state, _attach_hisparse_runtime],
                   [_attach_hisparse_runtime, _init_compat_state]):
         backend = SimpleNamespace(token_to_kv_pool=SimpleNamespace())
+        # The reference's _fused_kv_eligible (Q03) reads the attached runtime.
+        backend._fused_kv_eligible = lambda: backend.qsa_hisparse is None
         for hook in order:
             hook(None, backend, runner)
-        states.append((backend.qsa_hisparse, backend.token_to_kv_pool.qsa_hisparse))
-    assert states[0] == states[1] == (((runner, "p2-offload"),) * 2)
+        states.append(
+            (
+                backend.qsa_hisparse,
+                backend.token_to_kv_pool.qsa_hisparse,
+                backend._fused_kv_pool_eligible,
+            )
+        )
+    assert states[0] == states[1] == (((runner, "p2-offload"),) * 2 + (False,))
 
 
 @pytest.mark.parametrize(
@@ -384,6 +483,29 @@ def test_backend_attaches_the_runtime_for_the_mode(target_model, monkeypatch, mo
     assert built == [(backend.runner, mode)]
     assert backend.qsa_hisparse.mode == mode
     assert pool.qsa_hisparse is backend.qsa_hisparse
+
+
+@pytest.mark.parametrize("mode", ["p2-offload", None])
+def test_attached_runtime_turns_the_fused_kv_path_off(target_model, monkeypatch, mode):
+    """Q03: the reference computes _fused_kv_pool_eligible after attaching the
+    runtime, so a fused-eligible pool keeps the fused #40972 path only
+    without one."""
+
+    class _EligiblePool(_Pool):
+        is_quantized_kv_cache = False
+
+    monkeypatch.setattr(backend_module, "MHATokenToKVPool", _EligiblePool)
+    monkeypatch.setattr(
+        "sglang_qsa_hisparse.hisparse.runtime.QSAHiSparseRuntime",
+        lambda runner, mode: SimpleNamespace(mode=mode),
+    )
+    if mode is None:
+        monkeypatch.delenv("SGLANG_QSA_HISPARSE_V3", raising=False)
+    else:
+        monkeypatch.setenv("SGLANG_QSA_HISPARSE_V3", mode)
+    backend = _backend(_EligiblePool(), target_model, True)
+    assert backend._fused_kv_pool_eligible is (mode is None)
+    assert backend._fused_kv_eligible() is (mode is None)
 
 
 def test_runtime_begins_non_idle_batches_before_metadata(target_model, monkeypatch):

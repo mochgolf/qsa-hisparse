@@ -84,6 +84,7 @@ COPIES: dict[str, tuple] = {
     "B05": ("hisparse/scheduler.py", "_handle_finish_state_updated_req", ()),
     "M01": ("hisparse/lifecycle.py", "alloc_for_extend", ()),
     "M03": ("hisparse/lifecycle.py", "release_kv_cache", ()),
+    "M06": ("hisparse/lifecycle.py", "create_tree_cache", ()),
     "P02": ("hisparse/scheduler.py", "add_one_req", ()),
     "S04": ("hisparse/scheduler.py", "get_next_batch_to_run", ()),
     "S06": ("hisparse/scheduler.py", "_get_new_batch_prefill_raw", ()),
@@ -93,50 +94,12 @@ COPIES: dict[str, tuple] = {
 # row: why the copy differs from "pin + fork change" (an upstream edit overlaps
 # the fork's change and was merged by hand).
 RESOLVED: dict[str, str] = {
-    "M03": (
-        "v0.5.21 replaced the fork base's cache_finished_req handoff (and the blank "
-        "line the fork's first insertion follows) with claim_kv_row / insert_req / "
-        "free_kv_row / unpin / on_release, so git merge-file conflicts. Merged: the "
-        "fork's lease capture (before_release, qsa_hisparse.release) stays right "
-        "after the not-holds_kv early return, before the handoff (now claim_kv_row) "
-        "and the logical free; its after_release stays right after "
-        "mark_kv_released, and a streaming session that keeps the row still "
-        "returns before it (claim_kv_row, as cache_finished_req + holds_kv did)."
-    ),
-    "E03": (
-        "v0.5.21 already builds the n-gram table on meta for ple_offload_embedding "
-        "(the fork's change, in upstream's form via a local offload_embedding) and "
-        "now wraps it in Qwen4ExpPinnedHostEmbedding inside this method, through a "
-        "local ngram_embedding. Carried over: the int8 params_dtype branch, and "
-        "ple_row_scale_mode plus the int8_row checks on the local, placed before "
-        "the wrapping because the E06 copy reads ple_row_scale_mode when it wraps "
-        "(the fork wrapped after this method returned, so its order is unchanged)."
-    ),
-    "Q12": (
-        "v0.5.21 adds a ROCm branch after extraction (pinned "
-        "sparse_gqa_packed_decode_triton, early return) and resolves "
-        "flash-attention after it; the fork re-indents that whole region into "
-        "NVTX ranges. Merged: the fork's ranges and changes, with the ROCm branch "
-        "after the qsa.fa2_extract range and the resolver call moved from the "
-        "qsa.fa2_metadata_scratch range to just before qsa.fa2_attention (still "
-        "before the FA2 graph check, as in the fork). On ROCm the branch returns "
-        "before capture_decode, i.e. HiSparse decode capture is not wired on ROCm."
-    ),
     "T04": (
         "Class REPLACE by a frozen msgspec subclass: the copy holds only the "
         "fork's added decode_score_width field and its get_decode_mqa_inputs "
-        "(the pinned method, unchanged at v0.5.21, plus the fork's change); the "
-        "rest is inherited from the pinned class, and topk_transform's change is "
-        "T02's around. The class-level edit script cannot match by construction."
-    ),
-    "P02": (
-        "The fork split add_one_req into a new wrapper and the renamed original "
-        "body _add_one_req, so on the target qualname its change replaces the "
-        "whole body; the deleted side is the pinned body, which v0.5.21 edited "
-        "(per_req_token_overhead, has_chunked_req, KV-shard scratch). The "
-        "wrapper is the fork's, unchanged; _add_one_req is the pinned "
-        "add_one_req with the fork's ignore_eos edit, checked mechanically by "
-        "tests/lifecycle/test_renamed_copies.py."
+        "(the reference's method); the rest is inherited from the pinned class, "
+        "and topk_transform's change is T02's around. The class-level edit "
+        "script cannot match by construction."
     ),
 }
 

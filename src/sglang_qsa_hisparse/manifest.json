@@ -309,6 +309,26 @@
       ],
       "attach": []
     },
+    "M05": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.registry.default_radix_cache_factory",
+          "hook_type": "around"
+        }
+      ],
+      "attach": []
+    },
+    "M06": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.registry.create_tree_cache",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
     "P01": {
       "feature": "hisparse",
       "patches": [
@@ -367,7 +387,12 @@
           "hook_type": "after"
         }
       ],
-      "attach": []
+      "attach": [
+        {
+          "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
+          "name": "_fused_kv_eligible"
+        }
+      ]
     },
     "Q04": {
       "feature": "model_compat",
@@ -376,6 +401,10 @@
         {
           "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
           "name": "_kv_descales"
+        },
+        {
+          "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
+          "name": "_kv_descale_kwargs"
         },
         {
           "owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
@@ -467,6 +496,16 @@
         {
           "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_paged_attention",
           "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "Q13": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._try_fused_kv_attention",
+          "hook_type": "around"
         }
       ],
       "attach": []
@@ -607,6 +646,16 @@
         {
           "target": "sglang.srt.layers.attention.qsa.metadata.QSAIndexerMetadata",
           "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
+    "T05": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.kernels.ops.attention.fast_topk.fast_topk",
+          "hook_type": "around"
         }
       ],
       "attach": []

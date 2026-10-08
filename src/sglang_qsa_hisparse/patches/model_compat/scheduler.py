@@ -21,7 +21,7 @@ from sglang_qsa_hisparse.patching import patch
         "not), so setting it on the returned batch equals the fork's insertion "
         "after ScheduleBatch.init_new. Scope (rule 9): the upstream HiSparse "
         "decode path is generic, so non-target models keep the pinned batch. "
-        "Fork scheduler.py 3563-3564 verbatim, with `batch` as the result. "
+        "Production scheduler.py 3620-3621 verbatim, with `batch` as the result. "
         "Deviation D5 (owner-accepted 2026-10-08): with return_logprob the "
         "pinned body (and the fork) set token_ids_logprobs to every prompt "
         "token id; image pad ids exceed the vocabulary and crash decode, and "

@@ -17,6 +17,7 @@ from sglang.srt.batch_overlap.two_batch_overlap import TboForwardBatchPreparer
 from sglang.srt.environ import envs
 from sglang.srt.layers.attention.base_attn_backend import SharedReadEnds
 from sglang.srt.layers.logits_processor import LogitsProcessorOutput
+from sglang.srt.managers.hisparse_coordinator import HiSparseCoordinator
 from sglang.srt.model_executor.cuda_graph_buffer_registry import build_eager_registry
 from sglang.srt.model_executor.forward_batch_info import (
     CaptureHiddenMode,
@@ -30,7 +31,7 @@ from sglang.srt.model_executor.runner.shape_key import ShapeKey
 from sglang.srt.model_executor.runner_backend.full_cuda_graph_backend import (
     FullCudaGraphBackend,
 )
-from sglang.srt.runtime_context import get_context
+from sglang.srt.runtime_context import get_context, get_parallel
 from sglang_qsa_hisparse.hisparse.coordinator import QSAHiSparseCoordinator
 from sglang_qsa_hisparse.patches.hisparse import graph
 
@@ -435,7 +436,6 @@ def _runner_with_pool(runtime):
     runner.token_to_kv_pool = SimpleNamespace()
     if runtime is not None:
         runner.token_to_kv_pool.qsa_hisparse = runtime
-    runner.tp_group = SimpleNamespace(cpu_group="tp cpu group")
     runner.hisparse_coordinator = None
     return runner
 
@@ -445,7 +445,9 @@ def test_coordinator_follows_attention_backends(events, stub_init_attention_back
         uses_qsa_hisparse_leases=True, max_requests=2, mode="p2-offload", real="real rows"
     )
     runner = _runner_with_pool(adapter)
-    with activated("R01"):
+    # Production passes the live TP CPU group (the pin's ModelRunner has no tp_group).
+    tp_group = SimpleNamespace(cpu_group="tp cpu group")
+    with activated("R01"), get_parallel().override(tp_group=tp_group):
         runner.init_attention_backends()
     assert events.names == ["init_attention_backends"]
     coordinator = runner.hisparse_coordinator
@@ -496,35 +498,70 @@ def stub_init_new():
     ForwardBatch.init_new = original
 
 
-def _init_new(runtime):
-    pool = SimpleNamespace() if runtime is None else SimpleNamespace(qsa_hisparse=runtime)
-    batch = SimpleNamespace(req_pool_indices_cpu=torch.tensor([1, 2]))
+def _lease_coordinator():
+    # The class attribute production's condition reads; no runtime needed.
+    return QSAHiSparseCoordinator.__new__(QSAHiSparseCoordinator)
+
+
+def _upstream_coordinator():
+    return HiSparseCoordinator.__new__(HiSparseCoordinator)
+
+
+def _init_new(mode=ForwardMode.DECODE, coordinator=None):
+    rows = torch.empty(0, dtype=torch.int64) if mode.is_idle() else torch.tensor([1, 2])
+    batch = SimpleNamespace(
+        forward_mode=mode, hisparse_coordinator=coordinator, req_pool_indices_cpu=rows
+    )
     return batch, ForwardBatch.init_new(
         batch,
-        SimpleNamespace(token_to_kv_pool=pool),
+        SimpleNamespace(),
         capture_hidden_mode=None,
         return_hidden_states_before_norm=False,
     )
 
 
-def test_forward_batch_carries_cpu_request_rows_with_runtime(stub_init_new):
+def test_forward_batch_carries_cpu_request_rows_for_lease_decode(stub_init_new):
     with activated("F01"):  # Decode: upstream leaves the field None.
-        batch, forward_batch = _init_new(runtime=object())
+        batch, forward_batch = _init_new(ForwardMode.DECODE, _lease_coordinator())
     assert forward_batch.req_pool_indices_cpu is batch.req_pool_indices_cpu
 
 
+@pytest.mark.parametrize(
+    "mode, coordinator, upstream_rows",
+    [
+        (ForwardMode.IDLE, _lease_coordinator, None),
+        (ForwardMode.TARGET_VERIFY, _lease_coordinator, None),
+        (ForwardMode.DECODE, lambda: None, None),
+        (ForwardMode.DECODE, _upstream_coordinator, None),
+        # Upstream's own fill for extend without speculative decoding.
+        (ForwardMode.EXTEND, _lease_coordinator, torch.tensor([7, 8])),
+    ],
+    ids=["idle", "target-verify", "decode-no-coordinator", "decode-upstream-hisparse", "extend"],
+)
+def test_other_batches_keep_upstream_rows(stub_init_new, mode, coordinator, upstream_rows):
+    # Production's condition: only decode under a QSA lease coordinator gets the
+    # ScheduleBatch rows; every other batch keeps upstream's value.
+    stub_init_new["rows"] = upstream_rows
+    with activated("F01"):
+        batch, forward_batch = _init_new(mode, coordinator())
+    assert forward_batch.req_pool_indices_cpu is upstream_rows
+    assert forward_batch.req_pool_indices_cpu is not batch.req_pool_indices_cpu
+
+
 @pytest.mark.parametrize("upstream_rows", [None, torch.tensor([7, 8])], ids=["unset", "set"])
-def test_two_batch_overlap_unaffected_without_runtime(stub_init_new, published, upstream_rows):
+def test_two_batch_overlap_unaffected_without_lease_coordinator(
+    stub_init_new, published, upstream_rows
+):
     stub_init_new["rows"] = upstream_rows
     fields = set(ForwardBatch.__dataclass_fields__)
     with activated("F01"):
-        batch, forward_batch = _init_new(runtime=None)
-        # No class replace: the plugin adds no ForwardBatch field (the fork's
+        batch, forward_batch = _init_new(ForwardMode.DECODE, coordinator=None)
+        # No class replace: the plugin adds no ForwardBatch field (production's
         # kv_allocated_lens_cpu is dropped).
         assert set(ForwardBatch.__dataclass_fields__) == fields
     assert "kv_allocated_lens_cpu" not in fields
-    # Without the runtime the field is exactly what upstream set, never the
-    # ScheduleBatch rows the hook would copy.
+    # Without a lease coordinator the field is exactly what upstream set, never
+    # the ScheduleBatch rows the hook would copy.
     assert forward_batch.req_pool_indices_cpu is upstream_rows
     assert upstream_rows is None or upstream_rows is not batch.req_pool_indices_cpu
     child = TboForwardBatchPreparer.filter_batch(

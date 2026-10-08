@@ -1,12 +1,12 @@
 """Port of the fork's added ``test_pool_configurator.py`` case (rows C01, C02).
 
-The fork test (``test/registered/unit/model_executor/test_pool_configurator.py``
-at ``ee8fe158d6``) is copied with its assertions unchanged and runs with the
-plugin's C01/C02 hooks active. Its helpers are the pinned upstream test's
-(unchanged by the fork). At v0.5.21 ``get_parallel().override`` validates the
-whole topology, so the fork's ``override(attn_tp_size=2)`` is spelled
-``override(tp_size=2, attn_tp_size=2, moe_tp_size=2)`` (upstream made the same
-change to its own ``mock_cpu_env``).
+The case (``test/registered/unit/model_executor/test_pool_configurator.py``)
+is copied with its assertions unchanged and runs with the plugin's C01/C02
+hooks active; it equals production's (``897286b12a``). Its helpers are the
+pinned upstream test's (unchanged by the fork and production). Since v0.5.21
+``get_parallel().override`` validates the whole topology, so the fork's
+``override(attn_tp_size=2)`` is spelled ``override(tp_size=2, attn_tp_size=2,
+moe_tp_size=2)``, as production spells it.
 """
 
 import os

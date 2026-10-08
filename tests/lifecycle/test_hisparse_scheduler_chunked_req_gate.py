@@ -1,6 +1,6 @@
 """Regression tests for the SWA chunked-req stash gate (#24252).
 
-Port of the fork's edit (ee8fe158d6) to the pinned upstream test
+Production's (897286b12a) edit of the pinned upstream test
 test/registered/unit/managers/test_scheduler_chunked_req_gate.py: the fake
 scheduler sets ``hisparse_coordinator``, which S04's copy of
 get_next_batch_to_run reads. Runs with W2's hooks active; the pinned
@@ -51,6 +51,7 @@ def _make_req(
     req.host_hit_length = 0
     req.kv = ReqKvInfo(req_pool_idx=req_pool_idx)
     req.skip_radix_cache_insert = False
+    req.finished_reason = None
     req.last_node = None
     req.lock_receipt = DecLockRefParams()
     req.session = None
@@ -129,7 +130,7 @@ def _scheduler_for_get_next_batch(*, tree_cache, chunked_req) -> Scheduler:
 
 
 class TestStashGatePreservesPrefixIndices(CustomTestCase):
-    """Consumer side: real ChunkCache.cache_unfinished_req mutates
+    """Consumer side: real ChunkCache.checkpoint mutates
     req.prefix_indices iff stash actually runs, so prefix_indices content
     is the bug-detection signal. The stash gate is content-based:
     `fill_len > len(prefix_indices)` means there is freshly computed KV to

@@ -18,7 +18,7 @@ from sglang_qsa_hisparse.features import Features
 
 W2_ROWS = frozenset(
     "S01 S02 S03 S04 S05 S06 S07 S08 S09 B02 B03 B04 B05 B06 "
-    "P01 P02 M01 M02 M03 M04".split()
+    "P01 P02 M01 M02 M03 M04 M05 M06".split()
 )
 W2_MODULES = (
     "hisparse.scheduler",

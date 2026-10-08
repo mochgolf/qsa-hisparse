@@ -11,10 +11,10 @@ from ``qwen4_exp``), so every REPLACE delegates to the pinned method unless
 ``scope.target_model_active()`` (rule 9).
 
 The ``Fork*`` classes are namespaces holding the copied method bodies at their
-original indentation (the pinned definition plus the fork's change, PLAN.md
-Phase 4 rule P1); they are never instantiated. Globals are imported from the
-modules the pinned ``qwen4_exp`` imports them from, so every name resolves to
-the same object as in the pinned module.
+original indentation (the reference's definition, production ``897286b12a``,
+PLAN.md Phase 5 rule Q1); they are never instantiated. Globals are imported
+from the modules the pinned ``qwen4_exp`` imports them from, so every name
+resolves to the same object as in the pinned module.
 """
 
 from contextlib import nullcontext
@@ -154,7 +154,6 @@ class ForkQwen4ExpNGramEmbedding:
                 output_dtype=torch.bfloat16,
                 use_attn_tp_group=self.use_attn_tp_ngram,
             )
-        # weight_scale stays a real device tensor.
         ngram_embedding.register_buffer(
             "weight_scale", torch.ones(1, dtype=torch.bfloat16), persistent=True
         )
@@ -242,9 +241,7 @@ class ForkQwen4ExpPinnedHostEmbedding:
         # The scale is tiny; keep it with the model instead of offloading it
         # with the table.
         self.register_buffer("weight_scale", embedding.weight_scale, persistent=True)
-        self.ple_row_scale_mode = bool(
-            getattr(embedding, "ple_row_scale_mode", False)
-        )
+        self.ple_row_scale_mode = bool(getattr(embedding, "ple_row_scale_mode", False))
         if self.ple_row_scale_mode:
             self.register_buffer(
                 "row_scale",
@@ -697,10 +694,7 @@ class ForkQwen4ExpForConditionalGeneration:
 
         for mod_prefix, ple_mod in ple_modules.items():
             emb = ple_mod.ngram_embedding
-            if (
-                isinstance(emb, Qwen4ExpPinnedHostEmbedding)
-                and emb.ple_row_scale_mode
-            ):
+            if isinstance(emb, Qwen4ExpPinnedHostEmbedding) and emb.ple_row_scale_mode:
                 n_rows = emb.num_org_embeddings_per_partition
                 missing = int(torch.isnan(emb.row_scale.data[:n_rows]).sum())
                 if missing:
@@ -741,11 +735,12 @@ patch(
     reason=(
         "Fork: int8 storage for ple_embedding_dtype int8/int8_row and int8_row "
         "validation (the fork's meta-device table for ple_offload_embedding is "
-        "upstream at v0.5.21, which also moved the Qwen4ExpPinnedHostEmbedding "
+        "upstream since v0.5.21, which also moved the Qwen4ExpPinnedHostEmbedding "
         "wrapping into this method). Mid-function (constructor dtype; "
         "ple_row_scale_mode must be set before the wrapping, which reads it in "
-        "E06), so replace. Copy: the pinned method plus the fork's change, "
-        "merged by hand (RESOLVED in tests/regression/test_replace_deltas.py). "
+        "E06), so replace. Copy: the reference's definition (production "
+        "re-merged the fork's change before the wrapping and dropped the "
+        "weight_scale comment). "
         "model_compat: changes PLE construction with HiSparse unset. Scope "
         "(rule 9): the copy runs only when target_model_active(), otherwise the "
         "pinned method. Mechanical edit (inventory 6, G2): super().__init__() "
@@ -770,8 +765,8 @@ patch(
         "NaN-filled per-row bf16 row_scale buffer. Mid-function, so replace. "
         "model_compat: PLE offload construction with HiSparse unset. Scope "
         "(rule 9): the copy runs only when target_model_active(), otherwise the "
-        "pinned method. Copy ForkQwen4ExpPinnedHostEmbedding.__init__ is "
-        "verbatim; mechanical edits: none."
+        "pinned method. Copy ForkQwen4ExpPinnedHostEmbedding.__init__ is the "
+        "reference's definition; mechanical edits: none."
     ),
 )(
     scoped(
@@ -815,10 +810,8 @@ patch(
         "closure load_qwen4_exp_ple_shard, which cannot be hooked, so replace. "
         "model_compat: model loading with HiSparse unset. Scope (rule 9): the "
         "copy runs only when target_model_active(), otherwise the pinned method. "
-        "Copy ForkQwen4ExpForConditionalGeneration.load_weights is the pinned "
-        "method plus the fork's change (upstream's v0.5.21 edits, aiter fused "
-        "shared experts and the earlier pipeline-stage skip, do not overlap it); "
-        "mechanical edits: none (every global is imported from the module the "
+        "Copy ForkQwen4ExpForConditionalGeneration.load_weights is the "
+        "reference's definition; mechanical edits: none (every global is imported from the module the "
         "pinned qwen4_exp imports it from)."
     ),
 )(

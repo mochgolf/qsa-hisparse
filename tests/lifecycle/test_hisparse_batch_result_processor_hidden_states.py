@@ -1,11 +1,11 @@
-"""Port of the fork's edit (ee8fe158d6) to the pinned upstream test
+"""Production's (897286b12a) edit of the pinned upstream test
 test/registered/unit/managers/test_batch_result_processor_hidden_states.py,
-run with W2's hooks active. The fork removed the batch_result_processor
+run with W2's hooks active. Production removed the batch_result_processor
 ``get_memory`` patch with the import (B01). B02-B05's copies resolve module
 globals in the plugin module (inventory 6, G3), so the two mocks of
-``maybe_cache_unfinished_req`` and ``release_kv_cache`` patch the plugin
-module; every assertion is unchanged. The pinned original runs with the
-plugin off in test_w2_activation.py.
+``checkpoint_kv_cache`` and ``release_kv_cache`` patch the plugin module;
+every assertion is unchanged. The pinned original runs with the plugin off in
+test_w2_activation.py.
 """
 
 import unittest
@@ -16,7 +16,11 @@ import pytest
 import torch
 
 from sglang.srt.environ import envs
-from sglang.srt.layers.logits_processor import LogitsProcessorOutput, SamplingMaskStatus
+from sglang.srt.layers.logits_processor import (
+    LogitsProcessorOutput,
+    SamplingMaskOutput,
+    SamplingMaskStatus,
+)
 from sglang.srt.managers.scheduler_components.batch_result_processor import (
     SchedulerBatchResultProcessor,
 )
@@ -69,7 +73,7 @@ class TestSamplingMaskMaterialization(CustomTestCase):
     def test_selected_and_support_modes_share_one_batch(self):
         output = LogitsProcessorOutput(
             next_token_logits=None,
-            sampling_mask_output=SimpleNamespace(
+            sampling_mask_output=SamplingMaskOutput(
                 token_ids=torch.tensor([[7, 8], [9, 10]], dtype=torch.int32),
                 lengths=torch.tensor([2, 2]),
                 selected_logprobs=torch.tensor([-0.5, -0.25]),
@@ -102,7 +106,7 @@ class TestSamplingMaskMaterialization(CustomTestCase):
     def test_selected_mode_does_not_require_support_tensor(self):
         output = LogitsProcessorOutput(
             next_token_logits=None,
-            sampling_mask_output=SimpleNamespace(
+            sampling_mask_output=SamplingMaskOutput(
                 token_ids=torch.tensor([[7, 8]], dtype=torch.int32),
                 lengths=torch.tensor([2]),
                 selected_logprobs=torch.tensor([-0.5]),
@@ -128,7 +132,7 @@ class TestSamplingMaskMaterialization(CustomTestCase):
         packed_ids.cpu.return_value = torch.tensor([[7, 8, 0], [9, 0, 0]])
         output = LogitsProcessorOutput(
             next_token_logits=None,
-            sampling_mask_output=SimpleNamespace(
+            sampling_mask_output=SamplingMaskOutput(
                 token_ids=packed_ids,
                 lengths=torch.tensor([2, 1]),
                 selected_logprobs=torch.tensor([-0.5, -0.25]),
@@ -264,7 +268,7 @@ class TestPrefillHiddenStateOffsets(CustomTestCase):
                 )
                 processor = _make_processor(self, server_mode)
 
-                with patch(f"{PATCHES}.maybe_cache_unfinished_req"):
+                with patch(f"{PATCHES}.checkpoint_kv_cache"):
                     processor.process_batch_result_prefill(batch, result)
 
                 self.assertEqual(middle.hidden_states, [])

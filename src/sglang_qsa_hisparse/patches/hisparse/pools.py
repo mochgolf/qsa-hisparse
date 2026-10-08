@@ -33,6 +33,7 @@ from sglang.srt.model_executor import pool_configurator
 from sglang.srt.model_executor.pool_configurator import logger
 from sglang.srt.runtime_context import (
     get_exec,
+    get_model,
     get_parallel,
     get_schedule,
     get_spec,
@@ -97,15 +98,17 @@ def _bind_max_running_requests(original, self, *, sizes, **kwargs):
         "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool",
         "sglang.srt.mem_cache.memory_pool.MHATokenToKVPoolMXFP8",
         "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool.__init__",
+        "sglang.srt.mem_cache.qsa_kv_pool.resolve_qsa_indexer_dtype",
         "sglang.srt.runtime_context.get_exec",
+        "sglang.srt.runtime_context.get_model",
         "sglang.srt.runtime_context.get_parallel",
         "sglang.srt.runtime_context.get_spec",
         "sglang.srt.runtime_context.max_speculative_num_draft_tokens",
     ),
     reason=(
-        "Pinned body with the fork change carried over "
-        "(_build_hybrid_linear_kv_pool below; the target is unchanged at "
-        "v0.5.21): with SGLANG_QSA_HISPARSE_V3=p2-offload it validates the "
+        "Production's definition (_build_hybrid_linear_kv_pool below: the pinned "
+        "body, which now resolves --qsa-indexer-dtype, with the fork change): "
+        "with SGLANG_QSA_HISPARSE_V3=p2-offload it validates the "
         "bounded logical capacity (including the configurator's use_mla_backend "
         "and post_capture_kv_active) and builds the raw staging MHATokenToKVPool "
         "passed as full_kv_pool, which must enter extra_args mid-function, "
@@ -186,9 +189,16 @@ def _build_hybrid_linear_kv_pool(
     )
     from sglang.srt.mem_cache.qsa_kv_pool import (
         QSATokenToKVPool,
+        resolve_qsa_indexer_dtype,
     )
 
     qsa_profile = parse_qsa_profile(self.model_config.hf_config)
+    qsa_indexer_dtype = get_model().qsa_indexer_dtype
+    if qsa_indexer_dtype != "auto" and qsa_profile is None:
+        raise ValueError(
+            f"--qsa-indexer-dtype {qsa_indexer_dtype} needs a model with a "
+            "compressed QSA indexer (Qwen4-Exp); this model has none"
+        )
     if qsa_profile is None:
         pool_class = HybridLinearKVPool
         extra_args["use_mla"] = self.use_mla_backend
@@ -200,6 +210,7 @@ def _build_hybrid_linear_kv_pool(
             qsa_compress_ratio=qsa_profile.compress_ratio,
             qsa_token_topk=qsa_profile.budget,
             num_request_slots=req_to_token_pool.req_to_token.shape[0],
+            qsa_indexer_dtype=resolve_qsa_indexer_dtype(qsa_indexer_dtype),
         )
         if os.environ.get("SGLANG_QSA_HISPARSE_V3") == "p2-offload":
             from sglang_qsa_hisparse.hisparse.slots import QSAHiSparseSlots
@@ -252,8 +263,10 @@ def _build_hybrid_linear_kv_pool(
     row="K03",
     depends=("sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.__init__",),
     reason=(
-        "Fork adds full_kv_pool=None to QSATokenToKVPool.__init__ and forwards it "
-        "to HybridLinearKVPool.__init__, which already accepts it at the pin. The "
+        "Fork adds full_kv_pool=None to QSATokenToKVPool.__init__ (keyword-only "
+        "parameters, so its place before the pin's qsa_indexer_dtype is immaterial) "
+        "and forwards it to HybridLinearKVPool.__init__, which already accepts it "
+        "at the pin. The "
         "around pops it into a context variable for the duration of the call; "
         "QSA's super().__init__ is the only pool construction nested in it that "
         "reaches HybridLinearKVPool.__init__. hisparse: None (the default) is "
@@ -304,10 +317,12 @@ def _forward_full_kv_pool(self, *args, **kwargs):
     reason=(
         "Fork sets _bias = 0 and, with SGLANG_QSA_HISPARSE_V3=p2-offload, prices "
         "the fixed raw staging + ring bytes as bias and makes the cell size "
-        "compressed-only. The block is appended at the end of __init__, which has "
-        "no early return, and the class has no subclasses. The block is copied "
-        "verbatim; mechanical edits: num_layers (a local of __init__) is "
-        "re-derived with the pinned expression, and the QSAHiSparseSlots import "
+        "compressed-only (_compute_qsa_cell_size: compressed keys at the pin's "
+        "--qsa-indexer-dtype; the ring stays index_state_dtype). The block is "
+        "appended at the end of __init__, which has no early return and does not "
+        "read _bias, and the class has no subclasses. The block is copied "
+        "verbatim from production; mechanical edits: num_layers (a local of "
+        "__init__) is re-derived with the pinned expression, and the QSAHiSparseSlots import "
         "is rewritten to the plugin package. hisparse: env-gated; _bias is 0 "
         "otherwise."
     ),

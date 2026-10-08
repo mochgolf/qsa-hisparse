@@ -1,4 +1,58 @@
 {
+  "sglang.kernels.jit.utils.arch.is_arch_support_pdl": {
+    "def_line": 178,
+    "file": "sglang/kernels/jit/utils/arch.py",
+    "first_line": 177,
+    "kind": "function",
+    "module_sha256": "a984b2509fb38bd19bf2e756af22c1621dc01a89c0fa7f32456a56a89ab25ef6",
+    "qualname": "is_arch_support_pdl",
+    "sha256": "082f239a8a593453ab6aef69c44b70700ee078f81c73306d475c6fe4ea3ec266"
+  },
+  "sglang.kernels.jit.utils.common.cache_once": {
+    "def_line": 28,
+    "file": "sglang/kernels/jit/utils/common.py",
+    "first_line": 28,
+    "kind": "function",
+    "module_sha256": "28eb4d7c984bf1df8612e55654a32e0f349ca5b6da6a1b540f7ea17e4c7853a9",
+    "qualname": "cache_once",
+    "sha256": "8bab34167526a57f6d1b3ba01429c8a12c947d45315d86d228171bbe3adaaa13"
+  },
+  "sglang.kernels.jit.utils.compile.cpp_args.make_cpp_args": {
+    "def_line": 40,
+    "file": "sglang/kernels/jit/utils/compile/cpp_args.py",
+    "first_line": 40,
+    "kind": "function",
+    "module_sha256": "84be4f6ab4b3a435a424e2762cf2f48c25ccf57119e6971e83f4856d779757c3",
+    "qualname": "make_cpp_args",
+    "sha256": "662afa471b3f812e60f80049ceaa01f678531e180c100891a7524ce7aa4a21b0"
+  },
+  "sglang.kernels.jit.utils.compile.loader.load_jit": {
+    "def_line": 48,
+    "file": "sglang/kernels/jit/utils/compile/loader.py",
+    "first_line": 47,
+    "kind": "function",
+    "module_sha256": "2a48d429aa1068e0b2084e271ee2c08e7dca8388aee73edd3a5e5824cf950b02",
+    "qualname": "load_jit",
+    "sha256": "ab6be4d2932420cf3dbc00dec32d5555cb232615eb4de6890513504877d5a2f5"
+  },
+  "sglang.kernels.jit.utils.compile.spec.resolve_sources": {
+    "def_line": 125,
+    "file": "sglang/kernels/jit/utils/compile/spec.py",
+    "first_line": 125,
+    "kind": "function",
+    "module_sha256": "f762d7d90adb2770988ab0d17b444496d9d611531ab136eb37b8c8707dd42b2f",
+    "qualname": "resolve_sources",
+    "sha256": "c3d1d97d5d28c8e5d91a78f4092562b9baad144c4317fa666e7537a4d48eb9e4"
+  },
+  "sglang.kernels.ops.attention.fast_topk._jit_fast_topk_module": {
+    "def_line": 21,
+    "file": "sglang/kernels/ops/attention/fast_topk.py",
+    "first_line": 20,
+    "kind": "function",
+    "module_sha256": "65eeb1c14a111e651819bdac3ecca3a796f06feec4fb5c03f2ea08a5a65d29e4",
+    "qualname": "_jit_fast_topk_module",
+    "sha256": "f197f899dc18efee7a19d090c1ca1f8d8c9ebb541d84dc400905805e75d6f8de"
+  },
   "sglang.kernels.ops.attention.fast_topk.fast_topk": {
     "def_line": 38,
     "file": "sglang/kernels/ops/attention/fast_topk.py",
@@ -18,22 +72,31 @@
     "sha256": "9e446d90aa7bceb397349e7360620d17a59ba022b07fab48b3627c7e3810e4ab"
   },
   "sglang.srt.configs.model_config.ModelConfig.get_num_attention_heads": {
-    "def_line": 1432,
+    "def_line": 1463,
     "file": "sglang/srt/configs/model_config.py",
-    "first_line": 1432,
+    "first_line": 1463,
     "kind": "function",
-    "module_sha256": "be3a0168bdd3b4a6b1f7778420b83f95c315535812b44e9422e1b48dd856a11e",
+    "module_sha256": "e54adcf0411bc2bddceaefd06dc1e06ed5ce4abdb2076a4fdb792b0e94d9f654",
     "qualname": "ModelConfig.get_num_attention_heads",
     "sha256": "6c3ffb378637849b11c69a563fd5f85128b4020867d6daaa6ffd1c6d59e63c0b"
   },
   "sglang.srt.configs.model_config.ModelConfig.get_num_kv_heads": {
-    "def_line": 1512,
+    "def_line": 1543,
     "file": "sglang/srt/configs/model_config.py",
-    "first_line": 1512,
+    "first_line": 1543,
     "kind": "function",
-    "module_sha256": "be3a0168bdd3b4a6b1f7778420b83f95c315535812b44e9422e1b48dd856a11e",
+    "module_sha256": "e54adcf0411bc2bddceaefd06dc1e06ed5ce4abdb2076a4fdb792b0e94d9f654",
     "qualname": "ModelConfig.get_num_kv_heads",
     "sha256": "ea5e4a5f2484eb49f53138c389a1e8293fd6b6165aa34d29148df65693f9aa3a"
+  },
+  "sglang.srt.layers.attention.qsa.fused_kv.fused_kv_prepare": {
+    "def_line": 122,
+    "file": "sglang/srt/layers/attention/qsa/fused_kv.py",
+    "first_line": 122,
+    "kind": "function",
+    "module_sha256": "2540f0d1ff2c33ad1c637bce56c0b9a64de4b79890dc6b8cfaa3541bf9c80078",
+    "qualname": "fused_kv_prepare",
+    "sha256": "841454cca7ef30c02c7445ac6cd1dc86fda50c36c21bb9e1a2a2b64203b91c36"
   },
   "sglang.srt.layers.attention.qsa.kernel.expand_qsa_block_indices": {
     "def_line": 234,
@@ -53,66 +116,57 @@
     "qualname": "qsa_fast_topk",
     "sha256": "cdb76fa94ba164fc34c761ca55294364690c1381eb838960e4041baeb236b79d"
   },
-  "sglang.srt.layers.attention.qsa.kernel.qsa_sparse_attention": {
-    "def_line": 271,
-    "file": "sglang/srt/layers/attention/qsa/kernel.py",
-    "first_line": 271,
-    "kind": "function",
-    "module_sha256": "727ddececa672bcf580128d0d762349577eaf1037436d9152ce5d77af11a0237",
-    "qualname": "qsa_sparse_attention",
-    "sha256": "3fe54dc76302e2ebd6784259e78e1bdfc20d42fe5fc382597859f817b05291c8"
-  },
   "sglang.srt.layers.attention.qsa.metadata.QSAIndexerMetadata": {
     "def_line": 46,
     "file": "sglang/srt/layers/attention/qsa/metadata.py",
     "first_line": 46,
     "kind": "class",
-    "module_sha256": "d361742e04dff8d9157211ed4b41f167d328a477767429eb515b7f44ff483c09",
+    "module_sha256": "89b1a63bf551a2c4250dbba4dbb24a42ff6c272caad4241f4cf11dd56171b099",
     "qualname": "QSAIndexerMetadata",
-    "sha256": "29693559993d179af39ad793215741c630681ba0896fbeef2dbad25f4ae23c78"
+    "sha256": "922e07580a42cdb7e934f385560c2bee6a3c9a6ae9bd0b3c572c3adb351a8c1c"
   },
   "sglang.srt.layers.attention.qsa.metadata.QSAIndexerMetadata.topk_transform": {
-    "def_line": 105,
+    "def_line": 111,
     "file": "sglang/srt/layers/attention/qsa/metadata.py",
-    "first_line": 105,
+    "first_line": 111,
     "kind": "function",
-    "module_sha256": "d361742e04dff8d9157211ed4b41f167d328a477767429eb515b7f44ff483c09",
+    "module_sha256": "89b1a63bf551a2c4250dbba4dbb24a42ff6c272caad4241f4cf11dd56171b099",
     "qualname": "QSAIndexerMetadata.topk_transform",
     "sha256": "98e3da01382835774dd5b0c49f34a758989de29603ddee886a78c85daeb31609"
   },
   "sglang.srt.layers.attention.qsa.metadata.compressed_decode_view": {
-    "def_line": 277,
+    "def_line": 292,
     "file": "sglang/srt/layers/attention/qsa/metadata.py",
-    "first_line": 277,
+    "first_line": 292,
     "kind": "function",
-    "module_sha256": "d361742e04dff8d9157211ed4b41f167d328a477767429eb515b7f44ff483c09",
+    "module_sha256": "89b1a63bf551a2c4250dbba4dbb24a42ff6c272caad4241f4cf11dd56171b099",
     "qualname": "compressed_decode_view",
     "sha256": "02323dd2c9e3d385e455af89ab2eaeb69b09bbf361189329bb689472aab56d2a"
   },
   "sglang.srt.layers.attention.qsa.mqa.qsa_mqa_decode": {
-    "def_line": 396,
+    "def_line": 427,
     "file": "sglang/srt/layers/attention/qsa/mqa.py",
-    "first_line": 396,
+    "first_line": 427,
     "kind": "function",
-    "module_sha256": "227cbe3d69be36bce64ffdf83e2753e64dc055132392f55efe675a79d319e7e8",
+    "module_sha256": "566fd889f9679545c62d3a2a8dea9be1646c43c4f45b4ca5ef945a3c693aefbb",
     "qualname": "qsa_mqa_decode",
     "sha256": "0d68e92bb4584e24b1de5a8442444c2e233ebb62aa3e827573a22eb8ca600170"
   },
   "sglang.srt.layers.attention.qsa.qsa_indexer.QSAIndexer.select_decode_tokens": {
-    "def_line": 481,
+    "def_line": 491,
     "file": "sglang/srt/layers/attention/qsa/qsa_indexer.py",
-    "first_line": 481,
+    "first_line": 491,
     "kind": "function",
-    "module_sha256": "95dd422168b6f87dba612f8974a687578fe1d929b2cc8ef9dc3a186120c5dae9",
+    "module_sha256": "5e247855ac15a59b6c72db2d8749a76bca4f247dd522707dc9e6d6ab10d56268",
     "qualname": "QSAIndexer.select_decode_tokens",
-    "sha256": "fdacb92ef39c06b05ae21876b9911356ebb96d48414964949cb0ae80ce5a3c01"
+    "sha256": "5b0f908463fd01ae2c103938a6a81b6a2ecfedb8075acb97def6fe4aa8a8d675"
   },
   "sglang.srt.layers.attention.qsa.qsa_indexer.QSAIndexer.select_prefill_tokens": {
-    "def_line": 425,
+    "def_line": 435,
     "file": "sglang/srt/layers/attention/qsa/qsa_indexer.py",
-    "first_line": 425,
+    "first_line": 435,
     "kind": "function",
-    "module_sha256": "95dd422168b6f87dba612f8974a687578fe1d929b2cc8ef9dc3a186120c5dae9",
+    "module_sha256": "5e247855ac15a59b6c72db2d8749a76bca4f247dd522707dc9e6d6ab10d56268",
     "qualname": "QSAIndexer.select_prefill_tokens",
     "sha256": "9c84801cc9eb418699588bf0b59be0f42c998bea673dd5dc4ad4138ddbead761"
   },
@@ -170,219 +224,282 @@
     "qualname": "sparse_gqa_fwd_interface_triton_ck",
     "sha256": "d2fceef581cbf9a9eb40fdb6a4224b4fb29986a2f3bfe23f934c3574e3dda6ea"
   },
-  "sglang.srt.layers.attention.qsa.sparse_attn.sparse_gqa_packed_decode_triton": {
-    "def_line": 319,
-    "file": "sglang/srt/layers/attention/qsa/sparse_attn.py",
-    "first_line": 319,
-    "kind": "function",
-    "module_sha256": "1628f0980ea78eeabccc8dfbee3f6e82f17bde89fb07e3b400b3b4629249aba6",
-    "qualname": "sparse_gqa_packed_decode_triton",
-    "sha256": "29959ae49c1cbefededab10ee287e7bd786c297697155fd652c9d98b0ba39b25"
-  },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__": {
-    "def_line": 179,
+    "def_line": 212,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 179,
+    "first_line": 212,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend.__init__",
-    "sha256": "8b2a4ebce6712468771c4179cbd67f9120d98e11643ee83abcbeb6b53656e90b"
+    "sha256": "f10191ca46751da18ab7eb99f40975f4fc22598cbd880b81def21f64e4a20d6c"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._empty_metadata": {
-    "def_line": 425,
+    "def_line": 463,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 425,
+    "first_line": 463,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._empty_metadata",
     "sha256": "a4b25b2af42ad473362f461408e02624a9f1857cdd2398e278adf92b868526bd"
   },
-  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_paged_attention": {
-    "def_line": 1521,
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._expand_block_indices": {
+    "def_line": 1353,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1521,
+    "first_line": 1353,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "qualname": "QwenSparseAttnBackend._expand_block_indices",
+    "sha256": "384fe7273b7448253568724d20042a7807aec2c7d6fee4966fbd91c32a630d52"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_extend_cp": {
+    "def_line": 1551,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 1551,
+    "kind": "function",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "qualname": "QwenSparseAttnBackend._forward_extend_cp",
+    "sha256": "c4600515d8bc50c2d7c1c08a3b7ebb08dcc475d201ca4874b869f786c9903e29"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_paged_attention": {
+    "def_line": 1852,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 1852,
+    "kind": "function",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._forward_paged_attention",
-    "sha256": "9b1701be90c19363974854792b734a0d0b308c7b4493ec0832f2a6ac34f295ad"
+    "sha256": "552a2435fecb3919df5dcadd98c6558a7fb046ce9cb25e62b7d7752f3dedd7bf"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._forward_trtllm_sparse": {
-    "def_line": 1414,
+    "def_line": 1694,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1414,
+    "first_line": 1694,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._forward_trtllm_sparse",
-    "sha256": "45778d34e770ad1c161c8d24679758f3b1b874aaf3a82891efd5ec42853fce13"
+    "sha256": "cd980fa64bd40aa3502ec7dfbcd4fe6a32c248e40e671ed4c945bd24681a0baf"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._get_fa2_scratch": {
-    "def_line": 1380,
+    "def_line": 1660,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1380,
+    "first_line": 1660,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._get_fa2_scratch",
     "sha256": "ea3a98fde0155b031411311467b422c0c76c68da7ab1802dc810678e57c172e2"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._get_trtllm_sparse_tables": {
-    "def_line": 1399,
+    "def_line": 1679,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1399,
+    "first_line": 1679,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._get_trtllm_sparse_tables",
     "sha256": "f45374bfcf1a079e8d120a6100bb405591b0b7a9b44df914983f080b197555e2"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._is_speculative_paged_mode": {
-    "def_line": 225,
+    "def_line": 263,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 224,
+    "first_line": 262,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._is_speculative_paged_mode",
     "sha256": "b3bed577ae416fafbfe71ad6e6caf28f044f46000c12ba87573deadfce3153ae"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._logical_to_physical": {
-    "def_line": 1247,
+    "def_line": 1308,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1246,
+    "first_line": 1307,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._logical_to_physical",
     "sha256": "75b6d512cd3dd9b299d01aa1444a71a408855d1ea2ca6bc88b21e387a84d14fe"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._metadata_from_forward_batch": {
-    "def_line": 542,
+    "def_line": 580,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 542,
+    "first_line": 580,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._metadata_from_forward_batch",
-    "sha256": "43790b046d1d339a0689e7a26aff17256dffe7aa67bb9e7ad47fe9b807eac7c8"
+    "sha256": "6b400ae324b16c6519438d608ff40aac7cd51b4d25b5c3ef52b428e3f59dc8cd"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._pad_extend_output": {
-    "def_line": 1367,
+    "def_line": 1647,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1366,
+    "first_line": 1646,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._pad_extend_output",
     "sha256": "26c2b47a919839e88fa5941c8eea72e677183a00dd2317f390d5b7b62d3b44fd"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._resolve_metadata": {
-    "def_line": 1240,
+    "def_line": 1301,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1240,
+    "first_line": 1301,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend._resolve_metadata",
     "sha256": "b7f3f00df3e7db09ffb4c7e44ef0212e449e8d73035570b691c42454fe7612c3"
   },
-  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_decode": {
-    "def_line": 1501,
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._supports_fused_kv_pool": {
+    "def_line": 1325,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1501,
+    "first_line": 1324,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "qualname": "QwenSparseAttnBackend._supports_fused_kv_pool",
+    "sha256": "9848cef07b41354ed5718ac9fcb9bb55c7d81a605488ba406d6ec33b912fc89a"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._try_fused_kv_attention": {
+    "def_line": 1365,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 1365,
+    "kind": "function",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "qualname": "QwenSparseAttnBackend._try_fused_kv_attention",
+    "sha256": "70bf0e488d28aae9e8a8ed731b7b1490c756dc045778a3c3acc7eaa040dd08a8"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._uses_block_indices": {
+    "def_line": 1347,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 1347,
+    "kind": "function",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "qualname": "QwenSparseAttnBackend._uses_block_indices",
+    "sha256": "0b8d032615abf87134f5b0823fa73db57052df3ddb2310bb780b4139ca71829d"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_decode": {
+    "def_line": 1827,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 1827,
+    "kind": "function",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend.forward_decode",
-    "sha256": "41eea39cfe0f43c7b7f58df6ed5ea605608ea63fb75f1622431ed5a58f8a1f27"
+    "sha256": "b49aaffa40ab5fb877f000df8385d36a41fd8fbe63d72c1b1e7154f6f44afc64"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.forward_extend": {
-    "def_line": 1263,
+    "def_line": 1432,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1263,
+    "first_line": 1432,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend.forward_extend",
-    "sha256": "14bac2bd73a9f8dd3bd31e224f1fda6cf33bc6e0d99b65c1a1f851b6fc3b6740"
+    "sha256": "0dcf337d4d9df05fdbc42ecd842a025a9af1b57b2bc67666c6a721caf9f63614"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.init_cuda_graph_state": {
-    "def_line": 762,
+    "def_line": 808,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 762,
+    "first_line": 808,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend.init_cuda_graph_state",
-    "sha256": "d7d289af3cafbd31a20a8e5e488a82d9439b4165c84fb85de11765a17628318d"
+    "sha256": "7855f412151bfce8dce40e17e8987f8a5a63f0389b83a6adcea74b760d5ccbc3"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.should_reuse_mtp_sparse_indices": {
-    "def_line": 1126,
+    "def_line": 1187,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1126,
+    "first_line": 1187,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "QwenSparseAttnBackend.should_reuse_mtp_sparse_indices",
     "sha256": "d88f6c2b1f923829af6eb31a8a51b432c1ce569a54dee4c3ac5cac66d54243fb"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func": {
-    "def_line": 68,
+    "def_line": 85,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 67,
+    "first_line": 84,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "_resolve_flash_attn_varlen_func",
-    "sha256": "8c583c7eb29eec06a318e5ae57cbfb28ab7a992c5a881b74a32332e39d368490"
+    "sha256": "0f987d2e6e239ea979fc9d5532dca24f3f3235c2aaee3e0aa1026cf47385df25"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_trtllm_sparse_decode": {
-    "def_line": 50,
+    "def_line": 67,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 49,
+    "first_line": 66,
     "kind": "function",
-    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
     "qualname": "_resolve_trtllm_sparse_decode",
     "sha256": "5ee98db3d8588a3d930f3983f42d3479db45f5afdc60174a3c490d7d06a58324"
   },
-  "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.set_kv_buffer": {
-    "def_line": 4185,
-    "file": "sglang/srt/mem_cache/memory_pool.py",
-    "first_line": 4185,
+  "sglang.srt.layers.cp.utils.is_cp_active": {
+    "def_line": 121,
+    "file": "sglang/srt/layers/cp/utils.py",
+    "first_line": 121,
     "kind": "function",
-    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
+    "module_sha256": "f94eacea538669ca3eeb363a38d4ca665d6fc7622ce95de4e857ac478a5042bf",
+    "qualname": "is_cp_active",
+    "sha256": "d83c43e4d024f33db4aa84381491e300d8859162e45d668762a98bfb79b73c32"
+  },
+  "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.set_kv_buffer": {
+    "def_line": 4291,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 4291,
+    "kind": "function",
+    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
     "qualname": "HybridLinearKVPool.set_kv_buffer",
-    "sha256": "776236e73ec35b3d62d871529e02ede869e6dc6877bb982a8c36f2627e211970"
+    "sha256": "cae57fdd96ee5d0898850b7673a8082ef788b22a260beeff7ec790da340d5c0c"
+  },
+  "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool.get_key_buffer": {
+    "def_line": 2649,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 2649,
+    "kind": "function",
+    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
+    "qualname": "MHATokenToKVPool.get_key_buffer",
+    "sha256": "644326e95cda4b2f900f12ffd386fe35ee6612292b8433fc23b9fbd65fa4eaf0"
   },
   "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool.set_kv_buffer": {
-    "def_line": 2584,
+    "def_line": 2688,
     "file": "sglang/srt/mem_cache/memory_pool.py",
-    "first_line": 2584,
+    "first_line": 2688,
     "kind": "function",
-    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
+    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
     "qualname": "MHATokenToKVPool.set_kv_buffer",
-    "sha256": "443d8d27aa01577299151ecfa55c34fd9c3ed1800d63387dba5af29122d309b8"
+    "sha256": "5250ecbd669f08def457f1601c81a12523fcdc8fd7db5f06a5432a53dc7561f9"
+  },
+  "sglang.srt.model_executor.runner_backend_utils.breakable_cuda_graph.context.is_in_breakable_cuda_graph": {
+    "def_line": 31,
+    "file": "sglang/srt/model_executor/runner_backend_utils/breakable_cuda_graph/context.py",
+    "first_line": 31,
+    "kind": "function",
+    "module_sha256": "f7cf9d819d872d4c0d3c0201ba9853939e4509ac8309445ba9f75aefa6525729",
+    "qualname": "is_in_breakable_cuda_graph",
+    "sha256": "b38e85304b51a612bc5473a3408f93099e18ceeecde6f9f508148d1726065c0b"
   },
   "sglang.srt.runtime_context.RuntimeContext.is_config_namespace_published": {
-    "def_line": 1051,
+    "def_line": 1050,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1051,
+    "first_line": 1050,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "RuntimeContext.is_config_namespace_published",
     "sha256": "68834e6cddba144cf6fa1aec73add760e07c66b9e4b96db9991abf24ac52a467"
   },
   "sglang.srt.runtime_context.get_context": {
-    "def_line": 1258,
+    "def_line": 1257,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1258,
+    "first_line": 1257,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_context",
     "sha256": "e259db7cb2d6e0339aac82725b374a0197b63969dbf34a35bbead7939eb95353"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1295,
+    "def_line": 1294,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1295,
+    "first_line": 1294,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
   "sglang.srt.runtime_context.get_parallel": {
-    "def_line": 1262,
+    "def_line": 1261,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1262,
+    "first_line": 1261,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_parallel",
     "sha256": "75d1c5f8a754b0424f79d5ade3c47daa167bbbc6210e7afce34a82d03d193b71"
   },
@@ -391,16 +508,16 @@
     "file": "sglang/srt/utils/common.py",
     "first_line": 137,
     "kind": "function",
-    "module_sha256": "71abb02aca154dfd2f30ed7e13b6550ac98ec9883b32e73e744e317552730fea",
+    "module_sha256": "cb4590357b253b06323a2bcb0533c3c535fa0684e79040cc97f846bc179e4d41",
     "qualname": "is_hip",
     "sha256": "cb32ec8fe2401eeff2a2a3ef67ed5bf419bcbf51caafa060ebf533ffc07ab0b0"
   },
   "sglang.srt.utils.common.is_sm121": {
-    "def_line": 333,
+    "def_line": 335,
     "file": "sglang/srt/utils/common.py",
-    "first_line": 332,
+    "first_line": 334,
     "kind": "function",
-    "module_sha256": "71abb02aca154dfd2f30ed7e13b6550ac98ec9883b32e73e744e317552730fea",
+    "module_sha256": "cb4590357b253b06323a2bcb0533c3c535fa0684e79040cc97f846bc179e4d41",
     "qualname": "is_sm121",
     "sha256": "f9749c8d2a823ff60ae6f8aba828daf98bf1bf2e1c7626ddf742960c01426b99"
   },

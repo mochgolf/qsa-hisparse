@@ -4,7 +4,8 @@ J01/J02 (the plugin-owned op wrapper and JIT headers) live in
 ``sglang_qsa_hisparse.kernels.marlin_moe`` and ``kernels/csrc/marlin_moe``;
 J04 (stable token alignment) in ``sglang_qsa_hisparse.kernels.stable_align``.
 
-``fused_marlin_moe`` below is the fork's function body, verbatim. The fork
+``fused_marlin_moe`` below is the reference's function body (production
+897286b12a, the fork's change on the pin), verbatim. The reference
 decorates it with ``@register_custom_op(out_shape="hidden_states")``; here the
 same decorator is applied as a call with a distinct ``op_name`` (inventory 6,
 G4: reusing the upstream name would route to the upstream op), and the module

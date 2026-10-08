@@ -1,13 +1,14 @@
-"""Ported from fork test/qsa_hisparse/test_model_compatibility.py (ee8fe158d6).
+"""Ported from the reference's test/qsa_hisparse/test_model_compatibility.py
+(production 897286b12a).
 
 Assertions unchanged. ``_stable_hc`` (E01) and the copied
 ``Qwen4ExpNGramEmbedding.__init__`` (E03) resolve their globals in the plugin
 module, so the fork's monkeypatches of ``qwen4_exp.get_exec`` and
 ``qwen4_exp.VocabParallelEmbedding`` target that module; the embedding is
 still constructed through the pinned class with W5's rows activated for the
-target model. At v0.5.21 the constructor also wraps an offloaded table in
-``Qwen4ExpPinnedHostEmbedding``, which the stand-in table cannot feed, so that
-name is stubbed with a pass-through as well.
+target model. The constructor also wraps an offloaded table in
+``Qwen4ExpPinnedHostEmbedding``, which the reference stubs with a
+pass-through; the stub targets the plugin module too.
 """
 
 from types import SimpleNamespace
@@ -51,9 +52,8 @@ def test_offloaded_ple_preserves_storage_dtype_on_meta(
             )
 
     monkeypatch.setattr(plugin_qwen4_exp, "VocabParallelEmbedding", FakeEmbedding)
-    # v0.5.21 wraps the offloaded table in Qwen4ExpPinnedHostEmbedding inside
-    # this constructor (the fork wrapped it later, in the PLE layer); the
-    # stand-in keeps the table the fork's assertions inspect.
+    # This case checks the construction dtype and device; the real offload
+    # wrapper's storage and gather behavior has separate tests.
     monkeypatch.setattr(
         plugin_qwen4_exp, "Qwen4ExpPinnedHostEmbedding", lambda table, **_: table
     )
