@@ -9,47 +9,47 @@
     "sha256": "a8faabde550cdfc1e800398d6009ec62cab95562739f4a66f77356d6cadaf744"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager._observe_weight_load": {
-    "def_line": 103,
+    "def_line": 106,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 102,
+    "first_line": 105,
     "kind": "function",
-    "module_sha256": "82349bcc4b9f29944de8a870bc043474943ed169d0a36b49d82cd554e043d1b0",
+    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
     "qualname": "SchedulerWeightUpdaterManager._observe_weight_load",
     "sha256": "c755051040bf51c3e0454cf1059cb2ebee16f322e7d89a141b04f9b9346cb861"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_disk": {
-    "def_line": 127,
+    "def_line": 130,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 127,
+    "first_line": 130,
     "kind": "function",
-    "module_sha256": "82349bcc4b9f29944de8a870bc043474943ed169d0a36b49d82cd554e043d1b0",
+    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
     "qualname": "SchedulerWeightUpdaterManager.update_weights_from_disk",
     "sha256": "e1930b7bb73cadb49a66a7d58f0f792027015da8a7272850f0e206d9be5e2b93"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_distributed": {
-    "def_line": 174,
+    "def_line": 177,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 174,
+    "first_line": 177,
     "kind": "function",
-    "module_sha256": "82349bcc4b9f29944de8a870bc043474943ed169d0a36b49d82cd554e043d1b0",
+    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
     "qualname": "SchedulerWeightUpdaterManager.update_weights_from_distributed",
     "sha256": "f409a3a27cfa2977caa8d48a24daf63ff6cd4aef4cd2062f7ce7a73be2197b0b"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_ipc": {
-    "def_line": 248,
+    "def_line": 251,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 248,
+    "first_line": 251,
     "kind": "function",
-    "module_sha256": "82349bcc4b9f29944de8a870bc043474943ed169d0a36b49d82cd554e043d1b0",
+    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
     "qualname": "SchedulerWeightUpdaterManager.update_weights_from_ipc",
     "sha256": "5c9970d7347aa028b6c259404ff84d41a6d4e19f21dc27f877b7a0ec265bf311"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_tensor": {
-    "def_line": 217,
+    "def_line": 220,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 217,
+    "first_line": 220,
     "kind": "function",
-    "module_sha256": "82349bcc4b9f29944de8a870bc043474943ed169d0a36b49d82cd554e043d1b0",
+    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
     "qualname": "SchedulerWeightUpdaterManager.update_weights_from_tensor",
     "sha256": "05d40cf2902def572b7d0e70d3ab62de4203ab4a153b33f0ff1a269315157210"
   },
@@ -58,7 +58,7 @@
     "file": "sglang/srt/mem_cache/allocation.py",
     "first_line": 454,
     "kind": "function",
-    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
     "qualname": "_alloc_extend_loc_with_kv_reuse",
     "sha256": "51cbf49d359b1c83a8cfd15a480530768b1e77167741dc312cdf87fc755459e8"
   },
@@ -67,7 +67,7 @@
     "file": "sglang/srt/mem_cache/allocation.py",
     "first_line": 333,
     "kind": "function",
-    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
     "qualname": "_alloc_page_size",
     "sha256": "8d64014215e85ca6237c05f743498f9a70deede0042e3b4961c29f2a86df22e9"
   },
@@ -76,7 +76,7 @@
     "file": "sglang/srt/mem_cache/allocation.py",
     "first_line": 344,
     "kind": "function",
-    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
     "qualname": "alloc_for_extend",
     "sha256": "f24860c5cb1ab61d67368d3b4ab7dda1e29ebd1691c81f9f4fc0edfd4c0d0566"
   },
@@ -85,7 +85,7 @@
     "file": "sglang/srt/mem_cache/allocation.py",
     "first_line": 174,
     "kind": "function",
-    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
     "qualname": "alloc_paged_token_slots_extend",
     "sha256": "2f861f9c03caccc234695442a998f9dea5173c3bf93e038fe4ba97da4665bbf3"
   },
@@ -94,16 +94,16 @@
     "file": "sglang/srt/mem_cache/allocation.py",
     "first_line": 289,
     "kind": "function",
-    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
     "qualname": "alloc_req_slots",
-    "sha256": "434235b9b71284cddfce433c72f498660e99e0c74cec4bf71b92937cda7b6144"
+    "sha256": "292bcdf8115b1d9777daa64ddb63439ced802bc0a67ec2865ba0672f42eba384"
   },
   "sglang.srt.mem_cache.allocation.alloc_token_slots": {
     "def_line": 151,
     "file": "sglang/srt/mem_cache/allocation.py",
     "first_line": 151,
     "kind": "function",
-    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
     "qualname": "alloc_token_slots",
     "sha256": "480fab57f51b7b0e9b44360096a0d055c774052ba35e766254c2118573b94488"
   },
@@ -112,7 +112,7 @@
     "file": "sglang/srt/mem_cache/allocation.py",
     "first_line": 55,
     "kind": "function",
-    "module_sha256": "b721edde1b0da5176e6787e40173ac23e62f943d13afd2e0ca90ec84f0852212",
+    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
     "qualname": "write_cache_indices",
     "sha256": "8ffefc8b52e60fa112a9a16c98507fe90669d3adaa8b48771e4b5da0a505ba8e"
   },
@@ -121,7 +121,7 @@
     "file": "sglang/srt/mem_cache/allocator/base.py",
     "first_line": 197,
     "kind": "function",
-    "module_sha256": "17d6ee303f49117695fe42a069bfe1297fef144ddabf7bcbcc6e768b774a9479",
+    "module_sha256": "52ec022545c0d5d794d3504c6ef514bee286a1fa09a92fc5fa7139b75b7c480e",
     "qualname": "BaseTokenToKVPoolAllocator.free_group_end",
     "sha256": "42fe3de1613e05a1d094a56fae277c482d429a7209639ece0e3c21411d2edf76"
   },
@@ -143,57 +143,138 @@
     "qualname": "PagedTokenToKVPoolAllocator.free_group_end",
     "sha256": "7839656afbb4fa52df2a9ff5514d908899a8272cc89c9736cb66202e9976567b"
   },
-  "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row": {
-    "def_line": 515,
+  "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.checkpoint": {
+    "def_line": 462,
     "file": "sglang/srt/mem_cache/base_prefix_cache.py",
-    "first_line": 515,
+    "first_line": 461,
     "kind": "function",
-    "module_sha256": "49f20555e6b96af071db38a1bd9829b322ce76381940bd2f340abced151335a9",
+    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
+    "qualname": "BasePrefixCache.checkpoint",
+    "sha256": "93dadff1914672552f581e0993565e0c7419c90330c910099984cedd49c3947c"
+  },
+  "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row": {
+    "def_line": 519,
+    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
+    "first_line": 519,
+    "kind": "function",
+    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
     "qualname": "BasePrefixCache.claim_kv_row",
     "sha256": "2c67d0e8328a21be48709b1157186c58947707ebbb65e336b61d171565c9d4e9"
   },
   "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.free_kv_row": {
-    "def_line": 468,
+    "def_line": 472,
     "file": "sglang/srt/mem_cache/base_prefix_cache.py",
-    "first_line": 468,
+    "first_line": 472,
     "kind": "function",
-    "module_sha256": "49f20555e6b96af071db38a1bd9829b322ce76381940bd2f340abced151335a9",
+    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
     "qualname": "BasePrefixCache.free_kv_row",
     "sha256": "21b6ea527dcd46612061acd1310f9340a3ae583d2874c17d59e5163a6d742e69"
   },
-  "sglang.srt.mem_cache.common._release_overallocated_kv_indices": {
-    "def_line": 339,
-    "file": "sglang/srt/mem_cache/common.py",
-    "first_line": 339,
+  "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.supports_mamba": {
+    "def_line": 645,
+    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
+    "first_line": 645,
     "kind": "function",
-    "module_sha256": "c7eb492978794bbd4015043199f36927faf591ab4009f90d03455f36ed5f764f",
+    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
+    "qualname": "BasePrefixCache.supports_mamba",
+    "sha256": "5771bc4a4cad8d6e533ab79e43486f562e02422293918a80ee29631eb068ca62"
+  },
+  "sglang.srt.mem_cache.chunk_cache.ChunkCache": {
+    "def_line": 35,
+    "file": "sglang/srt/mem_cache/chunk_cache.py",
+    "first_line": 35,
+    "kind": "class",
+    "module_sha256": "e618646ca1440d8140abe0e7b634d70a1f86b8fd859252997d7e8a1d40cb9d2c",
+    "qualname": "ChunkCache",
+    "sha256": "c5a1bd7e4ea03ec906b28b24f9deb7be964101c658e15429af870a4068e4ef79"
+  },
+  "sglang.srt.mem_cache.common._release_overallocated_kv_indices": {
+    "def_line": 343,
+    "file": "sglang/srt/mem_cache/common.py",
+    "first_line": 343,
+    "kind": "function",
+    "module_sha256": "1bf95d24f84b421fc15b27d479c2e662ba305a56303f747b92f1e3bdf1d93cec",
     "qualname": "_release_overallocated_kv_indices",
-    "sha256": "84d7a0f972b950d0aec78e2636b5e4ec3038143dd21aa557b036fa796bc7d8b1"
+    "sha256": "588a854e58112e7ddfe73cca2f2e25b58b193c7d72935198e7a1a91a35d89b77"
   },
   "sglang.srt.mem_cache.common.release_kv_cache": {
-    "def_line": 292,
+    "def_line": 297,
     "file": "sglang/srt/mem_cache/common.py",
-    "first_line": 292,
+    "first_line": 297,
     "kind": "function",
-    "module_sha256": "c7eb492978794bbd4015043199f36927faf591ab4009f90d03455f36ed5f764f",
+    "module_sha256": "1bf95d24f84b421fc15b27d479c2e662ba305a56303f747b92f1e3bdf1d93cec",
     "qualname": "release_kv_cache",
-    "sha256": "dceef436a0eb5a544e74ac808cf3928b15891d5d06310879615a76ea4b478f16"
+    "sha256": "ebadb5bf568ce27faedff589f53ec78dc41c44fb7c01a4b9bda66b51a25aabb2"
+  },
+  "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache": {
+    "def_line": 1693,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1693,
+    "kind": "function",
+    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
+    "qualname": "HybridReqToTokenPool.free_mamba_cache",
+    "sha256": "f034a4b1976e5c0019331738f1f03baecc558e673d1f25f7b0314780d366d7b4"
   },
   "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free": {
     "def_line": 360,
     "file": "sglang/srt/mem_cache/memory_pool.py",
     "first_line": 360,
     "kind": "function",
-    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
+    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
     "qualname": "ReqToTokenPool.free",
     "sha256": "bcb3e8b66ac0946229f33adb31fae30006e9aaf6ecd35653ccb3cdc6c8b27176"
   },
-  "sglang.srt.utils.common.is_pin_memory_available": {
-    "def_line": 558,
-    "file": "sglang/srt/utils/common.py",
-    "first_line": 558,
+  "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool": {
+    "def_line": 48,
+    "file": "sglang/srt/mem_cache/qsa_kv_pool.py",
+    "first_line": 48,
+    "kind": "class",
+    "module_sha256": "a1e85901bb7d4cc8722ba305953b5f35025514ba46db14b59e809c8c4697aeab",
+    "qualname": "QSATokenToKVPool",
+    "sha256": "cf26e10b05e8a95732894bb79fdc3d3eaeeca5984dae1405fc5dc87e11948732"
+  },
+  "sglang.srt.mem_cache.registry.create_tree_cache": {
+    "def_line": 237,
+    "file": "sglang/srt/mem_cache/registry.py",
+    "first_line": 237,
     "kind": "function",
-    "module_sha256": "71abb02aca154dfd2f30ed7e13b6550ac98ec9883b32e73e744e317552730fea",
+    "module_sha256": "2bfb5eb2a8b1022f439dcef25462dba22703d134d78462b4574a7e8819ec1a1e",
+    "qualname": "create_tree_cache",
+    "sha256": "e797893ad42c211330b6d7df6af6ae8ef46126402f77a7a5d06c1ce50e9526b1"
+  },
+  "sglang.srt.mem_cache.registry.default_radix_cache_factory": {
+    "def_line": 80,
+    "file": "sglang/srt/mem_cache/registry.py",
+    "first_line": 80,
+    "kind": "function",
+    "module_sha256": "2bfb5eb2a8b1022f439dcef25462dba22703d134d78462b4574a7e8819ec1a1e",
+    "qualname": "default_radix_cache_factory",
+    "sha256": "96bda56c45fdc591cbca56fff857304ded8c95dd624f3e6f8679bda034f224fa"
+  },
+  "sglang.srt.mem_cache.registry.get_radix_cache_factory": {
+    "def_line": 72,
+    "file": "sglang/srt/mem_cache/registry.py",
+    "first_line": 72,
+    "kind": "function",
+    "module_sha256": "2bfb5eb2a8b1022f439dcef25462dba22703d134d78462b4574a7e8819ec1a1e",
+    "qualname": "get_radix_cache_factory",
+    "sha256": "ddb48f6e221e7eb19906f86bfacb2a8bb66b33860c27014486683d5b544932a5"
+  },
+  "sglang.srt.mem_cache.registry.registered_radix_cache_backends": {
+    "def_line": 76,
+    "file": "sglang/srt/mem_cache/registry.py",
+    "first_line": 76,
+    "kind": "function",
+    "module_sha256": "2bfb5eb2a8b1022f439dcef25462dba22703d134d78462b4574a7e8819ec1a1e",
+    "qualname": "registered_radix_cache_backends",
+    "sha256": "f1b16567b646e1ba588226aa970ddaa8e6ac6fa9b9136b684eb3bc26bab6dbed"
+  },
+  "sglang.srt.utils.common.is_pin_memory_available": {
+    "def_line": 560,
+    "file": "sglang/srt/utils/common.py",
+    "first_line": 560,
+    "kind": "function",
+    "module_sha256": "cb4590357b253b06323a2bcb0533c3c535fa0684e79040cc97f846bc179e4d41",
     "qualname": "is_pin_memory_available",
     "sha256": "336ea04caca89125dfe031b33ab47df8f467b8be7f894c9f7bb695a32b777e5b"
   }

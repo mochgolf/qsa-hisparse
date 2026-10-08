@@ -1,8 +1,8 @@
 """Scheduler, batch-result and prefill-admission integration (inventory W2).
 
 Rows S01, S02, S04-S09, B02-B05, P01 and P02. B01 (an unused import) is a
-drop. REPLACE hooks are the pinned bodies with the fork's change (PLAN.md
-rules 3 and P1); they run with this module's globals, so every name they use
+drop. REPLACE hooks are production's definitions (PLAN.md rules 3, P1 and
+Q1); they run with this module's globals, so every name they use
 is imported below from the pinned module that defines the target (inventory
 6, G3). ``release_kv_cache`` and the other patched callees are rebound to
 their patched versions by HookRegistry's propagation.
@@ -16,8 +16,12 @@ import torch
 
 from sglang.srt.managers.schedule_policy import (
     CLIP_MAX_NEW_TOKENS,
+    CacheTransferPhase,
+    ComponentType,
     InitLoadBackParams,
+    UnifiedRadixCache,
     _PrefillAdmission,
+    nullcontext,
 )
 from sglang.srt.managers.scheduler import (
     LOAD_STALL_REFRESH_S,
@@ -42,9 +46,9 @@ from sglang.srt.managers.scheduler import (
 from sglang.srt.managers.scheduler_components.batch_result_processor import (
     FINISH_MATCHED_TOKEN,
     BaseSpecWorker,
+    checkpoint_kv_cache,
     get_disagg,
     get_exec,
-    maybe_cache_unfinished_req,
     release_kv_cache,
 )
 from sglang_qsa_hisparse.features import HISPARSE
@@ -84,7 +88,7 @@ SAME_GATE = (
         "replace): the original returns with hisparse_coordinator None exactly "
         "when enable_hisparse is unset, and only then does the fork differ, by "
         "adopting the runner's coordinator under QSA leases; the hook does that "
-        "with the fork's scheduler.py 1281, 1285-1287. The fork's None guard on "
+        "with production scheduler.py 1277-1278, 1281-1283. The None guard on "
         "set_decode_producer_stream is unreachable with enable_hisparse set "
         "(ModelRunner.maybe_init_hisparse_coordinator builds the coordinator "
         "whenever enable_hisparse is set, R01 only swaps in another one, and "
@@ -111,11 +115,12 @@ def _adopt_qsa_coordinator(result, self):
     ),
     reason=(
         "hisparse: requires kvcache.qsa_hisparse.prefix_cache, which no upstream "
-        "kvcache has. After hook: Scheduler.__init__ (pin 618) is the only caller "
+        "kvcache has. After hook: Scheduler.__init__ (pin 616) is the only caller "
         "and the fork inserts directly after that call, so every later capture "
-        "of tree_cache (e.g. init_batch_result_processor, pin 713) sees the "
-        "wrapped cache in both. Fork scheduler.py "
-        "630-645 verbatim; the QSAHostPrefixCache import is rewritten to the "
+        "of tree_cache (e.g. init_batch_result_processor, pin 707) sees the "
+        "wrapped cache in both. At this pin the ChunkCache it wraps on hybrid-SSM "
+        "models comes from M05/M06. Production scheduler.py "
+        "617-632 verbatim; the QSAHostPrefixCache import is rewritten to the "
         "plugin package."
     ),
 )
@@ -152,7 +157,7 @@ def _wrap_host_prefix_cache(result, self):
         "original has no side effects, and SamplingParams.verify rejects "
         "beam_width < 1, so with beam width None or 1 its beam cap is a no-op; "
         "capping the returned value afterwards equals the fork, which caps before "
-        "the beam cap. Fork scheduler.py 3770-3776 verbatim."
+        "the beam cap. Production scheduler.py 3825-3831 verbatim."
     ),
 )
 def _cap_allocatable_reqs(res, self, running_bs, beam_width=None, running_batch=None):
@@ -177,7 +182,7 @@ def _cap_allocatable_reqs(res, self, running_bs, beam_width=None, running_batch=
         "and QSAHiSparseCoordinator.has_ongoing_staging is pure, so the fork's "
         "extra term can be applied after return; with enable_hisparse set the "
         "original already applies it. v0.5.21 added ignore_waiting, which only "
-        "drops the waiting-queue term. Fork scheduler.py 4905."
+        "drops the waiting-queue term. Production scheduler.py 5088."
     ),
 )
 def _wait_for_staging(idle, self, for_health_check=False, ignore_waiting=False):
@@ -201,7 +206,8 @@ def _wait_for_staging(idle, self, for_health_check=False, ignore_waiting=False):
         "callers are abort_request (the fork adds the staging requests to this "
         "same set) and record_weight_version_change (already unions "
         "ack_staging_queue whenever a coordinator exists, so its set is "
-        "unchanged). Fork scheduler.py 5410-5413 verbatim."
+        "unchanged); the running-timeout sweep reads _collect_inflight_batches, "
+        "not this method. Production scheduler.py 5457-5460 verbatim."
     ),
 )
 def _add_staging_reqs(inflight, self):
@@ -210,7 +216,7 @@ def _add_staging_reqs(inflight, self):
     return inflight
 
 
-# Pinned Scheduler.get_next_batch_to_run with the fork's change (fork scheduler.py:3607-3754).
+# Production managers/scheduler.py:3667-3809, verbatim.
 @patch(
     f"{SCHEDULER}.get_next_batch_to_run",
     "replace",
@@ -383,7 +389,7 @@ def get_next_batch_to_run(
     return NextBatchPlan(batch_to_run=ret, running_batch=running_batch)
 
 
-# Pinned Scheduler._get_new_batch_prefill_raw with the fork's change (fork scheduler.py:3810-4125).
+# Production managers/scheduler.py:3865-4196, verbatim.
 @patch(
     f"{SCHEDULER}._get_new_batch_prefill_raw",
     "replace",
@@ -741,7 +747,7 @@ def _get_new_batch_prefill_raw(
     return new_batch, running_batch
 
 
-# Pinned Scheduler.on_idle with the fork's change (fork scheduler.py:4774-4854).
+# Production managers/scheduler.py:4948-5036, verbatim.
 @patch(
     f"{SCHEDULER}.on_idle",
     "replace",
@@ -777,7 +783,7 @@ def on_idle(self):
     # post-flush below.
     fully_idle = self.is_fully_idle()
     if not fully_idle:
-        self.metrics_reporter.record_scheduler_active()
+        self.metrics_reporter.record_scheduler_active(time.monotonic_ns())
         now = time.monotonic()
         if now - self._last_stall_publish_ts >= LOAD_STALL_REFRESH_S:
             self._last_stall_publish_ts = now
@@ -853,7 +859,7 @@ def on_idle(self):
     self.metrics_reporter.record_scheduler_idle()
 
 
-# Fork managers/scheduler_components/batch_result_processor.py:115-132, verbatim.
+# Production managers/scheduler_components/batch_result_processor.py:116-133, verbatim.
 @patch(
     f"{PROCESSOR}.process_batch_result_prebuilt",
     "replace",
@@ -887,7 +893,7 @@ def process_batch_result_prebuilt(self, batch: ScheduleBatch):
         self.token_to_kv_pool_allocator.free_group_end()
 
 
-# Fork managers/scheduler_components/batch_result_processor.py:256-493, verbatim.
+# Production managers/scheduler_components/batch_result_processor.py:257-494, verbatim.
 @patch(
     f"{PROCESSOR}.process_batch_result_prefill",
     "replace",
@@ -911,7 +917,7 @@ def process_batch_result_prebuilt(self, batch: ScheduleBatch):
         f"{PROCESSOR}.materialize_sampling_mask_output",
         f"{PROCESSOR}.move_logprobs_to_cpu",
         f"{PROCESSOR}.snapshot_auxiliary_output_starts",
-        "sglang.srt.mem_cache.common.maybe_cache_unfinished_req",
+        "sglang.srt.mem_cache.common.checkpoint_kv_cache",
         RELEASE_KV_CACHE,
     ),
     reason=SAME_GATE + "Replace: the predicate is mid-function (B02 argument).",
@@ -1042,7 +1048,7 @@ def process_batch_result_prefill(
                     )
                     req.time_stats.set_completion_time()
                 elif not batch.decoding_reqs or req not in batch.decoding_reqs:
-                    maybe_cache_unfinished_req(req, self.tree_cache)
+                    checkpoint_kv_cache(req, self.tree_cache)
                     if self.hisparse_coordinator is not None:
                         self.hisparse_coordinator.admit_request_into_staging(req)
 
@@ -1133,7 +1139,7 @@ def process_batch_result_prefill(
                     release_kv_cache(req, self.tree_cache)
                     req.time_stats.set_completion_time()
                 else:
-                    maybe_cache_unfinished_req(req, self.tree_cache)
+                    checkpoint_kv_cache(req, self.tree_cache)
             else:
                 # being chunked reqs' prefill is not finished
                 req.inflight_middle_chunks -= 1
@@ -1156,7 +1162,7 @@ def process_batch_result_prefill(
         )
 
 
-# Fork managers/scheduler_components/batch_result_processor.py:1238-1253, verbatim.
+# Production managers/scheduler_components/batch_result_processor.py:1325-1340, verbatim.
 @patch(
     f"{PROCESSOR}._handle_sampling_mask_abort",
     "replace",
@@ -1183,7 +1189,7 @@ def _handle_sampling_mask_abort(self, req: Req) -> None:
     req.time_stats.set_completion_time()
 
 
-# Fork managers/scheduler_components/batch_result_processor.py:1255-1345, verbatim.
+# Production managers/scheduler_components/batch_result_processor.py:1342-1435, verbatim.
 @patch(
     f"{PROCESSOR}._handle_finish_state_updated_req",
     "replace",
@@ -1226,6 +1232,9 @@ def _handle_finish_state_updated_req(
 
         if completed_mamba_boundary and not lazy:
             req.kv.mamba_last_track_idx = batch.mamba_track_buffer_indices[i]
+            # The slot that stops being the latest still holds its
+            # checkpoint; name it so a short key can fall back to it.
+            req.kv.mamba_prev_track_seqlen = req.kv.mamba_last_track_seqlen
             req.kv.mamba_last_track_seqlen = req.kv.kv_committed_len - lookahead
         elif (
             req.finished()
@@ -1313,9 +1322,9 @@ def _handle_finish_state_updated_req(
         "adder (S06), and read nowhere else; prefill_checkpoint_limit returns a "
         "positive int or None (upstream asserts > 0) and, apart from memoizing "
         "the request's image identity, only reads the request, so calling it "
-        "before the budget computation changes nothing. Fork "
-        "schedule_policy.py 960-964 verbatim, then the limit is stored instead "
-        "of applied."
+        "before the budget computation changes nothing. Production "
+        "schedule_policy.py 1149-1153 verbatim, then the limit is stored "
+        "instead of applied."
     ),
 )
 def _cap_chunk_at_checkpoint(self, req):
@@ -1329,7 +1338,7 @@ def _cap_chunk_at_checkpoint(self, req):
         self.chunked_req_limit = limit
 
 
-# Fork managers/schedule_policy.py:1163-1192, verbatim except the _add_one_req call.
+# Production managers/schedule_policy.py:1373-1402, verbatim.
 @patch(
     f"{ADDER}.add_one_req",
     "replace",
@@ -1349,11 +1358,12 @@ def _cap_chunk_at_checkpoint(self, req):
     reason=(
         "hisparse: getattrs on the tree cache; with upstream caches the charge is "
         "0, the limit None and the ignore_eos predicate unchanged. Replace: the "
-        "ignore_eos predicate is mid-function. The fork renamed the original "
+        "ignore_eos predicate is mid-function. Production renamed the original "
         "body to PrefillAdder._add_one_req, which is attached (absent at the "
         "pin), so the copy keeps `self._add_one_req(...)` verbatim. "
-        "_add_one_req is the pinned add_one_req with the fork's change "
-        "(tests/lifecycle/test_renamed_copies.py checks it)."
+        "_add_one_req is production's renamed body: the pinned add_one_req "
+        "with the fork's ignore_eos change (tests/lifecycle/test_renamed_copies.py "
+        "checks it)."
     ),
 )
 def add_one_req(
@@ -1388,7 +1398,7 @@ def add_one_req(
             self.memory_budget.current_offset -= charge
 
 
-# Pinned PrefillAdder.add_one_req with the fork's change (fork schedule_policy.py:1194-1308).
+# Production PrefillAdder._add_one_req (managers/schedule_policy.py:1404-1566), verbatim.
 @attach(ADDER, feature=HISPARSE, row="P02")
 def _add_one_req(
     self, req: Req, has_chunked_req: bool, truncation_align_size: Optional[int]
@@ -1449,14 +1459,55 @@ def _add_one_req(
             return AddReqResult.OTHER
 
         if req.needs_host_load_back():
-            promised_host_hit = req.host_hit_length
-            loaded = self.tree_cache.init_load_back(
-                InitLoadBackParams(
-                    best_match_node=req.best_match_node,
-                    host_hit_length=req.host_hit_length,
-                    req=req,
+            load_max_new = min(max_new, admission.max_new_tokens)
+            # Reclaim can write back device victims and evict host leaves.
+            # Pin the selected host/aux match until load-back owns its locks.
+            with (
+                self._lock_node(req.best_match_node, lock_host=True)
+                if isinstance(self.tree_cache, UnifiedRadixCache)
+                else nullcontext()
+            ):
+                full_load_tokens = req.host_hit_length
+                if (
+                    isinstance(self.tree_cache, UnifiedRadixCache)
+                    and self.tree_cache.buffer_pipeline is None
+                    and not (
+                        self.tree_cache.linker is not None
+                        and self.tree_cache.linker.has_hit(req.rid)
+                    )
+                ):
+                    # Host hits can include resident FULL behind host-only aux.
+                    # Reuse the FULL transfer spec to count only new slots.
+                    full_transfer = (
+                        self.tree_cache.tree_core.build_hicache_transfers(
+                            ComponentType.FULL,
+                            req.best_match_node,
+                            CacheTransferPhase.LOAD_BACK,
+                        )[0]
+                    )
+                    full_load_tokens = len(full_transfer.host_indices)
+                if not self.memory_budget.prepare_load_back(
+                    full_tokens=(
+                        full_load_tokens
+                        + admission.extend_len
+                        + load_max_new
+                        + self.page_size
+                        + mamba_gap_reserve
+                    ),
+                    extend_input_len=admission.extend_len,
+                    max_new_tokens=load_max_new,
+                    swa_host_hit_length=req.swa_host_hit_length,
+                    chunk_limit=self.rem_chunk_tokens,
+                ):
+                    return AddReqResult.NO_TOKEN
+                promised_host_hit = req.host_hit_length
+                loaded = self.tree_cache.init_load_back(
+                    InitLoadBackParams(
+                        best_match_node=req.best_match_node,
+                        host_hit_length=req.host_hit_length,
+                        req=req,
+                    )
                 )
-            )
             if loaded is None:
                 return AddReqResult.OTHER
             new_indices, req.last_node = loaded

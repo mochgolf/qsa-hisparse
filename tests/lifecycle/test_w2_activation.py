@@ -23,22 +23,28 @@ PINNED_TESTS = (
 def test_w2_hooks_apply_and_teardown_restores_pinned_sglang(w2):
     from sglang.srt.managers import schedule_batch
     from sglang.srt.managers.scheduler_components import batch_result_processor
-    from sglang.srt.mem_cache import allocation, common
+    from sglang.srt.mem_cache import allocation, common, registry
     from sglang.srt.plugins.hook_registry import HookRegistry
-    from sglang_qsa_hisparse.patches.hisparse import scheduler
+    from sglang_qsa_hisparse.patches.hisparse import lifecycle, scheduler
 
     originals = {t: patching._raw_attribute(t) for t in w2.targets}
     pinned_release = common.release_kv_cache
+    pinned_factory = registry.default_radix_cache_factory
     with w2.active():
         assert all(patching._raw_attribute(t) is not originals[t] for t in w2.targets)
         # Copies reach other patched targets through propagated bindings (G3).
         assert scheduler.release_kv_cache is common.release_kv_cache
         assert common.release_kv_cache is not pinned_release
         assert schedule_batch.alloc_for_extend is allocation.alloc_for_extend
+        # M06's copy of create_tree_cache reaches M05's hook the same way.
+        assert lifecycle.default_radix_cache_factory is registry.default_radix_cache_factory
+        assert registry.default_radix_cache_factory is not pinned_factory
     assert all(patching._raw_attribute(t) is originals[t] for t in w2.targets)
     assert scheduler.release_kv_cache is batch_result_processor.release_kv_cache
     assert batch_result_processor.release_kv_cache is pinned_release
     assert schedule_batch.alloc_for_extend is allocation.alloc_for_extend
+    assert lifecycle.default_radix_cache_factory is pinned_factory
+    assert registry.default_radix_cache_factory is pinned_factory
     assert not HookRegistry._hooks and patching._activated is None
 
 
@@ -94,7 +100,7 @@ def test_plugin_off_keeps_pinned_definitions_and_upstream_tests_pass(w2):
     )
     assert result.returncode == 0, result.stdout[-3000:] + result.stderr[-3000:]
     assert "PROBLEMS []" in result.stdout
-    assert "12 passed" in result.stdout  # The two pinned upstream files at v0.5.21.
+    assert "12 passed" in result.stdout  # The two pinned upstream files at 35f3c96ff4.
 
 
 def _global_names(code):

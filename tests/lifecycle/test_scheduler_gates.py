@@ -2,7 +2,8 @@
 adoption (S02), multimodal decode batches (S03), the staging-to-decode
 transition (S04), lease admission (S05), idle leak checks (S07), idleness (S08), abort of staging requests (S09),
 weight-load invalidation (B06) and the chunk checkpoint cap (P01). Expected
-values follow the fork's code at ee8fe158d6."""
+values follow production's code at 897286b12a (the fork's ee8fe158d6 for
+these gates)."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
@@ -321,6 +322,7 @@ def test_abort_reaches_requests_waiting_in_qsa_staging(leases):
         disaggregation_mode=DisaggregationMode.NULL,
         running_batch=SimpleNamespace(reqs=[]),
         last_batch=None,
+        enable_continuous_input_polling=False,
         hisparse_coordinator=SimpleNamespace(
             uses_qsa_hisparse_leases=leases,
             ack_staging_queue=[SimpleNamespace(req=staged)],
@@ -350,15 +352,20 @@ def test_any_weight_load_attempt_invalidates_host_prefixes_first():
     runner = SimpleNamespace(
         weight_updater=SimpleNamespace(update_weights_from_disk=failed_load)
     )
-    manager = SchedulerWeightUpdaterManager(
-        tp_worker=SimpleNamespace(weight_update_runners=lambda: [("target", runner)]),
-        draft_worker=None,
-        tp_cpu_group=None,
-        memory_saver_adapter=None,
-        flush_cache=Mock(),
-        is_fully_idle=lambda: True,
-        scheduler=SimpleNamespace(tree_cache=cache),
-    )
+    # The manager reads its TP group from the published parallel bundle.
+    parallel = SimpleNamespace(tp_group=SimpleNamespace(cpu_group=None))
+    with patch(
+        "sglang.srt.managers.scheduler_components.weight_updater.get_parallel",
+        return_value=parallel,
+    ):
+        manager = SchedulerWeightUpdaterManager(
+            tp_worker=SimpleNamespace(weight_update_runners=lambda: [("target", runner)]),
+            draft_worker=None,
+            memory_saver_adapter=None,
+            flush_cache=Mock(),
+            is_fully_idle=lambda: True,
+            scheduler=SimpleNamespace(tree_cache=cache),
+        )
     output = manager.update_weights_from_disk(
         SimpleNamespace(
             model_path="m", load_format=None, recapture_cuda_graph=False, flush_cache=False

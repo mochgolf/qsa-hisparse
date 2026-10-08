@@ -3,12 +3,14 @@
 Every path runs the patched SGLang entry point (B04, B05, M01, M03, M02, M04)
 against the real paged allocator, request-row pool, chunk cache, QSA slots and
 the runtime's release methods. Independent spies append to one ledger, and
-each expected order is written out from the lifecycle contract: capture,
-runtime release (drain), logical free, row free, mark released, after_release,
-free-group end, after_logical_flush, physical slot reuse. At v0.5.21 the
-logical free is the tree cache's ``free_kv_row`` (``cache_finished_req``
-before upstream split it), followed by ``on_release``, where
-``QSAHostPrefixCache`` drops a finished request's pending host-prefix match.
+each expected order is written out from production's lifecycle contract
+(897286b12a): the tree's ``claim_kv_row`` (where ``QSAHostPrefixCache``
+refuses a pending restore), capture in the tree's ``checkpoint`` (only when
+inserting), runtime release (drain), logical free, row free, mark released,
+after_release, free-group end, after_logical_flush, physical slot reuse. The
+logical free is the tree cache's ``free_kv_row``, followed by ``on_release``,
+where ``QSAHostPrefixCache`` drops a finished request's pending host-prefix
+match.
 """
 
 from types import SimpleNamespace
@@ -107,10 +109,8 @@ class World:
         cache = ChunkCache(params)
         if cache_type is QSAHostPrefixCache:
             cache = QSAHostPrefixCache(cache, rt, None)
-        else:
-            cache.before_release = lambda req, is_insert: ledger.append(
-                ("before_release", is_insert)
-            )
+        cache.claim_kv_row = spy(ledger, "claim_kv_row", cache.claim_kv_row)
+        cache.checkpoint = spy(ledger, "checkpoint", cache.checkpoint)
         cache.free_kv_row = spy(ledger, "free_kv_row", cache.free_kv_row)
         cache.on_release = spy(ledger, "on_release", cache.on_release)
         pool.alloc = spy(ledger, "req_to_token_pool.alloc", pool.alloc)
@@ -144,6 +144,7 @@ class World:
             multimodal_inputs=None,
             return_routed_experts=False,
             finished=lambda: True,
+            refresh_fill_ids=lambda: None,
             finished_reason=None,
             time_stats=Mock(),
         )
@@ -225,7 +226,8 @@ def test_finish_releases_the_lease_after_the_free_group_flush():
     assert world.events() == [
         "request_finished",
         "prepare_for_kv_cache_release",
-        ("before_release", True),
+        "claim_kv_row",
+        "checkpoint",
         "runtime.release",
         "free_kv_row",
         "on_release",
@@ -246,7 +248,7 @@ def test_sampling_mask_abort_skips_capture_and_defers_the_slot():
     assert world.events() == [
         "request_finished",
         "prepare_for_kv_cache_release",
-        ("before_release", False),
+        "claim_kv_row",
         "runtime.release",
         "free_kv_row",
         "on_release",
@@ -263,7 +265,7 @@ def test_chunked_abort_outside_a_free_group_frees_pages_before_the_slot():
     common.release_kv_cache(req, world.cache, is_insert=False)
 
     assert world.events() == [
-        ("before_release", False),
+        "claim_kv_row",
         "runtime.release",
         "free_kv_row",
         "logical_pages_freed",
