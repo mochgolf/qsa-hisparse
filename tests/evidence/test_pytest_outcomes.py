@@ -21,15 +21,24 @@ XFAIL tests/qsa/test_qsa.py::test_known - Known fork failure
 SKIPPED [1] tests/qsa/test_qsa.py:12: SM121-only kernel
 1 passed, 1 skipped, 1 xfailed in 1.00s
 """
-KNOWN = ["--known", "test_qsa.py::test_known=AttributeError"]
+SIGNATURE = "AttributeError: 'Backend' object has no attribute 'qsa_hisparse'"
+KNOWN = ["--known", f"test_qsa.py::test_known={SIGNATURE}"]
+INVENTORY = "test_qsa.py::test_ok[1]\ntest_qsa.py::test_known\nskip test_qsa.py SM121-only kernel\n"
+SUPPLEMENT = f"""_________________ test_known _________________
+E       {SIGNATURE}
+FAILED tests/qsa/test_qsa.py::test_known
+1 failed in 1.00s
+"""
 
 
-def run(tmp_path, fork=FORK, plugin=PLUGIN, expect=3, known=KNOWN):
+def run(tmp_path, fork=FORK, plugin=PLUGIN, inventory=INVENTORY, known=KNOWN, supplement=SUPPLEMENT):
     (tmp_path / "f.log").write_text(fork)
     (tmp_path / "p.log").write_text(plugin)
+    (tmp_path / "inventory.txt").write_text(inventory)
+    (tmp_path / "s.log").write_text(supplement)
     return pytest_outcomes.main(
         ["--fork", str(tmp_path / "f.log"), "--plugin", str(tmp_path / "p.log"),
-         "--expect-tests", str(expect), *known]
+         "--inventory", str(tmp_path / "inventory.txt"), "--supplement", str(tmp_path / "s.log"), *known]
     )
 
 
@@ -37,22 +46,29 @@ def test_equal_outcomes_with_declared_failure_pass(tmp_path):
     assert run(tmp_path) == 0
 
 
+OTHER = SUPPLEMENT.replace("qsa_hisparse", "unrelated_regression")
+
+
 @pytest.mark.parametrize(
-    "fork, plugin, expect, known",
+    "fork, plugin, inventory, known, supplement",
     [
-        (FORK, PLUGIN, 3, []),  # undeclared failure
-        (FORK, PLUGIN, 3, ["--known", "test_qsa.py::test_known=RuntimeError"]),  # other exception
-        (FORK, PLUGIN.replace("PASSED tests/qsa/test_qsa.py::test_ok[1]", "FAILED tests/qsa/test_qsa.py::test_ok[1]").replace("1 passed", "1 failed"), 3, KNOWN),
-        (FORK, PLUGIN.replace("XFAIL tests/qsa/test_qsa.py::test_known - Known fork failure", "ERROR tests/qsa/test_qsa.py::test_known").replace("1 xfailed", "1 error"), 3, KNOWN),
-        (FORK, PLUGIN.replace("XFAIL tests/qsa/test_qsa.py::test_known - Known fork failure", "FAILED tests/qsa/test_qsa.py::test_known - [XPASS(strict)] Known fork failure").replace("1 xfailed", "1 failed"), 3, KNOWN),
-        (FORK, PLUGIN + "PASSED tests/qsa/test_qsa.py::test_known\n", 3, KNOWN),  # conflicting duplicate
-        ("ImportError while loading conftest\n", "ImportError while loading conftest\n", 0, KNOWN),  # no summary
-        (FORK.replace("PASSED test/registered/kernel/qsa/test_qsa.py::test_ok[1]\n", "").replace("1 passed, ", ""),
-         PLUGIN.replace("PASSED tests/qsa/test_qsa.py::test_ok[1]\n", "").replace("1 passed, ", ""), 3, KNOWN),  # removed from both
-        (FORK, PLUGIN.replace("1 passed, 1 skipped, 1 xfailed", "2 passed, 1 skipped, 1 xfailed"), 3, KNOWN),  # summary mismatch
+        (FORK, PLUGIN, INVENTORY, [], SUPPLEMENT),  # undeclared failure
+        (FORK, PLUGIN, INVENTORY, ["--known", "test_qsa.py::test_known=RuntimeError"], SUPPLEMENT),
+        (FORK.replace("qsa_hisparse", "unrelated_regression"), PLUGIN, INVENTORY, KNOWN, SUPPLEMENT),  # other AttributeError (F)
+        (FORK, PLUGIN, INVENTORY, KNOWN, OTHER),  # other AttributeError behind P's XFAIL
+        (FORK, PLUGIN, INVENTORY, KNOWN, "1 passed in 1.00s\n"),  # XFAIL without --runxfail evidence
+        (FORK, PLUGIN.replace("PASSED tests/qsa/test_qsa.py::test_ok[1]", "FAILED tests/qsa/test_qsa.py::test_ok[1]").replace("1 passed", "1 failed"), INVENTORY, KNOWN, SUPPLEMENT),
+        (FORK, PLUGIN.replace("XFAIL tests/qsa/test_qsa.py::test_known - Known fork failure", "ERROR tests/qsa/test_qsa.py::test_known").replace("1 xfailed", "1 error"), INVENTORY, KNOWN, SUPPLEMENT),
+        (FORK, PLUGIN.replace("XFAIL tests/qsa/test_qsa.py::test_known - Known fork failure", "FAILED tests/qsa/test_qsa.py::test_known - [XPASS(strict)] Known fork failure").replace("1 xfailed", "1 failed"), INVENTORY, KNOWN, SUPPLEMENT),
+        (FORK, PLUGIN + "PASSED tests/qsa/test_qsa.py::test_known\n", INVENTORY, KNOWN, SUPPLEMENT),  # conflicting duplicate
+        ("ImportError while loading conftest\n", "ImportError while loading conftest\n", INVENTORY, KNOWN, SUPPLEMENT),
+        (FORK.replace("test_ok[1]", "test_other"), PLUGIN.replace("test_ok[1]", "test_other"), INVENTORY, KNOWN, SUPPLEMENT),  # same swap in both
+        (FORK, PLUGIN.replace("1 passed, 1 skipped, 1 xfailed", "2 passed, 1 skipped, 1 xfailed"), INVENTORY, KNOWN, SUPPLEMENT),
+        (FORK.replace("SM121-only kernel", "other reason"), PLUGIN.replace("SM121-only kernel", "other reason"), INVENTORY, KNOWN, SUPPLEMENT),
     ],
-    ids=["undeclared", "other-exception", "differing", "error", "strict-xpass",
-         "duplicate", "no-summary", "removed-from-both", "summary-mismatch"],
+    ids=["undeclared", "other-exception-type", "other-attribute-fork", "other-attribute-xfail",
+         "xfail-without-evidence", "differing", "error", "strict-xpass", "duplicate",
+         "no-summary", "swapped-in-both", "summary-mismatch", "skip-reason-changed"],
 )
-def test_false_pass_cases_fail(tmp_path, fork, plugin, expect, known):
-    assert run(tmp_path, fork, plugin, expect, known) == 1
+def test_false_pass_cases_fail(tmp_path, fork, plugin, inventory, known, supplement):
+    assert run(tmp_path, fork, plugin, inventory, known, supplement) == 1

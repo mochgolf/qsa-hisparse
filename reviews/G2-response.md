@@ -19,3 +19,15 @@ with its exception type (read from the FAILURES section when the short
 summary carries no message). Nine counterexample tests cover the reviewer's
 false-pass cases. The window wrapper propagates step statuses and exits with
 the aggregate. Run2 re-evaluated: PASS (67 tests per arm).
+
+## Second re-check (`reviews/G2r2.md`)
+
+Both residual items fixed: known failures are matched on the full exception
+line (`AttributeError: 'QwenSparseAttnBackend' object has no attribute
+'qsa_hisparse'`), and an XFAIL counts only with `--runxfail` evidence of the
+same signature (run2: CPU rerun of the plugin test, which fails in
+`_store_kv` before any GPU work; later windows run P step 8a with
+`--runxfail`). IDs and skips must equal the frozen inventory
+`tools/evidence/g21_step8_inventory.txt` (from run2's fork arm; skips are
+keyed by file and reason because run2 used `-rA` without `-v`). 13
+counterexample tests, including the reviewer's two. Run2: PASS.

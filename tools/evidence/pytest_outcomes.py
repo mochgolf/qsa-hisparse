@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Compare per-test pytest outcomes of two arms (G2-1 kernel tests).
 
-    pytest_outcomes.py --fork LOG [LOG ...] --plugin LOG [LOG ...] --expect-tests N
-                       [--known FILE::TEST=ExceptionType ...]
+    pytest_outcomes.py --fork LOG [LOG ...] --plugin LOG [LOG ...]
+                       --inventory FILE [--supplement LOG ...]
+                       [--known FILE::TEST=SIGNATURE ...]
 
 Each log holds exactly one pytest run (one final summary line).
 
@@ -13,12 +14,16 @@ final ``N passed, M failed ... in Xs`` line of each log. Tests are keyed by
 directories line up.
 
 Fails unless, for each arm: the final summary exists and its counts equal the
-parsed lines; the number of tests (outcomes plus skips) equals
-``--expect-tests``; no ID has conflicting outcomes. Across arms: every key
-has the same outcome; every failure is a declared known failure whose
-``FAILED`` message starts with the declared exception type (``XFAIL`` is
-accepted for it: the port's strict xfail pins ``raises=``); ``ERROR``,
+parsed lines; the outcome IDs and the skips (file and reason) equal the frozen
+``--inventory`` exactly; no ID has conflicting outcomes. Across arms: every
+key has the same outcome; every failure is a declared known failure whose
+exception line (from the FAILURES section) contains the declared SIGNATURE;
+an ``XFAIL`` is accepted only if a ``--supplement`` log (the same test run
+with ``--runxfail``) shows it FAILED with that signature; ``ERROR``,
 ``XPASS`` and ``[XPASS(strict)]`` are never accepted.
+
+Inventory lines: ``FILE::TEST`` for a test with an outcome, or
+``skip FILE <reason>`` for a skip as reported by ``-rA``.
 """
 
 import argparse
@@ -30,7 +35,7 @@ from pathlib import Path
 OUTCOME = re.compile(r"^(PASSED|FAILED|XFAIL|XPASS|ERROR) (\S+)(?: - (.*))?$")
 SKIPPED = re.compile(r"^SKIPPED \[(\d+)\] (\S+?):\d+: (.*)$")
 SECTION = re.compile(r"^_{3,} (\S+) _{3,}$")
-EXCEPTION = re.compile(r"^E\s+((?:\w+\.)*\w*(?:Error|Exception|Exit|Interrupt))\b")
+EXCEPTION = re.compile(r"^E\s+((?:\w+\.)*\w*(?:Error|Exception|Exit|Interrupt)\b.*)$")
 SUMMARY = re.compile(r"^=*\s*((?:\d+ \w+(?:, )?)+) in [\d.]+s")
 SUMMARY_ITEM = re.compile(r"(\d+) (passed|failed|skipped|xfailed|xpassed|errors?|deselected|warnings?|subtests passed)")
 
@@ -86,8 +91,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--fork", nargs="+", required=True)
     parser.add_argument("--plugin", nargs="+", required=True)
-    parser.add_argument("--expect-tests", type=int, required=True)
-    parser.add_argument("--known", nargs="*", default=[], help="FILE::TEST=ExceptionType")
+    parser.add_argument("--inventory", required=True)
+    parser.add_argument("--supplement", nargs="*", default=[])
+    parser.add_argument("--known", nargs="*", default=[], help="FILE::TEST=SIGNATURE")
     args = parser.parse_args(argv)
     known = dict(item.rsplit("=", 1) for item in args.known)
     arms, problems = {}, []
@@ -96,10 +102,22 @@ def main(argv=None):
         for log in logs:
             problems += [f"{arm}: {p}" for p in parse(log, tests, skips)]
         arms[arm] = (tests, skips, None)
+    ids, skip_inventory = set(), Counter()
+    for line in Path(args.inventory).read_text().splitlines():
+        if line.startswith("skip "):
+            _, file, reason = line.split(" ", 2)
+            skip_inventory[(file, reason)] += 1
+        elif line.strip() and not line.startswith("#"):
+            ids.add(line.strip())
     for arm, (tests, skips, _) in arms.items():
-        total = len(tests) + sum(skips.values())
-        if total != args.expect_tests:
-            problems.append(f"{arm}: {total} tests, expected {args.expect_tests}")
+        if set(tests) != ids:
+            problems.append(f"{arm}: IDs differ from inventory: missing {sorted(ids - set(tests))}, "
+                            f"extra {sorted(set(tests) - ids)}")
+        if skips != skip_inventory:
+            problems.append(f"{arm}: skips {dict(skips)} differ from inventory {dict(skip_inventory)}")
+    supplement, supplement_skips = {}, Counter()
+    for log in args.supplement:
+        problems += [f"supplement: {p}" for p in parse(log, supplement, supplement_skips)]
 
     def verdict(key, outcome):
         status, message = outcome
@@ -109,8 +127,12 @@ def main(argv=None):
             return f"unacceptable {status} {message}".strip()
         if key not in known:
             return f"undeclared {status} {message}".strip()
-        if status == "FAILED" and not message.startswith(known[key]):
-            return f"failed with {message!r}, declared {known[key]}"
+        if status == "XFAIL":
+            status, message = supplement.get(key, ("XFAIL", ""))
+            if status != "FAILED":
+                return "xfail without --runxfail supplement evidence"
+        if known[key] not in message:
+            return f"failed with {message!r}, declared {known[key]!r}"
         return "known failure"
 
     fork, plugin = arms["F"][0], arms["P"][0]
