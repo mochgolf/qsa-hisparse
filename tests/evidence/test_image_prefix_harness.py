@@ -5,9 +5,10 @@ punctuation, whitespace), lays images out as Qwen-VL does (vision start,
 (H/32)(W/32) pad tokens, vision end; pad values from the image bytes and
 ``detail``), publishes host checkpoints at chunk ends and at the last page64
 boundary, reuses the longest equal checkpoint within the logits-tail and
-input-logprob limits, and writes ViT encode records like vit_observer.py
-(per chunk: the images it computes; with the per-image cache on, only images
-never encoded before). Each fault breaks one behavior the harness judges.
+input-logprob limits, writes ViT encode records like vit_observer.py (per
+chunk: the images it computes; with the per-image cache on, only images
+never encoded before) and checkpoint records like observer.py (captures and
+restores by request id). Each fault breaks one behavior the harness judges.
 """
 
 import base64
@@ -28,11 +29,13 @@ TEXT_LENGTHS = (64, 128, 2048, 16384)  # 16384 lies beyond the text control's 81
 
 
 class FakeModel:
-    def __init__(self, fault=None, digits=r"\d", cache_off=False, vit_dir=None):
-        self.fault, self.cache_off, self.vit_dir = fault, cache_off, vit_dir
+    def __init__(self, fault=None, digits=r"\d", cache_off=False):
+        self.fault, self.cache_off = fault, cache_off
+        self.vit_dir = self.observer_dir = None
         self.pieces = re.compile(rf" ?[A-Za-z]+|{digits}|[^\w\s]+|\s+")
         self.published = {}  # salt -> [(tokens, checkpoint lengths)]
         self.encoded = set()  # per-image ViT cache
+        self.requests = 0
 
     def token(self, piece):
         return 1000 + int.from_bytes(hashlib.sha256(piece.encode()).digest()[:3], "little")
@@ -84,8 +87,13 @@ class FakeModel:
             reuse = 0
         boundary = n // PAGE * PAGE if n % PAGE else n
         lengths = [*range(reuse + CHUNK, boundary, CHUNK), *([boundary] if boundary > reuse else [])]
-        self.published.setdefault(salt, []).append((matched, lengths))
+        # chunk_only: a cache that captures at chunk ends only (no other page64 boundary).
+        captured = [x for x in lengths if fault != "chunk_only" or x % CHUNK == 0]
+        self.published.setdefault(salt, []).append((matched, captured))
         self.encode(items, reuse, [*[x for x in lengths if x < n], n], fault)
+        rid = f"rid-{self.requests}"
+        self.requests += 1
+        self.observe(rid, reuse, captured, fault)
 
         count = payload["sampling_params"]["max_new_tokens"]
         out = list(hashlib.sha256(json.dumps(padded).encode()).digest())[:count]
@@ -100,6 +108,7 @@ class FakeModel:
         response = {
             "output_ids": out,
             "meta_info": {
+                "id": rid,
                 "cached_tokens": reported,
                 "prompt_tokens": n,
                 "finish_reason": {"type": "length", "length": count},
@@ -112,6 +121,21 @@ class FakeModel:
         if payload.get("return_prompt_token_ids"):
             response["prompt_token_ids"] = plain
         return response
+
+    def observe(self, rid, reuse, captured, fault):
+        if self.observer_dir is None or fault == "no_observer_log":
+            return
+        rows = [{"event": "capture", "rank": rank, "rid": rid, "tokens": x} for x in captured for rank in (0, 1)]
+        if reuse:
+            rows += [
+                {"event": "restore", "rank": rank,
+                 "rid": "another-request" if fault == "restore_other_rid" else rid,
+                 "tokens": reuse - PAGE if fault == "restore_short" else reuse}
+                for rank in ((0,) if fault == "restore_rank0_only" else (0, 1))
+            ]  # fmt: skip
+        for rank in (0, 1):
+            with (self.observer_dir / f"rank-{rank}.jsonl").open("a") as stream:
+                stream.writelines(json.dumps(r) + "\n" for r in rows if r["rank"] == rank)
 
     def encode(self, items, reuse, chunk_ends, fault):
         if self.vit_dir is None or fault == "no_vit_log" or (fault == "vit_stale" and reuse):
@@ -217,10 +241,11 @@ def inputs(tmp_path_factory):
 def run(evidence, inputs, tmp_path, model, *extra):
     images, text, reference = inputs
     output = tmp_path / "report.json"
-    vit = tmp_path / "vit"
-    vit.mkdir()
-    model.vit_dir = vit
-    args = ["--fixtures", str(images), "--output", str(output), "--vit-log", str(vit),
+    model.vit_dir, model.observer_dir = tmp_path / "vit", tmp_path / "observer"
+    model.vit_dir.mkdir()
+    model.observer_dir.mkdir()
+    args = ["--fixtures", str(images), "--output", str(output), "--vit-log", str(model.vit_dir),
+            "--observer-log", str(model.observer_dir),
             "--text-fixtures", str(text), "--text-reference", str(reference), *extra]  # fmt: skip
     if model.cache_off:
         args.append("--vit-cache-off")
@@ -250,13 +275,17 @@ def test_correct_server_passes_with_the_frozen_reuse_lengths(evidence, inputs, t
         "different-image-after-boundary": 2048,
         "boundary-inside-b": 4096,
         "page-aligned": 4096,
+        "page-boundary-inside-b": 4352,
         "input-logprob": 4096,
         "different-image-a": 0,
         "swapped": 0,
         "different-preprocessing": 0,
     }
     warm = {row["name"]: row["warm"] for row in report["cases"]}
+    for name, length in reused.items():  # Each warm request's own restore, every rank.
+        assert warm[name]["restores"] == {rank: [length] if length else [] for rank in ("0", "1")}
     assert warm["page-aligned"]["prompt_tokens"] == 4288
+    assert warm["page-boundary-inside-b"]["prompt_tokens"] == 4356
     assert len(warm["input-logprob"]["input_token_logprobs"]) == warm["input-logprob"]["prompt_tokens"] - 5000
     # ViT work: no image is encoded for a hit after both; only the straddling
     # and later images otherwise (ViT cache off); nothing again with it on.
@@ -265,6 +294,7 @@ def test_correct_server_passes_with_the_frozen_reuse_lengths(evidence, inputs, t
         assert encoded["divergent-suffix"] == []
         assert encoded["different-image-after-boundary"] == [0, 1]
         assert encoded["boundary-inside-b"] == encoded["page-aligned"] == [1]
+        assert encoded["page-boundary-inside-b"] == [1]
         invariance = report["vit_batch_invariance"]["images"]
         assert {e["image"] for e in invariance if e["alone"] and e["batched"]} >= {"A", "B"}
     else:
@@ -273,7 +303,8 @@ def test_correct_server_passes_with_the_frozen_reuse_lengths(evidence, inputs, t
     assert len(report["text_control"]) == 6 and all(row["passed"] for row in report["text_control"])
 
 
-IMAGE_HITS = {"divergent-suffix", "different-image-after-boundary", "boundary-inside-b", "page-aligned", "input-logprob"}
+IMAGE_HITS = {"divergent-suffix", "different-image-after-boundary", "boundary-inside-b", "page-aligned",
+              "page-boundary-inside-b", "input-logprob"}  # fmt: skip
 ALL_IMAGE = IMAGE_HITS | {"different-image-a", "swapped", "different-preprocessing"}
 TEXT = {f"text prefix-{n}-{s}" for n in TEXT_LENGTHS[:3] for s in ("copy", "arithmetic")}
 
@@ -292,6 +323,11 @@ TEXT = {f"text prefix-{n}-{s}" for n in TEXT_LENGTHS[:3] for s in ("copy", "arit
         ("input_logprobs", False, {"input-logprob"}, "input_token_logprobs differ"),
         ("input_logprobs_short", False, {"input-logprob"}, "input logprobs, expected 2361"),
         ("bos", False, {"page-aligned"}, "4289 is not a multiple of 64"),
+        ("chunk_only", False, {"page-boundary-inside-b"}, "warm reused 4096 tokens, expected 4352"),
+        ("restore_other_rid", False, IMAGE_HITS, "warm: rank 0 restored [], expected"),
+        ("restore_rank0_only", False, IMAGE_HITS, "warm: rank 1 restored [], expected"),
+        ("restore_short", False, IMAGE_HITS, "warm: rank 1 restored ["),
+        ("no_observer_log", False, ALL_IMAGE, "the checkpoint observer log holds no records"),
         ("no_vit_log", False, ALL_IMAGE, "the ViT log holds no records"),
         ("vit_reencode", True, IMAGE_HITS - {"different-image-after-boundary"}, "ending at or before"),
         ("vit_stale", True, IMAGE_HITS - {"divergent-suffix"}, "did not encode"),

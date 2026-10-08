@@ -135,6 +135,7 @@ def test_two_sessions_with_the_image_flags_then_observer_checks(fake, tmp_path):
         assert argv[:2] == ["--url", f"http://127.0.0.1:{port}"]
         assert argv[argv.index("--fixtures") + 1] == str(tmp_path / "images.json")
         assert argv[argv.index("--vit-log") + 1] == str(session / "vit")
+        assert argv[argv.index("--observer-log") + 1] == str(session / "observer")
         assert argv[argv.index("--output") + 1] == str(session / "image-prefix.json")
         assert ("--vit-cache-off" in argv) == (vlm_cache == "0")
         assert json.loads((session / "run.json").read_text())["argv"][-1] == "512"

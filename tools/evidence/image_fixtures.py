@@ -21,9 +21,12 @@ starts after A and contains 4096. The notes after B are long enough that the
 common prefix of the base and divergent questions lies in (6144, 8192), and
 the base ending is over 64 tokens, so the base prompt's last page64
 checkpoint lies after that common prefix. The seed of every case except
-page-aligned is the base prompt: checkpoints 2048 (in A), 4096 (in B), 6144
-(after B) and its last page64 boundary. The page-aligned prompt has no text:
-2 + 2304 + 2 + 1980 = 4288 = 67 x 64 tokens (no BOS; the harness checks).
+the two image-only ones is the base prompt: checkpoints 2048 (in A), 4096
+(in B), 6144 (after B) and its last page64 boundary. Image-only prompts are
+their own seeds and have no text (no BOS; the harness checks alignment):
+A + C is 2 + 2304 + 2 + 1980 = 4288 = 67 x 64 tokens; A + B is
+2 + 2304 + 2 + 2048 = 4356 tokens, whose last page64 boundary 4352 lies
+inside B and is no chunk end.
 """
 
 import argparse
@@ -68,7 +71,9 @@ ACCEPTANCE = (
     "exactly `cached` tokens and leaves the logits tail; with hit_inside k the "
     "hit lies strictly inside the warm prompt's k-th image span; page-aligned: "
     "the prompt length is a multiple of 64; input-logprob: cached <= "
-    "logprob_start_len and input logprobs equal the cold control's. ViT: no "
+    "logprob_start_len and input logprobs equal the cold control's. Restores "
+    "(checkpoint observer, by meta_info.id): on every rank, one at `cached` "
+    "for a warm hit, none for any other request. ViT: no "
     "image ending at or before the hit is encoded; with the per-image ViT cache "
     "off every other image is encoded on every rank, and each image's "
     "embedding bytes are equal alone and batched."
@@ -104,6 +109,7 @@ def prompt(first, second, question, detail=None):
 
 BASE = prompt("A", "B", NOTES + END)
 ALIGNED = {"text": "<image><image>", "images": [{"name": "A"}, {"name": "C"}]}
+IMAGES_ONLY = {"text": "<image><image>", "images": [{"name": "A"}, {"name": "B"}]}
 
 # name, seed, prompt, cached, hit_inside (image index), extra fields, what it shows
 CASES = [
@@ -125,6 +131,11 @@ CASES = [
         "page-aligned", ALIGNED, ALIGNED, 4096, 1, {"aligned": True},
         "A 4288-token prompt (its own seed) published a checkpoint at 4288; the "
         "repeat reuses 4096 (inside C) and leaves the logits tail.",
+    ),
+    (
+        "page-boundary-inside-b", IMAGES_ONLY, IMAGES_ONLY, 4352, 1, {},
+        "A 4356-token prompt (its own seed) published its last page64 "
+        "checkpoint at 4352; the repeat reuses 4352, inside B and no chunk end.",
     ),
     (
         "input-logprob", BASE, BASE, 4096, 1, {"logprob_start_len": LOGPROB_START},

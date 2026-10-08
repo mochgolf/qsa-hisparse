@@ -3,6 +3,7 @@
 
     image_prefix_harness.py --url URL --fixtures <image fixtures> --output <report>
         [--vit-log <server's QSA_EVIDENCE_VIT_DIR> [--vit-cache-off]]
+        [--observer-log <server's QSA_EVIDENCE_OBSERVER_DIR>]
         [--text-fixtures <G2 fixtures.json> --text-reference <G2 fork qualification.json>
          [--text-max-prefix 8192]]
 
@@ -24,7 +25,11 @@ spans are the runs of at least 64 equal IDs). A case passes when:
   seeds and misses): no image ending at or before L is encoded on any rank,
   and with ``--vit-cache-off`` every other image is encoded on every rank.
   Requests are sequential, so the ViT records written between a request's
-  send and its response belong to it.
+  send and its response belong to it;
+- with ``--observer-log`` (observer.py), on every TP rank the warm request
+  (by its ``meta_info.id``, the scheduler rid) has exactly one restore, at
+  ``cached`` tokens, for a hit and none for a miss; cold and seed have none.
+  run_image.py checks that every restore equals its capture.
 
 With ``--vit-cache-off`` every image must also have one embedding digest per
 rank across all its encodes, alone or batched with other images, and at
@@ -77,6 +82,7 @@ def generate(url, payload):
     if (info.get("finish_reason") or {}).get("type") in ("abort", "error"):
         raise RuntimeError(f"generation failed: {info.get('finish_reason')}")
     result = {
+        "id": info["id"],
         "output_ids": data["output_ids"],
         "cached_tokens": info["cached_tokens"],
         "prompt_tokens": info["prompt_tokens"],
@@ -127,7 +133,8 @@ def image_request(url, fixtures, prompt, salt, logprob_start_len):
     return result
 
 
-def vit_rows(directory):
+def log_rows(directory):
+    """Records of every rank-<r>.jsonl in an observer directory."""
     rows = []
     for path in sorted(Path(directory).glob("rank-*.jsonl")):
         rows += [json.loads(line) for line in path.read_text().splitlines()]
@@ -161,6 +168,29 @@ def judge_vit(kind, record, ranks, cache_off):
             failures.append(f"{kind}: rank {rank} encoded image(s) {early} ending at or before {reused}")
         if cache_off and missing:
             failures.append(f"{kind}: rank {rank} did not encode image(s) {missing}")
+    return failures
+
+
+def judge_restores(row, cached, rows):
+    """Per rank, the restore lengths of each request's rid: [cached] for a warm
+    hit, [] otherwise (a restore of another request never counts)."""
+    ranks = sorted({r["rank"] for r in rows})
+    if not ranks:
+        return ["the checkpoint observer log holds no records"]
+    failures = []
+    for kind, length in (("cold", 0), ("seed", 0), ("warm", cached)):
+        record, expected = row[kind], [length] if length else []
+        record["restores"] = {
+            str(rank): [
+                r["tokens"]
+                for r in rows
+                if r["event"] == "restore" and r["rank"] == rank and r["rid"] == record["id"]
+            ]
+            for rank in ranks
+        }
+        for rank, lengths in record["restores"].items():
+            if lengths != expected:
+                failures.append(f"{kind}: rank {rank} restored {lengths}, expected {expected}")
     return failures
 
 
@@ -201,7 +231,7 @@ def judge(case, row):
     return failures
 
 
-def run_case(url, fixtures, case, salt, vit_log, cache_off):
+def run_case(url, fixtures, case, salt, vit_log, cache_off, observer_log):
     row = {"name": case["name"], "cached": case["cached"], "hit_inside": case["hit_inside"]}
     start = case.get("logprob_start_len", -1)
     try:
@@ -209,8 +239,10 @@ def run_case(url, fixtures, case, salt, vit_log, cache_off):
         row["seed"] = image_request(url, fixtures, case["seed"], f"{salt}-warm", -1)
         row["warm"] = image_request(url, fixtures, case["prompt"], f"{salt}-warm", start)
         failures = judge(case, row)
+        if observer_log is not None:
+            failures += judge_restores(row, case["cached"], log_rows(observer_log))
         if vit_log is not None:
-            rows = vit_rows(vit_log)
+            rows = log_rows(vit_log)
             ranks = {str(r["rank"]) for r in rows}
             if not ranks:
                 failures.append("the ViT log holds no records")
@@ -318,6 +350,7 @@ def parse(argv):
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--vit-log", type=Path)
     parser.add_argument("--vit-cache-off", action="store_true")
+    parser.add_argument("--observer-log", type=Path)
     parser.add_argument("--text-fixtures", type=Path)
     parser.add_argument("--text-reference", type=Path)
     parser.add_argument("--text-max-prefix", type=int, default=TEXT_MAX_PREFIX)
@@ -340,11 +373,15 @@ def main(argv=None):
         "base_url": args.url,
         "vit_log": None if args.vit_log is None else str(args.vit_log),
         "vit_cache_off": args.vit_cache_off,
+        "observer_log": None if args.observer_log is None else str(args.observer_log),
         "started_at": time.time(),
         "cases": [],
     }
     for index, case in enumerate(fixtures["cases"]):
-        row = run_case(args.url, fixtures, case, f"{namespace}-{index}", args.vit_log, args.vit_cache_off)
+        row = run_case(
+            args.url, fixtures, case, f"{namespace}-{index}",
+            args.vit_log, args.vit_cache_off, args.observer_log,
+        )  # fmt: skip
         report["cases"].append(row)
         write_json(args.output, report)
         print(f"{'Passed' if row['passed'] else 'FAILED'} {case['name']}: {row['failures']}", flush=True)
