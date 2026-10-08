@@ -5,10 +5,10 @@ Rows R01, R02 (``model_executor/model_runner.py``), F01
 (``model_executor/runner/decode_cuda_graph_runner.py``). All are hisparse: every
 fork change is gated on a ``qsa_hisparse`` runtime on the KV pool or on the
 coordinator's ``adapter``, which upstream ``HiSparseCoordinator`` lacks.
-The G01/G02 REPLACE bodies are the pinned definitions with the fork's change
-carried over (PLAN.md Phase 4 rule P1); they run with this module's globals,
-which import the same objects the pinned modules use. R02 and G03 are
-narrowed to hooks (deviations D7 and D6).
+The G01/G02 REPLACE bodies are production's definitions, i.e. the pinned
+definitions with the fork's change (PLAN.md rules P1, Q1); they run with this
+module's globals, which import the same objects the pinned modules use. R02
+and G03 are narrowed to hooks (deviations D7 and D6).
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from sglang.srt.model_executor.runner_backend.breakable_cuda_graph_backend impor
 )
 from sglang.srt.model_executor.runner_backend.full_cuda_graph_backend import FullCudaGraphBackend
 from sglang.srt.multiplex.pdmux_context import get_current_stream_idx
-from sglang.srt.runtime_context import get_exec
+from sglang.srt.runtime_context import get_exec, get_parallel
 from sglang.srt.speculative.ragged_verify import resolve_ragged_verify_layout
 from sglang.srt.utils import empty_context
 from sglang_qsa_hisparse.features import HISPARSE
@@ -60,11 +60,12 @@ _FULL_BACKEND = (
         "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch",
     ),
     reason=(
-        "Deviation D3: the fork adds ForwardBatch fields req_pool_indices_cpu "
-        "(read by the runtime's begin_batch) and kv_allocated_lens_cpu (no reader; "
-        "dropped) and fills req_pool_indices_cpu in init_new for every batch. "
-        "v0.5.21 declares the req_pool_indices_cpu field and fills it only for "
-        "extend without speculative decoding. When the KV pool carries a "
+        "Deviation D3: upstream declares ForwardBatch.req_pool_indices_cpu (read "
+        "by the runtime's begin_batch) and fills it in init_new only for extend "
+        "without speculative decoding; production also fills it for decode when "
+        "the ScheduleBatch's hisparse_coordinator uses QSA leases (the fork: every "
+        "batch), and adds kv_allocated_lens_cpu (filled from req.kv; no reader; "
+        "dropped). When the KV pool carries a "
         "qsa_hisparse runtime this hook sets the field from the ScheduleBatch for "
         "every mode (for that extend case it is the object upstream already set); "
         "otherwise the field stays exactly as upstream sets it. The after hook "
@@ -89,14 +90,19 @@ def _carry_req_pool_indices_cpu(ret, cls, batch, model_runner, *args, **kwargs):
     "after",
     feature=HISPARSE,
     row="R01",
-    depends=(f"{_RUNNER}._prepare_replicated_q_proj",),
+    depends=(
+        f"{_RUNNER}._prepare_replicated_q_proj",
+        "sglang.srt.runtime_context.get_parallel",
+    ),
     reason=(
-        "Fork creates QSAHiSparseCoordinator in init_attention_backends when the "
-        "KV pool's runtime uses QSA leases, before the DCP q_proj tail; that tail "
-        "(_prepare_replicated_q_proj) does not touch the coordinator, so an after "
-        "hook is equivalent. Lines copied from the fork; mechanical edit: the "
-        "coordinator import is rewritten to the plugin package. hisparse: no "
-        "upstream pool carries qsa_hisparse."
+        "Production creates QSAHiSparseCoordinator in init_attention_backends when "
+        "the KV pool's runtime uses QSA leases, before the DCP q_proj tail; that "
+        "tail (_prepare_replicated_q_proj) does not touch the coordinator, so an "
+        "after hook is equivalent. Lines copied from production, which passes the "
+        "live TP CPU group get_parallel().tp_group.cpu_group (ModelRunner has no "
+        "tp_group at the pin); mechanical edit: the coordinator import is "
+        "rewritten to the plugin package. hisparse: no upstream pool carries "
+        "qsa_hisparse."
     ),
 )
 def _attach_qsa_coordinator(result, self):
@@ -105,7 +111,7 @@ def _attach_qsa_coordinator(result, self):
         from sglang_qsa_hisparse.hisparse.coordinator import QSAHiSparseCoordinator
 
         self.hisparse_coordinator = QSAHiSparseCoordinator(
-            qsa, self.tp_group.cpu_group
+            qsa, get_parallel().tp_group.cpu_group
         )
 
 
@@ -162,7 +168,8 @@ def _reject_eager_qsa_graph_decode(self, forward_batch, *args, **kwargs):
         "sglang.srt.utils.common.empty_context",
     ),
     reason=(
-        "Pinned body with the fork change carried over, no edits: require "
+        "Production's definition (the pinned body with the fork change), no "
+        "edits: require "
         "FullCudaGraphBackend under the QSA graph, compute shape_key before "
         "forward_context (moved out of canary_ctx; pure, inventory section 4 "
         "item 3), enter qsa.graph_capture after capture_prepare (which fills "
@@ -328,7 +335,8 @@ def capture_one_shape(
         "sglang.srt.speculative.ragged_verify.resolve_ragged_verify_layout",
     ),
     reason=(
-        "Pinned body with the fork change carried over, no edits: reject external "
+        "Production's definition (the pinned body with the fork change), no "
+        "edits: reject external "
         "preplanning under the QSA graph, call qsa.prepare_graph_replay(batch, bs) "
         "after bs is computed and before buffer_registry.fill_from, and skip "
         "num_real_reqs.fill_ (three mid-function insertions; no runner seam lies "
@@ -497,7 +505,7 @@ def load_batch(
     )
     if (
         self.model_runner.lora_manager is not None
-        and self.model_runner.lora_manager.enable_dp_attention
+        and self.model_runner.lora_manager.attn_dp_enabled
     ):
         self.model_runner.lora_manager.prepare_lora_batch(
             cast(ForwardBatch, fb_view)
@@ -591,15 +599,19 @@ def _qsa_graph_replay_scope(original, self, *args, **kwargs):
         "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
     ),
     reason=(
-        "Deviation D6, second half: the fork calls qsa.finish_graph_replay directly "
-        "after backend.replay, before _publish_read_done. This hook calls it from "
-        "the v0.5.21 seam _process_output_after_replay (called only by execute, "
-        "after _publish_read_done, inside the replay scope). For QSA decode the "
+        "Deviation D6, second half: production (as the fork) calls "
+        "qsa.finish_graph_replay directly after backend.replay, before "
+        "_publish_read_done. This hook calls it from the seam "
+        "_process_output_after_replay (called only by execute, after "
+        "_publish_read_done, inside the replay scope). For QSA decode the "
         "HybridLinearAttnBackend over QwenSparseAttnBackend and GDNAttnBackend "
-        "declares IN_REPLAY (resolved to PRE_REPLAY without an external event), "
-        "so the publish that now precedes finish only assigns "
-        "model_runner.shared_read_done_event, which finish does not read. "
-        "hisparse: gated on hisparse_coordinator.adapter."
+        "declares IN_REPLAY, which stays IN_REPLAY on CUDA (the capture records "
+        "the in-graph marker), so the publish that now precedes finish only "
+        "assigns model_runner.shared_read_done_event, which finish does not read. "
+        "Without the marker the pin resolves IN_REPLAY to POST_REPLAY (v0.5.21: "
+        "PRE_REPLAY), recording the read-done event before finish, whose copies "
+        "read only runtime-owned buffers. hisparse: gated on "
+        "hisparse_coordinator.adapter."
     ),
 )
 def _finish_qsa_graph_replay(result, self, output, forward_batch):
