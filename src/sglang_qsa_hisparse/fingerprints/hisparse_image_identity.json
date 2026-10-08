@@ -1,0 +1,47 @@
+{
+  "sglang.srt.managers.schedule_batch.MultimodalDataItem": {
+    "def_line": 358,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 358,
+    "kind": "class",
+    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "qualname": "MultimodalDataItem",
+    "sha256": "e70bee8d888aabbc3c84863811c35ee84c1f391f07e5c02a81d034afc743d6ac"
+  },
+  "sglang.srt.managers.schedule_batch.MultimodalInputs.from_processor_output": {
+    "def_line": 704,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 703,
+    "kind": "function",
+    "module_sha256": "06777e7b4c8a1d0b978a42c0370cf359a552fe7a23db411262f650db19755f7d",
+    "qualname": "MultimodalInputs.from_processor_output",
+    "sha256": "74009a01cb8341714039e85a4fc4b529a25d084504ce2481d4dfeae32aa7f0be"
+  },
+  "sglang.srt.multimodal.cache.identity.build_artifact_key": {
+    "def_line": 311,
+    "file": "sglang/srt/multimodal/cache/identity.py",
+    "first_line": 311,
+    "kind": "function",
+    "module_sha256": "c29e0524c47814237e6343ebd5ffc1987642392062abfefc2ef611fb4460e331",
+    "qualname": "build_artifact_key",
+    "sha256": "3eda675e7b5147fe62938f6be4a259ff9b7689acaed4ac4efee32fa1d949b0fd"
+  },
+  "sglang.srt.multimodal.media_artifacts.base.MediaArtifactCacheMixin._artifact_key": {
+    "def_line": 124,
+    "file": "sglang/srt/multimodal/media_artifacts/base.py",
+    "first_line": 124,
+    "kind": "function",
+    "module_sha256": "ac1f9bb3389eb297962097c3624f0e1d7b5998fcddc9d60ecc4b60eb9e23020e",
+    "qualname": "MediaArtifactCacheMixin._artifact_key",
+    "sha256": "6ae180a97150f6d24a75d0bd9b19b7947041a0d23f3b49d4ccc481e3db74b13f"
+  },
+  "sglang.srt.multimodal.processors.qwen_vl.QwenVLImageProcessor.compose_image_artifacts": {
+    "def_line": 864,
+    "file": "sglang/srt/multimodal/processors/qwen_vl.py",
+    "first_line": 864,
+    "kind": "function",
+    "module_sha256": "a6ed09b25c262a2c08827d5b9443f87de09c480d0239f45115a9a3254f6a0c79",
+    "qualname": "QwenVLImageProcessor.compose_image_artifacts",
+    "sha256": "fe9b88801c0857ca895c70e7bb09226eececafaaf912a86040e1d574f8e8bc88"
+  }
+}

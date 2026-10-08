@@ -7,7 +7,8 @@ import torch
 from sglang.srt.environ import envs
 from sglang.srt.mem_cache.base_prefix_cache import MatchResult
 from sglang.srt.mem_cache.chunk_cache import ChunkCache
-from sglang_qsa_hisparse.hisparse.prefix import token_bytes
+from sglang_qsa_hisparse.hisparse.image_request import identity_for
+from sglang_qsa_hisparse.hisparse.prefix import image_key, key_digest, token_bytes
 
 
 class QSAHostPrefixCache(ChunkCache):
@@ -69,7 +70,12 @@ class QSAHostPrefixCache(ChunkCache):
         ):
             self._converge((handle, namespace, None))
             return super().match_prefix(params)
-        reader = self.host.acquire(namespace, token_bytes(params.key), len(params.key))
+        reader = self.host.acquire(
+            namespace,
+            token_bytes(params.key),
+            len(params.key),
+            identity=identity_for(req),
+        )
         try:
             # A rank-local hit changes chunk shape and logical admission demand.
             # Converge before either rank can make those scheduler decisions.
@@ -285,6 +291,7 @@ class QSAHostPrefixCache(ChunkCache):
                 namespace,
                 length,
                 hashlib.sha256(tokens).hexdigest(),
+                key_digest(image_key(identity_for(req), length)),
                 captured is not None,
             )
             self._converge(
