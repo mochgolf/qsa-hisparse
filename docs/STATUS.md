@@ -287,3 +287,13 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 - G4-GPU review: no findings, cleared (`reviews/G4GPU.md`). Phase 4 done:
   `phase4` merged into main; the plugin now targets SGLang v0.5.21
   (previous state: tag `pin-76e06febab-final`).
+- Production cutover (owner approved, then paused on 2026-10-08 after this
+  finding): production runs `sglang-dsh-production-20261004` (`897286b12a`:
+  fork `ee8fe158d6` + upstream main `35f3c96ff4` merge, torch 2.14.1 /
+  sglang-kernel 0.4.9, Uncensored weights), not `ee8fe158d6`. The plugin
+  lacks its production-only changes: `773f3c2d84` (fast_topk keeps all
+  candidates on radix overflow; not in v0.5.21), `bdb935d70f` (FP8 KV
+  descale in prefill and reference reads), `eec9df4723`
+  (`SGLANG_NUMA_INTERLEAVE`). Owner: pause; cut over later together with a
+  plugin rebased onto upstream main (next cycle), porting those three
+  changes first, then G2-3 with production weights against production.
