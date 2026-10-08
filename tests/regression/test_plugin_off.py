@@ -5,11 +5,12 @@ A fresh process gets the launcher's environment (private dist-info on
 runs SGLang's plugin loader, and then runs the pinned upstream subset from
 ``docs/baseline.md`` in-process with pytest. The plugin must be loaded, the
 HookRegistry must stay empty, no activation record may appear, and the subset
-must give the pinned results (those of pristine v0.5.21 with no plugin on
-the path, CPU runner, 2026-10-08): the five unit files 81 passed / 3 skipped
-(9 subtests), ``kernels/ops/attention/qsa/test_qsa.py`` (``kernel/qsa/`` at
-the previous pin) 35 passed / 2 skipped with exactly the two CUDA-only
-failures.
+must give the pinned results (those of pristine 35f3c96ff4 with no plugin on
+the path, CPU runner, 2026-10-08): the five unit files 82 passed / 3 skipped
+(13 subtests), ``kernels/ops/attention/qsa/test_qsa.py`` (``kernel/qsa/``
+before v0.5.21) 35 passed / 2 skipped with exactly the 13 CUDA-only failures
+("No CUDA GPUs are available"; at v0.5.21: 81 / 3 / 9 subtests and two
+unparametrized CUDA-only failures).
 """
 
 import json
@@ -31,9 +32,16 @@ UNIT_FILES = [
 ]
 QSA_FILE = "test/registered/kernels/ops/attention/qsa/test_qsa.py"
 CUDA_ONLY_FAILURES = {
-    "registered/kernels/ops/attention/qsa/test_qsa.py::test_qsa_graph_metadata_kernels_match_legacy_host_path",
-    "registered/kernels/ops/attention/qsa/test_qsa.py::test_qsa_graph_layout_covers_speculative_rows_and_padded_tail",
-}
+    f"registered/kernels/ops/attention/qsa/test_qsa.py::{name}"
+    for name in (
+        *(f"test_qsa_draft_metadata_multi_step_graph[{case}]"
+          for case in ("0-1", "0-3", "0-128", "1-1", "1-3", "1-128")),
+        *(f"test_qsa_graph_layout_covers_speculative_rows_and_padded_tail[{offset}]"
+          for offset in (0, 1, 3)),
+        *(f"test_qsa_graph_metadata_kernels_match_legacy_host_path[{pages}]"
+          for pages in (32, 129, 2048, 8193)),
+    )
+}  # fmt: skip
 MARKER = "QSA_OFF_RESULT "
 
 PROBE = textwrap.dedent(
@@ -107,7 +115,7 @@ def test_installed_but_off_is_pristine_upstream(tmp_path):
     unit = Counter(v for k, v in outcomes.items() if not k.startswith("registered/kernels/"))
     qsa = Counter(v for k, v in outcomes.items() if k.startswith("registered/kernels/ops/attention/qsa/"))
     failed = {k for k, v in outcomes.items() if v == "failed"}
-    assert unit == {"passed": 81, "skipped": 3}, unit
-    assert qsa == {"passed": 35, "skipped": 2, "failed": 2}, qsa
+    assert unit == {"passed": 82, "skipped": 3}, unit
+    assert qsa == {"passed": 35, "skipped": 2, "failed": 13}, qsa
     assert failed == CUDA_ONLY_FAILURES
-    assert state["subtests"] == {"passed": 9}
+    assert state["subtests"] == {"passed": 13}
