@@ -17,7 +17,7 @@ from sglang_qsa_hisparse import patching, scope
 from sglang_qsa_hisparse.features import Features
 
 W5_ROWS = frozenset(
-    {"J03", "Z01", "Z02", "Z03", "Z04", "H05", "H06", "H08", "E03", "E06", "E07", "E08"}
+    {"J03", "Z01", "Z02", "Z03", "Z04", "H06", "H08", "E03", "E06", "E07", "E08"}
 )
 PATCH_MODULES = tuple(
     f"sglang_qsa_hisparse.patches.model_compat.{name}"

@@ -1,9 +1,11 @@
 """Stable (fixed-order split-K) HC mix, copied from the fork (inventory H03, H05, H06).
 
-Verbatim from fork ``python/sglang/srt/layers/hc_mix_triton.py`` at ee8fe158d6:
-``_hc_mix_stable_persistent_kernel`` (H03), ``fused_hc_mix_supported`` (the
-H05 REPLACE body) and ``fused_hc_mix`` (the body H06 runs for ``stable=True``).
-The unchanged pinned helpers they use are imported from the pinned module.
+Verbatim from fork ``python/sglang/srt/layers/hc_mix_triton.py`` at ee8fe158d6
+(upstream moved the module unchanged to ``sglang.kernels.ops.gemm.hc_mix``,
+#41243): ``_hc_mix_stable_persistent_kernel`` (H03), ``fused_hc_mix_supported``
+(H05, called with ``stable=True`` by H08's copy) and ``fused_hc_mix`` (the body
+H06 runs for ``stable=True``). The unchanged pinned helpers they use are
+imported from the pinned module.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ import torch
 import triton
 import triton.language as tl
 
-from sglang.srt.layers.hc_mix_triton import (
+from sglang.kernels.ops.gemm.hc_mix import (
     _FUSED_MIX_MAX_ROWS,
     _deterministic_inference,
     _get_counters,

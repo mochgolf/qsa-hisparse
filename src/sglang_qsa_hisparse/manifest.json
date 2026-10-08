@@ -195,21 +195,11 @@
       ],
       "attach": []
     },
-    "H05": {
-      "feature": "model_compat",
-      "patches": [
-        {
-          "target": "sglang.srt.layers.hc_mix_triton.fused_hc_mix_supported",
-          "hook_type": "replace"
-        }
-      ],
-      "attach": []
-    },
     "H06": {
       "feature": "model_compat",
       "patches": [
         {
-          "target": "sglang.srt.layers.hc_mix_triton.fused_hc_mix",
+          "target": "sglang.kernels.ops.gemm.hc_mix.fused_hc_mix",
           "hook_type": "around"
         }
       ],

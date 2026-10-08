@@ -7,24 +7,26 @@ H07 (the base-class ``mix`` signature) is dropped: ``GatedResidual``, the only
 subclass, overrides ``mix`` and nothing passes ``stable`` to the base.
 
 ``ForkGatedResidual`` is a namespace holding the fork's ``GatedResidual.mix``
-verbatim at its original indentation; it is never instantiated. Its globals
-``fused_hc_mix`` and ``fused_hc_mix_supported`` are the pinned
-``hc_mix_triton`` names, which HookRegistry rebinds to the H05/H06 hooks when
-it applies them (inventory 6, G3), exactly as it rebinds the pinned
-``hyperconnection`` module's own imports.
+verbatim at its original indentation; it is never instantiated. Its global
+``fused_hc_mix`` is the pinned name, which HookRegistry rebinds to the H06 hook
+when it applies it (inventory 6, G3). Its global ``fused_hc_mix_supported`` is
+the plugin copy of the fork's predicate (H05, ``kernels/hc_mix.py``; an
+import-level mechanical edit): only this copy passes ``stable=True``, and
+without it the fork's predicate equals the pinned one, so the pinned predicate
+needs no hook.
 """
 
 import torch
 
-from sglang.srt.layers.hc_mix_triton import fused_hc_mix, fused_hc_mix_supported
+from sglang.kernels.ops.gemm.hc_mix import fused_hc_mix
 from sglang_qsa_hisparse import scope
 from sglang_qsa_hisparse.features import MODEL_COMPAT
 from sglang_qsa_hisparse.kernels import hc_mix as fork_hc_mix
-from sglang_qsa_hisparse.patches.model_compat.quantization import scoped
+from sglang_qsa_hisparse.kernels.hc_mix import fused_hc_mix_supported
 from sglang_qsa_hisparse.patches.model_compat.qwen4_exp import _stable_hc
 from sglang_qsa_hisparse.patching import patch
 
-_HC_MIX = "sglang.srt.layers.hc_mix_triton"
+_HC_MIX = "sglang.kernels.ops.gemm.hc_mix"
 _GATED_RESIDUAL = "sglang.srt.layers.hyperconnection.GatedResidual"
 
 
@@ -110,25 +112,6 @@ class ForkGatedResidual:
         return mixed_input, (hyper_input, hyper_input_normed)
 
 
-patch(
-    f"{_HC_MIX}.fused_hc_mix_supported",
-    "replace",
-    feature=MODEL_COMPAT,
-    row="H05",
-    depends=(f"{_HC_MIX}._deterministic_inference",),
-    reason=(
-        "Fork adds keyword stable=: the stable path skips the "
-        "deterministic-inference early return, which is mid-function (an around "
-        "would re-implement the predicate), so replace. model_compat: part of "
-        "stable HC under deterministic inference. Scope (rule 9): the copy "
-        "(sglang_qsa_hisparse.kernels.hc_mix.fused_hc_mix_supported, verbatim, no "
-        "mechanical edits) runs only when target_model_active(), otherwise the "
-        "pinned predicate. Without stable=True the copy equals the pinned "
-        "predicate; stable=True is passed only by H08's copy."
-    ),
-)(scoped(fused_hc_mix_supported, fork_hc_mix.fused_hc_mix_supported))
-
-
 @patch(
     f"{_HC_MIX}.fused_hc_mix",
     "around",
@@ -147,7 +130,8 @@ patch(
         "call goes to the pinned function, which is identical to the fork's "
         "non-stable branch. model_compat: stable HC under deterministic "
         "inference. Scope (rule 9): stable=True is passed only by H08's copy, "
-        "and is honored only when target_model_active()."
+        "and is honored only when target_model_active(). Upstream moved the "
+        "module unchanged from sglang.srt.layers.hc_mix_triton (#41243)."
     ),
 )
 def _fused_hc_mix(original, *args, **kwargs):
@@ -167,6 +151,8 @@ def _fused_hc_mix(original, *args, **kwargs):
         "sglang.kernels.ops.elementwise.hc_mix.hc_mix",
         "sglang.kernels.ops.elementwise.hc_mix.permute_pad_up_weight",
         "sglang.srt.runtime_context.get_exec",
+        # Read by the plugin copy of the fork's fused_hc_mix_supported (H05).
+        f"{_HC_MIX}._deterministic_inference",
     ),
     reason=(
         "Fork adds keyword stable= to GatedResidual.mix: the stable fused kernel "
@@ -175,7 +161,9 @@ def _fused_hc_mix(original, *args, **kwargs):
         "fork's three mix() calls in qwen4_exp pass stable=_stable_hc(); they are "
         "the only mix() call sites at the pin). stable false goes to the pinned "
         "method, identical to the fork's non-stable branches; stable true runs "
-        "the verbatim copy ForkGatedResidual.mix (no mechanical edits). "
+        "the verbatim copy ForkGatedResidual.mix. Mechanical edit (import "
+        "level): the copy's fused_hc_mix_supported is the plugin copy of the "
+        "fork's predicate (H05), the only caller that passes stable=True. "
         "model_compat: changes Qwen4Exp under deterministic inference. Scope "
         "(rule 9): outside target_model_active() the pinned method always runs."
     ),

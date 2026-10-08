@@ -5,7 +5,9 @@ Assertions unchanged. ``_stable_hc`` (E01) and the copied
 module, so the fork's monkeypatches of ``qwen4_exp.get_exec`` and
 ``qwen4_exp.VocabParallelEmbedding`` target that module; the embedding is
 still constructed through the pinned class with W5's rows activated for the
-target model.
+target model. At v0.5.21 the constructor also wraps an offloaded table in
+``Qwen4ExpPinnedHostEmbedding``, which the stand-in table cannot feed, so that
+name is stubbed with a pass-through as well.
 """
 
 from types import SimpleNamespace
@@ -49,6 +51,12 @@ def test_offloaded_ple_preserves_storage_dtype_on_meta(
             )
 
     monkeypatch.setattr(plugin_qwen4_exp, "VocabParallelEmbedding", FakeEmbedding)
+    # v0.5.21 wraps the offloaded table in Qwen4ExpPinnedHostEmbedding inside
+    # this constructor (the fork wrapped it later, in the PLE layer); the
+    # stand-in keeps the table the fork's assertions inspect.
+    monkeypatch.setattr(
+        plugin_qwen4_exp, "Qwen4ExpPinnedHostEmbedding", lambda table, **_: table
+    )
     config = SimpleNamespace(
         ngram_size=2,
         heads_per_ngram=1,
