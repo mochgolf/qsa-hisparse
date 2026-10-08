@@ -1,13 +1,13 @@
-"""W5's copied fork code equals the fork except for its listed mechanical edits.
+"""Copied reference code equals the reference except for listed mechanical edits.
 
-Rule 3: REPLACE bodies, kernels and the Marlin JIT sources are copied from
-fork ee8fe158d6, not rewritten. Digests below are of the fork definitions
-(decorators included, original indentation); each copy, with its mechanical
-edits reverted, must hash to them. Set QSA_FORK_ROOT to a checkout of the
-fork at ee8fe158d6 to re-derive the recorded digests from the fork itself.
-REPLACE copies whose target changed upstream since the fork base (E03, E08 at
-v0.5.21) are the pinned definition plus the fork's change instead; they are
-checked by tests/regression/test_replace_deltas.py.
+Rule 3 / Phase 5 rule Q1: REPLACE bodies, kernels and the JIT sources (Marlin
+MoE, fast_topk) are copied from the reference, production 897286b12a, not
+rewritten. Digests below are of the reference definitions (decorators
+included, original indentation); each copy, with its mechanical edits
+reverted, must hash to them. With QSA_FORK_ROOT set to the fork repository
+(which holds the production commit), the recorded digests are re-derived
+from ``git show 897286b12a:<path>``. REPLACE copies are also checked against
+the pin by tests/regression/test_replace_deltas.py.
 """
 
 import ast
@@ -16,6 +16,7 @@ import dis
 import hashlib
 import inspect
 import os
+import subprocess
 import types
 from pathlib import Path
 
@@ -23,7 +24,15 @@ import pytest
 import torch
 
 import sglang_qsa_hisparse.kernels as plugin_kernels
-from sglang_qsa_hisparse.kernels import hc_mix, marlin_moe, ple_gather
+from sglang_qsa_hisparse import REFERENCE_FORK_COMMIT
+from sglang_qsa_hisparse.kernels import (
+    fast_topk,
+    hc_mix,
+    marlin_moe,
+    ple_gather,
+    qsa_sparse_attn,
+    qsa_topk,
+)
 from sglang_qsa_hisparse.patches.model_compat import (
     hyperconnection,
     marlin,
@@ -33,9 +42,12 @@ from sglang_qsa_hisparse.patches.model_compat import (
 
 KERNELS = Path(plugin_kernels.__file__).resolve().parent
 QWEN4_EXP = "sglang/srt/models/qwen4_exp.py"
-HC_MIX = "sglang/srt/layers/hc_mix_triton.py"
+HC_MIX = "sglang/kernels/ops/gemm/hc_mix.py"
+SPARSE_ATTN = "sglang/srt/layers/attention/qsa/sparse_attn.py"
+QSA_KERNEL = "sglang/srt/layers/attention/qsa/kernel.py"
 
-# (plugin module, plugin qualname, fork file, fork qualname, fork sha256,
+# (plugin module, plugin qualname, reference file, reference qualname,
+#  reference sha256,
 #  mechanical edits as (fork text, plugin text)).
 COPIES = [
     (
@@ -128,7 +140,7 @@ COPIES = [
         "ForkQwen4ExpPinnedHostEmbedding.__init__",
         QWEN4_EXP,
         "Qwen4ExpPinnedHostEmbedding.__init__",
-        "01617b60a4fed60a54acab1962e730db3d49a323731ba88d42a0d8851c59c5ef",
+        "701cb7b2abbeade144faf3358489cc6c2dd7d24bdbbe718958981bd9cbca19cc",
         [],
     ),
     (
@@ -139,6 +151,32 @@ COPIES = [
         "1b3c983659fe8cb99cefae691ee6958d768ddaa1f02c6e64e2d7105d16d9d311",
         [],
     ),
+]
+
+# QSA kernels and launchers moved verbatim (A01, A02, A04, A07, A11, A12, T01).
+QSA_COPIES = {
+    (qsa_sparse_attn, SPARSE_ATTN): {
+        "is_fp8_kv_dtype": "0be799a74de0783008e3b7cfc053d37ff5fcde41e14bc6574bfd8f80c8123497",
+        "_validate_sparse_gqa_dtypes": "fb00b1ad84e0511992907d752e5ac2e364f880119db37e6e522ec2044aed439c",
+        "_unit_scale": "ebc561a626794ff5dbaf3f66f074aaa196a57feabfd96396637999c0d995b173",
+        "_sparse_gqa_prefill": "881f2e42ac9a091c28cf84a50feaf2c78affd12eea1c676a696eb27abf611e7a",
+        "_sparse_gqa_chunk_prefill": "7b8180f3ac6b688009409b7e2b324de33310021153a2ffeea8a9489135561088",
+        "_compact_kv": "31642eadd952d8f10499cd80fc4d0a243db996f736e0a9e23565afd6304d2336",
+        "sparse_gqa_packed_decode_triton": "d073454badb7b6822c5f97dafdc91ccd0b03a16d6b6ecbbe43e1015aa7577e84",
+    },
+    (qsa_sparse_attn, QSA_KERNEL): {
+        "qsa_sparse_attention": "d0c8b886c4bce24511fd8cc32c523da183cfd255c9f02a965fab5975758e80c0",
+        "qsa_sparse_attention_reference": "cfc329f78015c88d87cdbc52fcd2444d7952fd2875a03f62cfa8528943800b1b",
+    },
+    (qsa_topk, QSA_KERNEL): {
+        "_qsa_deterministic_topk_tile_rows": "6df490eb79bd66b4bbd7fe727bac0c5831475c73d84b72de922df94df7f9ead3",
+        "_qsa_stable_topk": "c37f58b2c954ed87326b01023af3f1d2bbb3f5ad30d0d59e6cb96400f63c2ac7",
+    },
+}
+COPIES += [
+    (module, qualname, path, qualname, digest, [])
+    for (module, path), digests in QSA_COPIES.items()
+    for qualname, digest in digests.items()
 ]
 
 # J01: the whole op wrapper file, from its first statement after the plugin's
@@ -167,13 +205,34 @@ MARLIN_OP_EDITS = [
     ("module.moe_wna16_marlin_gemm(", "module.qsa_moe_wna16_marlin_gemm("),
 ]
 
-# J02: git blob ids at ee8fe158d6 (``git ls-tree ee8fe158d6`` in the fork).
+# J02: git blob ids at 897286b12a (``git ls-tree 897286b12a`` in the fork repo).
 MARLIN_HEADERS = {
     "kernel.h": "ccc47e73920dc6d81d65e3d53f22a3bb770d9dca",
     "marlin_template.h": "5f8207cbb8ee2c0178e1407f677a06908a492967",
-    "moe_wna16_marlin.cuh": "2e11b1360fe9345c7a3d1ce8cc10e9229a7dd200",
+    "moe_wna16_marlin.cuh": "31b9788127ec1cc9959283a137c3c27bd6aec187",
     "stripe_schedule.h": "9945734d1b47abe47e2f6c05ccffed118096ac5c",
 }
+
+# T05: the fast_topk op wrapper (identical at the pin and in the reference) and
+# the reference's kernel with the overflow fix, as for J01/J02.
+FAST_TOPK_OP = "sglang/kernels/ops/attention/fast_topk.py"
+FAST_TOPK_OP_SHA256 = "65eeb1c14a111e651819bdac3ecca3a796f06feec4fb5c03f2ea08a5a65d29e4"
+FAST_TOPK_OP_EDITS = [
+    ("from typing", "from pathlib import Path\nfrom typing"),
+    (
+        "_FAST_TOPK_SUPPORTED_K",
+        '_CSRC = Path(__file__).resolve().parent / "csrc"\n\n_FAST_TOPK_SUPPORTED_K',
+    ),
+    ('        "fast_topk",\n', '        "qsa_hisparse_fast_topk",\n'),
+    (
+        'cuda_files=["elementwise/fast_topk.cuh"],',
+        'cuda_files=[str(_CSRC / "fast_topk" / "fast_topk.cuh")],',
+    ),
+    ('cuda_wrappers=[("fast_topk",', 'cuda_wrappers=[("qsa_hisparse_fast_topk",'),
+    ("module.fast_topk(", "module.qsa_hisparse_fast_topk("),
+]
+FAST_TOPK_KERNEL = "sglang/kernels/jit/csrc/elementwise/fast_topk.cuh"
+FAST_TOPK_KERNEL_BLOB = "ef0ba75de60d02b08fb68dd20740e383ed332371"
 
 
 def _segment(source: str, qualname: str) -> str:
@@ -224,15 +283,38 @@ def test_marlin_headers_equal_the_fork_byte_for_byte():
         assert _blob_id((folder / name).read_bytes()) == blob, name
 
 
+def test_fast_topk_op_wrapper_differs_from_the_reference_only_by_listed_edits():
+    source = Path(fast_topk.__file__).read_text()
+    body = source[source.index("from __future__ import annotations") :]
+    assert _sha256(_revert(body, FAST_TOPK_OP_EDITS)) == FAST_TOPK_OP_SHA256
+
+
+def test_fast_topk_kernel_equals_the_reference_byte_for_byte():
+    folder = KERNELS / "csrc" / "fast_topk"
+    assert sorted(p.name for p in folder.iterdir()) == ["fast_topk.cuh"]
+    assert _blob_id((folder / "fast_topk.cuh").read_bytes()) == FAST_TOPK_KERNEL_BLOB
+
+
+def _reference(path: str) -> bytes:
+    """``path`` (under python/) at the reference commit, from the fork repository."""
+    return subprocess.run(
+        ["git", "--no-optional-locks", "-C", os.environ["QSA_FORK_ROOT"], "show",
+         f"{REFERENCE_FORK_COMMIT}:python/{path}"],
+        capture_output=True, check=True,
+    ).stdout  # fmt: skip
+
+
 @pytest.mark.skipif(not os.environ.get("QSA_FORK_ROOT"), reason="QSA_FORK_ROOT unset")
-def test_recorded_digests_match_the_fork_checkout():
-    root = Path(os.environ["QSA_FORK_ROOT"]) / "python"
+def test_recorded_digests_match_the_reference():
     for _, _, path, qualname, fork_sha256, _ in COPIES:
-        assert _sha256(_segment((root / path).read_text(), qualname)) == fork_sha256
-    assert _sha256((root / MARLIN_OP_FORK).read_text()) == MARLIN_OP_SHA256
-    folder = root / "sglang/kernels/jit/csrc/gemm/marlin_moe"
+        source = _reference(path).decode()
+        assert _sha256(_segment(source, qualname)) == fork_sha256, qualname
+    assert _sha256(_reference(MARLIN_OP_FORK).decode()) == MARLIN_OP_SHA256
+    folder = "sglang/kernels/jit/csrc/gemm/marlin_moe"
     for name, blob in MARLIN_HEADERS.items():
-        assert _blob_id((folder / name).read_bytes()) == blob, name
+        assert _blob_id(_reference(f"{folder}/{name}")) == blob, name
+    assert _sha256(_reference(FAST_TOPK_OP).decode()) == FAST_TOPK_OP_SHA256
+    assert _blob_id(_reference(FAST_TOPK_KERNEL)) == FAST_TOPK_KERNEL_BLOB
 
 
 # Copy globals (inventory 6, G3) ---------------------------------------------
@@ -436,3 +518,22 @@ def test_marlin_jit_module_name_cache_key_and_export_are_distinct(jit_resolver):
             ]
             assert found, (header.name, include)
             assert found[0].resolve().parent == marlin_headers.resolve()
+
+
+def test_fast_topk_jit_module_name_cache_key_and_export_are_distinct(jit_resolver):
+    """T05: the plugin wrapper builds the reference kernel under its own module
+    name, cache directory and export, never the in-tree fast_topk module."""
+    from sglang.kernels.ops.attention import fast_topk as in_tree
+
+    tree, tree_scope = jit_resolver(in_tree._jit_fast_topk_module, 512)
+    plugin, plugin_scope = jit_resolver(fast_topk._jit_fast_topk_module, 512)
+    assert tree.module_name == "sgl_kernel_jit_fast_topk_512_false"
+    assert plugin.module_name == "sgl_kernel_jit_qsa_hisparse_fast_topk_512_false"
+    assert tree.cuda_wrappers == (("fast_topk", "FastTopKKernel<512, false>::run"),)
+    assert plugin.cuda_wrappers == (
+        ("qsa_hisparse_fast_topk", "FastTopKKernel<512, false>::run"),
+    )
+    assert plugin_scope.parent != tree_scope.parent
+    assert plugin_scope.name != tree_scope.name
+    assert plugin.cuda_files == (str(KERNELS / "csrc" / "fast_topk" / "fast_topk.cuh"),)
+    assert tree.cuda_files != plugin.cuda_files

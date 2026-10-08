@@ -1,25 +1,28 @@
 """QSA attention shared-path patches (inventory W4 rows, feature ``model_compat``).
 
-FP8 K/V descales on store and extraction, the SM86/SM89 flash-attention
-fallback, the eager decode score width, deterministic stable top-k and the
-FP8-aware sparse GQA kernels. Rule 2: this feature owns every QSA backend
-REPLACE; each copy is the pinned definition plus the fork's change (PLAN.md
-Phase 4 rule P1), including the fork's ``qsa_hisparse`` branches, which stay
-inert unless ``patches/hisparse/qsa_backend.py`` attaches a runtime.
+FP8 K/V descales on store, extraction, prefill and reference reads, the
+SM86/SM89 flash-attention fallback, the eager decode score width,
+deterministic stable top-k, the FP8-aware sparse GQA kernels and the
+fast_topk overflow fix. Rule 2: this feature owns every QSA backend REPLACE;
+each copy equals the reference's definition (production ``897286b12a``,
+whose upstream base is the pin; PLAN.md Phase 5 rule Q1), including its
+``qsa_hisparse`` branches, which stay inert unless
+``patches/hisparse/qsa_backend.py`` attaches a runtime.
 
 Copies run with this module's globals (inventory section 6, G3). Mechanical
-edits, all at the import level: the kernel launchers, ``is_fp8_kv_dtype`` and
-the stable top-k resolve to the plugin copies in ``kernels/qsa_*.py``;
+edits, all at the import level: the kernel launchers, the packed decode
+(A11), the torch reference (A12), ``is_fp8_kv_dtype`` and the stable top-k
+resolve to the plugin copies in ``kernels/qsa_*.py``;
 ``_resolve_flash_attn_varlen_func`` resolves to this module's Q01 copy;
 ``qsa_fast_topk`` is the pinned name, which activation rebinds to the T02 hook;
 methods are module-level functions attached to or installed on the class.
 
 Target-model scope (PLAN.md rule 9): the backend ``__init__`` hook (Q02)
 evaluates ``scope.target_model_active()`` once per backend and stores it as
-``_qsa_target_model``; the backend method hooks (Q05, Q08, Q10-Q12) read that
-attribute. Module-level targets (Q01, T02, T03, A03, A05, A09) have no backend
-reference and call the process-cached predicate. Out of scope each of them
-runs the pinned definition. The remaining rows change no behavior by
+``_qsa_target_model``; the backend method hooks (Q05, Q08, Q10-Q13) read that
+attribute. Module-level targets (Q01, T02, T03, T05, A03, A05, A09) have no
+backend reference and call the process-cached predicate. Out of scope each of
+them runs the pinned definition. The remaining rows change no behavior by
 themselves: Q02's other attributes, the Q04/Q09 members (called only from the
 scoped copies and the hisparse Q07 hook) and the T04 field, which stays None
 unless Q05 sets it.
@@ -29,7 +32,7 @@ from __future__ import annotations
 
 import math
 from functools import lru_cache
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import msgspec
 import torch
@@ -39,34 +42,40 @@ from sglang.srt.layers.attention import qwen_sparse_attn_backend as _backend
 from sglang.srt.layers.attention.qsa import metadata as _metadata
 from sglang.srt.layers.attention.qsa import qsa_indexer as _indexer
 from sglang.srt.layers.attention.qsa import sparse_attn as _sparse_attn
+from sglang.srt.layers.attention.qsa.fused_kv import fused_kv_prepare
 from sglang.srt.layers.attention.qsa.kernel import (
     expand_qsa_block_indices,
     qsa_fast_topk,
-    qsa_sparse_attention,
 )
 from sglang.srt.layers.attention.qsa.metadata import compressed_decode_view
 from sglang.srt.layers.attention.qsa.mqa import qsa_mqa_decode
 from sglang.srt.layers.attention.qsa.sparse_attn import (
     qwen_sparse_fa2_cu_seqlens_triton,
     qwen_sparse_valid_counts_triton,
-    sparse_gqa_packed_decode_triton,
 )
 from sglang.srt.layers.attention.qwen_sparse_attn_backend import (
     _TRTLLM_SPARSE_PAGE_SIZE,
     _resolve_trtllm_sparse_decode,
     logger,
 )
+from sglang.srt.layers.cp.utils import is_cp_active
+from sglang.srt.model_executor.runner_backend_utils.breakable_cuda_graph import (
+    is_in_breakable_cuda_graph,
+)
 from sglang.srt.runtime_context import get_context, get_exec
 from sglang.srt.utils import is_hip
 from sglang.srt.utils.nvtx_utils import operations_nvtx_range
 from sglang_qsa_hisparse import scope
 from sglang_qsa_hisparse.features import MODEL_COMPAT
+from sglang_qsa_hisparse.kernels import fast_topk as _plugin_fast_topk
 from sglang_qsa_hisparse.kernels import qsa_sparse_attn as _plugin_sparse_attn
 from sglang_qsa_hisparse.kernels.qsa_sparse_attn import (
     is_fp8_kv_dtype,
+    qsa_sparse_attention,
     qwen_sparse_kv_extraction_compact_triton,
     sparse_gqa_fwd_interface_triton,
     sparse_gqa_fwd_interface_triton_ck,
+    sparse_gqa_packed_decode_triton,
 )
 from sglang_qsa_hisparse.kernels.qsa_topk import _qsa_stable_topk
 from sglang_qsa_hisparse.patching import attach_value, patch
@@ -76,6 +85,7 @@ _BACKEND = f"{_BACKEND_MODULE}.QwenSparseAttnBackend"
 _QSA = "sglang.srt.layers.attention.qsa"
 _SPARSE_ATTN = f"{_QSA}.sparse_attn"
 _RUNTIME_CONTEXT = "sglang.srt.runtime_context"
+_FAST_TOPK = "sglang.kernels.ops.attention.fast_topk"
 
 _BACKEND_METHOD_SCOPE = (
     "Scope: decided once per backend by the Q02 __init__ hook "
@@ -131,7 +141,7 @@ def _scoped_method(name, plugin_impl):
 
 @lru_cache(maxsize=1)
 def _resolve_flash_attn_varlen_func():
-    from sglang.srt.utils import is_sm121
+    from sglang.srt.utils import is_hip, is_sm121
 
     if is_sm121():
         from sglang.kernels.ops.attention import (
@@ -139,6 +149,22 @@ def _resolve_flash_attn_varlen_func():
         )
 
         return qwen38_qsa_sm121_varlen
+    if is_hip():
+        # ROCm ships neither flash_attn (FA2) nor flash-attn-4; aiter provides an
+        # FA2-compatible varlen kernel (CK) with the same call signature. Fall
+        # through to the flash_attn probes below if aiter is unavailable.
+        try:
+            from aiter import flash_attn_varlen_func as aiter_varlen_func
+        except ImportError:
+            aiter_varlen_func = None
+        if aiter_varlen_func is not None:
+
+            def flash_attn_varlen_func(*args, **kwargs):
+                output = aiter_varlen_func(*args, **kwargs)
+                # aiter returns a tuple when return_lse/return_attn_probs is set.
+                return output[0] if isinstance(output, tuple) else output
+
+            return flash_attn_varlen_func
     try:
         from flash_attn import flash_attn_varlen_func
 
@@ -165,8 +191,8 @@ def _resolve_flash_attn_varlen_func():
         return flash_attn_varlen_func
     except ImportError as exc:
         raise ImportError(
-            "QSA decode requires flash_attn (FA2) or flash-attn-4 "
-            "(FA4 cute) for its packed varlen fallback."
+            "QSA decode requires flash_attn (FA2), flash-attn-4 (FA4 cute), "
+            "or aiter (ROCm) for its packed varlen fallback."
         ) from exc
 
 
@@ -185,12 +211,14 @@ patch(
     row="Q01",
     depends=(
         "sglang.kernels.ops.attention.flash_attention.flash_attn_varlen_func",
+        "sglang.srt.utils.common.is_hip",
         "sglang.srt.utils.common.is_sm121",
     ),
     reason=(
         "model_compat: selects SGLang's vendored varlen flash-attention instead "
         "of FA4 cute on SM86/SM89 without flash_attn. replace: the branch sits "
-        "between two try-blocks. The verbatim copy keeps @lru_cache(maxsize=1). "
+        "between two try-blocks (after the pin's ROCm aiter probe). The copy "
+        "equals the reference's definition and keeps @lru_cache(maxsize=1). "
         + _FUNCTION_SCOPE
         + _DIRECT_BINDING
     ),
@@ -256,6 +284,15 @@ def _kv_descales(layer, kv_dtype: torch.dtype) -> Tuple[float, float]:
     )
 
 
+def _kv_descale_kwargs(self, layer, buffer: torch.Tensor) -> Dict[str, float]:
+    """Descales every reader of a quantized pool must apply in-kernel."""
+
+    if not is_fp8_kv_dtype(buffer.dtype):
+        return {}
+    k_scale, v_scale = self._kv_descales(layer, buffer.dtype)
+    return {"k_scale": k_scale, "v_scale": v_scale}
+
+
 def _store_kv(self, layer, loc, k: torch.Tensor, v: torch.Tensor) -> None:
     if self.qsa_hisparse is not None:
         loc = self.qsa_hisparse.write_locations(loc)
@@ -275,23 +312,26 @@ def _store_kv(self, layer, loc, k: torch.Tensor, v: torch.Tensor) -> None:
 
 
 _Q04_REASON = (
-    "model_compat: FP8 KV store path; the qsa_hisparse branch is inert (rule 2). "
-    "attach: member added by the fork; is_fp8_kv_dtype is the plugin copy "
-    "(A01). Scope: called only from the scoped "
-    "Q08/Q10/Q11/Q12 copies, so it needs no check of its own."
+    "model_compat: FP8 KV store path and the descales of the prefill and "
+    "reference reads (production bdb935d70f); the qsa_hisparse branch is inert "
+    "(rule 2). attach: members added by the reference; is_fp8_kv_dtype is the "
+    "plugin copy (A01). Scope: called only from the scoped Q08/Q10-Q13 code, "
+    "so they need no check of their own."
 )
 _Q04_DEPENDS = (
     "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.set_kv_buffer",
     "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool.set_kv_buffer",
 )
-attach_value(
-    _BACKEND, "_kv_descales", _kv_descales,
-    feature=MODEL_COMPAT, row="Q04", depends=_Q04_DEPENDS, reason=_Q04_REASON,
-)
-attach_value(
-    _BACKEND, "_store_kv", _store_kv,
-    feature=MODEL_COMPAT, row="Q04", depends=_Q04_DEPENDS, reason=_Q04_REASON,
-)
+for _name, _member in (
+    ("_kv_descales", _kv_descales),
+    ("_kv_descale_kwargs", _kv_descale_kwargs),
+    ("_store_kv", _store_kv),
+):
+    attach_value(
+        _BACKEND, _name, _member,
+        feature=MODEL_COMPAT, row="Q04", depends=_Q04_DEPENDS, reason=_Q04_REASON,
+    )
+del _name, _member
 
 
 # Q05: eager decode score width ------------------------------------------------
@@ -329,7 +369,7 @@ def _match_graph_decode_score_width(result, self, forward_batch):
         or getattr(forward_batch, "spec_info", None) is not None
     ):
         return None
-    # Fork qwen_sparse_attn_backend.py:744-749.
+    # Reference qwen_sparse_attn_backend.py:793-802.
     max_blocks = math.ceil(self.max_context_len / self.compress_ratio)
     page_size = self.token_to_kv_pool.qsa_compressed_page_size
     decode_score_width = max(1, math.ceil(max_blocks / page_size)) * page_size
@@ -357,7 +397,18 @@ def forward_extend(
 ) -> torch.Tensor:
     if topk_indices is None:
         raise ValueError("QSA sparse attention requires topk_indices")
+    if getattr(
+        forward_batch, "attn_cp_metadata", None
+    ) is not None and is_cp_active(forward_batch):
+        return self._forward_extend_cp(
+            q, k, v, layer, forward_batch, topk_indices, save_kv_cache
+        )
     if save_kv_cache:
+        fused_output = self._try_fused_kv_attention(
+            q, k, v, layer, forward_batch, topk_indices
+        )
+        if fused_output is not None:
+            return fused_output
         self._store_kv(layer, forward_batch.out_cache_loc, k, v)
     q = q.reshape(-1, layer.tp_q_head_num, layer.head_dim)
     num_output_rows = q.shape[0]
@@ -379,12 +430,15 @@ def forward_extend(
         metadata = self._resolve_metadata(forward_batch)
         slots = self._logical_to_physical(topk_indices, metadata)
         pool = self.token_to_kv_pool
+        k_buffer = pool.get_key_buffer(layer.layer_id)
+        v_buffer = pool.get_value_buffer(layer.layer_id)
         output = qsa_sparse_attention(
             q,
-            pool.get_key_buffer(layer.layer_id),
-            pool.get_value_buffer(layer.layer_id),
+            k_buffer,
+            v_buffer,
             slots,
             layer.scaling,
+            **self._kv_descale_kwargs(layer, k_buffer),
         )
         return self._pad_extend_output(output, num_output_rows)
 
@@ -416,20 +470,23 @@ def forward_extend(
     k_buffer = pool.get_key_buffer(layer.layer_id)
     v_buffer = pool.get_value_buffer(layer.layer_id)
     req_to_token = self.req_to_token_pool.req_to_token
-    req_indices = forward_batch.req_pool_indices.tolist()
+    if is_in_breakable_cuda_graph():
+        # Reuse the prepared slot table to avoid a D2H sync per layer on replay.
+        req_to_token = self._resolve_metadata(forward_batch).token_slot_table
+        req_indices = range(len(sequence_lens))
+    else:
+        req_indices = forward_batch.req_pool_indices.tolist()
     raw_slots = [
         self.qsa_hisparse.prefill_slots(req_indices[i], sequence_lens[i])
         if self.qsa_hisparse is not None
-        else req_to_token[req_indices[i], :sequence_lens[i]].long()
+        else req_to_token[req_indices[i], : sequence_lens[i]].long()
         for i in range(len(sequence_lens))
     ]
     k_parts = [
-        k_buffer.index_select(0, raw_slots[i])
-        for i in range(len(sequence_lens))
+        k_buffer.index_select(0, raw_slots[i]) for i in range(len(sequence_lens))
     ]
     v_parts = [
-        v_buffer.index_select(0, raw_slots[i])
-        for i in range(len(sequence_lens))
+        v_buffer.index_select(0, raw_slots[i]) for i in range(len(sequence_lens))
     ]
     sequence_lens_tensor = torch.tensor(
         sequence_lens, dtype=torch.int32, device=q.device
@@ -444,6 +501,7 @@ def forward_extend(
         cu_seqlens_k,
         sequence_lens_tensor,
         layer.scaling,
+        **self._kv_descale_kwargs(layer, k_buffer),
     )
     return self._pad_extend_output(output, num_output_rows)
 
@@ -454,17 +512,23 @@ patch(
     feature=MODEL_COMPAT,
     row="Q08",
     depends=(
-        f"{_QSA}.kernel.qsa_sparse_attention",
+        f"{_BACKEND}._forward_extend_cp",
         f"{_BACKEND}._is_speculative_paged_mode",
         f"{_BACKEND}._logical_to_physical",
         f"{_BACKEND}._pad_extend_output",
         f"{_BACKEND}._resolve_metadata",
+        f"{_BACKEND}._try_fused_kv_attention",
+        "sglang.srt.layers.cp.utils.is_cp_active",
+        "sglang.srt.model_executor.runner_backend_utils.breakable_cuda_graph."
+        "context.is_in_breakable_cuda_graph",
     ),
     reason=(
         "model_compat (both features; rule 2 copies the inert qsa_hisparse "
-        "branch): stores through _store_kv and gathers chunk-prefill raw slots via "
-        "qsa_hisparse.prefill_slots. replace (102): mid-function call changes. "
-        "The sparse GQA launchers are the plugin copies (A03/A05). "
+        "branch): stores through _store_kv, gathers chunk-prefill raw slots via "
+        "qsa_hisparse.prefill_slots, and passes the FP8 descales to the "
+        "reference and chunk-prefill reads (production bdb935d70f). replace "
+        "(120): mid-function call changes. The sparse GQA launchers (A03/A05) "
+        "and the torch reference (A12) are the plugin copies. "
         + _BACKEND_METHOD_SCOPE
     ),
 )(_scoped_method("forward_extend", forward_extend))
@@ -529,9 +593,7 @@ def _ensure_fa2_graph_wrapper(
             kv_indptr_buf=self._graph_fa2_cu_seqlens_k[: batch + 1],
             backend="fa2",
         )
-        qo_indptr = torch.arange(
-            batch + 1, dtype=torch.int32, device=self.device
-        )
+        qo_indptr = torch.arange(batch + 1, dtype=torch.int32, device=self.device)
         wrapper.plan(
             qo_indptr,
             qo_indptr * topk,
@@ -578,8 +640,7 @@ def _can_run_fa2_graph(
         and forward_batch.forward_mode.is_decode()
         and getattr(forward_batch, "spec_info", None) is None
         and topk == expected_topk
-        and self._fa2_graph_shape
-        == (q.dtype, k_buffer.shape[1], k_buffer.shape[2])
+        and self._fa2_graph_shape == (q.dtype, k_buffer.shape[1], k_buffer.shape[2])
         and math.isclose(
             float(layer.scaling),
             1.0 / math.sqrt(k_buffer.shape[2]),
@@ -623,10 +684,15 @@ def _forward_trtllm_sparse(
     metadata,
     topk_indices: torch.Tensor,
     trtllm_decode,
+    new_kv=None,
 ) -> torch.Tensor:
     """Pack selected KV at page-aligned row strides for FlashInfer's paged decode,
     driven by a static arange block table and the per-row valid counts."""
     batch, topk = topk_indices.shape
+    compress_ratio = (
+        self.compress_ratio if self._uses_block_indices(topk_indices) else 1
+    )
+    topk = topk * compress_ratio + compress_ratio - 1
     page = _TRTLLM_SPARSE_PAGE_SIZE
     pages_per_row = (topk + page - 1) // page
     stride = pages_per_row * page
@@ -638,9 +704,6 @@ def _forward_trtllm_sparse(
             raise RuntimeError("QSA CUDA graph metadata is incomplete")
     else:
         valid_counts = torch.empty(batch, dtype=torch.int32, device=device)
-    qwen_sparse_valid_counts_triton(
-        sequence_lens, topk_indices, valid_counts, batch, topk
-    )
     cu_strided, block_tables = self._get_trtllm_sparse_tables(
         batch, pages_per_row, page, device
     )
@@ -655,26 +718,57 @@ def _forward_trtllm_sparse(
         k_buffer.device,
     )
     k_scale, v_scale = self._kv_descales(layer, k_buffer.dtype)
-    qwen_sparse_kv_extraction_compact_triton(
-        k_buffer,
-        v_buffer,
-        self.req_to_token_pool.req_to_token,
-        (
-            metadata.row_req_pool_indices
-            if metadata.row_req_pool_indices is not None
-            else forward_batch.req_pool_indices
-        ),
-        topk_indices,
-        sequence_lens,
-        cu_strided,
-        packed_k,
-        packed_v,
-        batch,
-        topk,
-        k_scale=k_scale,
-        v_scale=v_scale,
-        zero_fill_cols=stride,
-    )
+    if new_kv is not None:
+        k, v, loc, width = new_kv
+        row_requests = metadata.row_req_pool_indices
+        if row_requests is None:
+            row_requests = forward_batch.req_pool_indices
+        fused_kv_prepare(
+            k_buffer,
+            v_buffer,
+            k,
+            v,
+            loc,
+            self.req_to_token_pool.req_to_token,
+            row_requests,
+            topk_indices,
+            sequence_lens,
+            valid_counts,
+            packed_k[: batch * stride],
+            packed_v[: batch * stride],
+            width,
+            compress_ratio=compress_ratio,
+            chain_positions=True,
+            query_positions=(
+                metadata.indexer_metadata.decode_logical_positions
+                if compress_ratio > 1
+                else None
+            ),
+        )
+    else:
+        qwen_sparse_valid_counts_triton(
+            sequence_lens, topk_indices, valid_counts, batch, topk
+        )
+        qwen_sparse_kv_extraction_compact_triton(
+            k_buffer,
+            v_buffer,
+            self.req_to_token_pool.req_to_token,
+            (
+                metadata.row_req_pool_indices
+                if metadata.row_req_pool_indices is not None
+                else forward_batch.req_pool_indices
+            ),
+            topk_indices,
+            sequence_lens,
+            cu_strided,
+            packed_k,
+            packed_v,
+            batch,
+            topk,
+            k_scale=k_scale,
+            v_scale=v_scale,
+            zero_fill_cols=stride,
+        )
     num_kv_heads = k_buffer.shape[1]
     head_dim = k_buffer.shape[2]
     kc = (
@@ -691,6 +785,18 @@ def _forward_trtllm_sparse(
         self._trtllm_workspace = torch.zeros(
             128 * 1024 * 1024, dtype=torch.uint8, device=device
         )
+    from flashinfer.utils import get_trtllm_gen_multi_ctas_kv_counter_bytes
+
+    key = (batch, q.shape[1], device)
+    if key not in self._trtllm_counters:
+        size = get_trtllm_gen_multi_ctas_kv_counter_bytes(
+            batch,
+            q.shape[1],
+            torch.cuda.get_device_properties(device).multi_processor_count,
+        )
+        self._trtllm_counters[key] = torch.zeros(
+            size, dtype=torch.uint8, device=device
+        )
     output = trtllm_decode(
         query=q.contiguous(),
         kv_cache=(kc, vc),
@@ -700,6 +806,7 @@ def _forward_trtllm_sparse(
         max_seq_len=stride,
         bmm1_scale=layer.scaling,
         bmm2_scale=1.0,
+        multi_ctas_kv_counter_buffer=self._trtllm_counters[key],
     )
     return output.reshape(q.shape[0], -1)
 
@@ -712,12 +819,15 @@ patch(
     depends=(
         f"{_BACKEND}._get_trtllm_sparse_tables",
         f"{_BACKEND}._get_fa2_scratch",
+        f"{_BACKEND}._uses_block_indices",
+        f"{_QSA}.fused_kv.fused_kv_prepare",
         f"{_SPARSE_ATTN}.qwen_sparse_valid_counts_triton",
     ),
     reason=(
-        "model_compat: FP8 KV descales for compact extraction. replace (89): "
-        "extra arguments in a mid-function call; the launcher is the plugin "
-        "copy (A09). " + _BACKEND_METHOD_SCOPE
+        "model_compat: FP8 KV descales for compact extraction (the gather "
+        "branch; the pin's fused #40972 branch is reached only with unit "
+        "descales, Q13). replace (135): extra arguments in a mid-function call; "
+        "the launcher is the plugin copy (A09). " + _BACKEND_METHOD_SCOPE
     ),
 )(_scoped_method("_forward_trtllm_sparse", _forward_trtllm_sparse))
 
@@ -739,10 +849,17 @@ def forward_decode(
     if topk_indices is None:
         raise ValueError("QSA sparse attention requires topk_indices")
     if save_kv_cache:
+        fused_output = self._try_fused_kv_attention(
+            q, k, v, layer, forward_batch, topk_indices
+        )
+        if fused_output is not None:
+            return fused_output
         self._store_kv(layer, forward_batch.out_cache_loc, k, v)
         if self.qsa_hisparse is not None:
-            if (getattr(self.qsa_hisparse, "graph_enabled", False)
-                    and self._resolve_metadata(forward_batch).is_cuda_graph):
+            if (
+                getattr(self.qsa_hisparse, "graph_enabled", False)
+                and self._resolve_metadata(forward_batch).is_cuda_graph
+            ):
                 self.qsa_hisparse.after_store(layer, graph=True)
             else:
                 self.qsa_hisparse.after_store(layer)
@@ -755,11 +872,13 @@ patch(
     "replace",
     feature=MODEL_COMPAT,
     row="Q11",
-    depends=(f"{_BACKEND}._resolve_metadata",),
+    depends=(f"{_BACKEND}._resolve_metadata", f"{_BACKEND}._try_fused_kv_attention"),
     reason=(
         "model_compat (both; rule 2): stores through _store_kv, then "
-        "qsa_hisparse.after_store. replace (23): after_store must follow the "
-        "store and precede paged attention. " + _BACKEND_METHOD_SCOPE
+        "qsa_hisparse.after_store. replace (30): after_store must follow the "
+        "store (after the pin's fused #40972 attempt, which the HiSparse "
+        "runtime disables, Q03) and precede paged attention. "
+        + _BACKEND_METHOD_SCOPE
     ),
 )(_scoped_method("forward_decode", forward_decode))
 
@@ -777,13 +896,20 @@ def _forward_paged_attention(
     pool = self.token_to_kv_pool
     k_buffer = pool.get_key_buffer(layer.layer_id)
     v_buffer = pool.get_value_buffer(layer.layer_id)
+    metadata = self._resolve_metadata(forward_batch)
+    topk_indices = self._expand_block_indices(topk_indices, metadata)
     if not q.is_cuda:
-        metadata = self._resolve_metadata(forward_batch)
         slots = self._logical_to_physical(topk_indices, metadata)
-        output = qsa_sparse_attention(q, k_buffer, v_buffer, slots, layer.scaling)
+        output = qsa_sparse_attention(
+            q,
+            k_buffer,
+            v_buffer,
+            slots,
+            layer.scaling,
+            **self._kv_descale_kwargs(layer, k_buffer),
+        )
         return output.reshape(q.shape[0], -1)
 
-    metadata = self._resolve_metadata(forward_batch)
     topk_indices = topk_indices.to(torch.int32).contiguous()
     req_table = self.req_to_token_pool.req_to_token
     row_req_indices = (
@@ -792,12 +918,19 @@ def _forward_paged_attention(
         else forward_batch.req_pool_indices
     )
     if self.qsa_hisparse is not None and self.qsa_hisparse.offloaded:
-        graph_args = ({"graph": True} if metadata.is_cuda_graph and
-                      getattr(self.qsa_hisparse, "graph_enabled", False) else {})
+        graph_args = (
+            {"graph": True}
+            if metadata.is_cuda_graph
+            and getattr(self.qsa_hisparse, "graph_enabled", False)
+            else {}
+        )
         k_buffer, v_buffer, req_table, row_req_indices = self.qsa_hisparse.selected(
-            layer, topk_indices, **graph_args)
+            layer, topk_indices, **graph_args
+        )
     # Both V3 arms use the same FA2 decode implementation.
-    trtllm_decode = None if self.qsa_hisparse is not None else _resolve_trtllm_sparse_decode()
+    trtllm_decode = (
+        None if self.qsa_hisparse is not None else _resolve_trtllm_sparse_decode()
+    )
     if trtllm_decode is not None:
         return self._forward_trtllm_sparse(
             q,
@@ -821,8 +954,12 @@ def _forward_paged_attention(
                 raise RuntimeError("QSA CUDA graph FA2 metadata is incomplete")
         else:
             valid_counts = torch.empty(batch, dtype=torch.int32, device=q.device)
-            cu_seqlens_k = torch.empty(batch + 1, dtype=torch.int32, device=q.device)
-            cu_seqlens_q = torch.arange(batch + 1, dtype=torch.int32, device=q.device)
+            cu_seqlens_k = torch.empty(
+                batch + 1, dtype=torch.int32, device=q.device
+            )
+            cu_seqlens_q = torch.arange(
+                batch + 1, dtype=torch.int32, device=q.device
+            )
         qwen_sparse_fa2_cu_seqlens_triton(
             sequence_lens,
             topk_indices,
@@ -836,7 +973,9 @@ def _forward_paged_attention(
             if metadata.is_cuda_graph
             else batch * topk
         )
-        scratch_dtype = q.dtype if is_fp8_kv_dtype(k_buffer.dtype) else k_buffer.dtype
+        scratch_dtype = (
+            q.dtype if is_fp8_kv_dtype(k_buffer.dtype) else k_buffer.dtype
+        )
         packed_k, packed_v = self._get_fa2_scratch(
             scratch_capacity,
             k_buffer.shape[1],
@@ -861,28 +1000,25 @@ def _forward_paged_attention(
             k_scale=k_scale,
             v_scale=v_scale,
         )
-    if is_hip():
-        relative_indices = torch.arange(
-            topk, dtype=torch.int32, device=q.device
-        ).expand(batch, -1)
-        relative_indices = relative_indices.masked_fill(
-            relative_indices >= valid_counts[:, None], -1
-        ).contiguous()
-        output = sparse_gqa_packed_decode_triton(
-            q.contiguous(),
-            packed_k,
-            packed_v,
-            relative_indices,
-            cu_seqlens_q,
-            cu_seqlens_k,
-            valid_counts,
-            layer.scaling,
-        )
-        return output.reshape(q.shape[0], -1)
-
-    flash_attn_varlen_func = _resolve_flash_attn_varlen_func()
     with operations_nvtx_range("qsa.fa2_attention"):
-        if self._can_run_fa2_graph(
+        if is_hip():
+            relative_indices = torch.arange(
+                topk, dtype=torch.int32, device=q.device
+            ).expand(batch, -1)
+            relative_indices = relative_indices.masked_fill(
+                relative_indices >= valid_counts[:, None], -1
+            ).contiguous()
+            output = sparse_gqa_packed_decode_triton(
+                q.contiguous(),
+                packed_k,
+                packed_v,
+                relative_indices,
+                cu_seqlens_q,
+                cu_seqlens_k,
+                valid_counts,
+                layer.scaling,
+            )
+        elif self._can_run_fa2_graph(
             q, k_buffer, layer, forward_batch, metadata, topk
         ):
             batch = q.shape[0]
@@ -893,6 +1029,7 @@ def _forward_paged_attention(
                 q.contiguous(), packed_k[: batch * topk], packed_v[: batch * topk]
             )
         else:
+            flash_attn_varlen_func = _resolve_flash_attn_varlen_func()
             output = flash_attn_varlen_func(
                 q=q,
                 k=packed_k,
@@ -906,9 +1043,19 @@ def _forward_paged_attention(
             )
     if self.qsa_hisparse is not None:
         self.qsa_hisparse.capture_decode(
-            layer, q, packed_k, packed_v, topk_indices, output, k_scale, v_scale,
-            valid_counts, cu_seqlens_q, cu_seqlens_k,
+            layer,
+            q,
+            packed_k,
+            packed_v,
+            topk_indices,
+            output,
+            k_scale,
+            v_scale,
+            valid_counts,
+            cu_seqlens_q,
+            cu_seqlens_k,
         )
+
     return output.reshape(q.shape[0], -1)
 
 
@@ -920,26 +1067,69 @@ patch(
     depends=(
         f"{_BACKEND_MODULE}._resolve_trtllm_sparse_decode",
         f"{_SPARSE_ATTN}.qwen_sparse_fa2_cu_seqlens_triton",
+        f"{_BACKEND}._expand_block_indices",
         f"{_BACKEND}._get_fa2_scratch",
         f"{_BACKEND}._logical_to_physical",
         f"{_BACKEND}._resolve_metadata",
-        f"{_QSA}.kernel.qsa_sparse_attention",
-        f"{_SPARSE_ATTN}.sparse_gqa_packed_decode_triton",
         "sglang.srt.utils.common.is_hip",
         "sglang.srt.utils.nvtx_utils.profile_range",
     ),
     reason=(
         "model_compat (both; rule 2): qsa_hisparse.selected buffers, trtllm "
-        "disabled under HiSparse, NVTX ranges, FP8 scratch dtype and descales, "
-        "FA2 graph wrapper, capture_decode. replace (143). Uses the plugin "
-        "Q01 resolver, A09 launcher and A01 is_fp8_kv_dtype. Copy: the pinned "
-        "method plus the fork's change, merged by hand because v0.5.21's ROCm "
-        "branch (pinned packed decode after extraction, flash-attention "
-        "resolved after it) lands inside the fork's NVTX-range rewrite "
-        "(RESOLVED in tests/regression/test_replace_deltas.py). "
+        "disabled under HiSparse, NVTX ranges, FP8 scratch dtype and descales "
+        "(also on the reference read, production bdb935d70f), FA2 graph "
+        "wrapper, capture_decode. replace (171). Uses the plugin Q01 resolver, "
+        "A09 launcher, A11 packed decode, A12 reference and A01 "
+        "is_fp8_kv_dtype. Copy: the reference's definition (production merged "
+        "the pin's ROCm branch into its qsa.fa2_attention range). "
         + _BACKEND_METHOD_SCOPE
     ),
 )(_scoped_method("_forward_paged_attention", _forward_paged_attention))
+
+
+# Q13: no fused #40972 KV path with non-unit FP8 descales ----------------------
+
+
+@patch(
+    f"{_BACKEND}._try_fused_kv_attention",
+    "around",
+    feature=MODEL_COMPAT,
+    row="Q13",
+    depends=(
+        f"{_BACKEND}._supports_fused_kv_pool",
+        "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool.get_key_buffer",
+    ),
+    reason=(
+        "model_compat: the pin's fused KV prepare stores cast_fp8(x) without the "
+        "write divide and packs cached FP8 without the read scale, so the "
+        "reference (production merge 80dc48ddfc) returns None, i.e. keeps the "
+        "descaling store and gather path, when the K buffer is FP8 and the "
+        "layer's descales are not unit. around: the reference evaluates that "
+        "guard after side-effect-free checks that only return None, so "
+        "returning None first gives the same result; it is evaluated under the "
+        "reference's first preconditions (eligible pool, CUDA q, K/V present, "
+        "decode or target-verify), where every caller (Q08, Q11) reads the "
+        "same layer's K buffer in _forward_paged_attention when this returns "
+        "None, so the only side effect of get_key_buffer (HiCache's per-layer "
+        "load wait) happens in the same layer step, only earlier. "
+        + _BACKEND_METHOD_SCOPE
+    ),
+)
+def _no_fused_kv_with_fp8_descales(original, self, q, k, v, layer, forward_batch, indices):
+    if (
+        self._fused_kv_pool_eligible
+        and q.is_cuda
+        and k is not None
+        and v is not None
+        and _in_scope(self)
+    ):
+        mode = forward_batch.forward_mode
+        if mode.is_decode() or mode.is_target_verify():
+            # Reference qwen_sparse_attn_backend.py:1526-1531.
+            kv_dtype = self.token_to_kv_pool.get_key_buffer(layer.layer_id).dtype
+            if self._kv_descales(layer, kv_dtype) != (1.0, 1.0):
+                return None
+    return original(self, q, k, v, layer, forward_batch, indices)
 
 
 # T02: deterministic stable top-k ---------------------------------------------
@@ -980,7 +1170,7 @@ def _qsa_fast_topk(original, logits, row_starts, row_ends, topk, deterministic=N
         deterministic = _deterministic_inference()
     if not deterministic or not scope.target_model_active():
         return original(logits, row_starts, row_ends, topk)
-    # Fork qsa/kernel.py:87-90.
+    # Reference qsa/kernel.py:87-90.
     lengths = (row_ends - row_starts).to(device=logits.device, dtype=torch.int32)
     starts = row_starts.to(device=logits.device, dtype=torch.int32)
     return _qsa_stable_topk(logits, starts, lengths, topk)
@@ -998,6 +1188,7 @@ def select_decode_tokens(
     max_model_len: int,
     query_positions: torch.Tensor,
     sequence_lengths: torch.Tensor,
+    defer_expansion: bool = False,
 ) -> torch.Tensor:
     logits = qsa_mqa_decode(
         q,
@@ -1030,6 +1221,8 @@ def select_decode_tokens(
             topk=self.block_topk,
             deterministic=deterministic,
         )
+    if defer_expansion:
+        return block_indices
     return expand_qsa_block_indices(
         block_indices,
         query_positions,
@@ -1054,12 +1247,48 @@ patch(
     reason=(
         "model_compat: deterministic decode skips the JIT fast_topk and passes "
         "the flag to qsa_fast_topk (rebound to the T02 hook at activation). "
-        "replace (48): mid-function branch predicate. Copy: the pinned method "
-        "(fast_topk now imported from sglang.kernels.ops.attention) plus the "
-        "fork's change. Per-layer indexer code without a backend reference: "
+        "replace (51): mid-function branch predicate. Copy: the reference's "
+        "definition (the pin's defer_expansion plus the fork's change); its "
+        "inline fast_topk import reads the module attribute, the T05 hook. "
+        "Per-layer indexer code without a backend reference: "
         + _FUNCTION_SCOPE
     ),
 )(_scoped_function(_indexer.QSAIndexer.__dict__["select_decode_tokens"], select_decode_tokens))
+
+
+# T05: fast_topk keeps every candidate on radix overflow ----------------------
+
+
+@patch(
+    f"{_FAST_TOPK}.fast_topk",
+    "around",
+    feature=MODEL_COMPAT,
+    row="T05",
+    depends=(
+        f"{_FAST_TOPK}._jit_fast_topk_module",
+        "sglang.kernels.jit.utils.arch.is_arch_support_pdl",
+        "sglang.kernels.jit.utils.compile.loader.load_jit",
+        "sglang.kernels.jit.utils.compile.spec.resolve_sources",
+        "sglang.kernels.jit.utils.compile.cpp_args.make_cpp_args",
+        "sglang.kernels.jit.utils.common.cache_once",
+    ),
+    reason=(
+        "model_compat: the reference's fast_topk.cuh (production 773f3c2d84, "
+        "fork PR #6) refines from a full-row rescan when a threshold bin "
+        "overflows the 4K candidate stage instead of dropping candidates. The "
+        "kernel source is moved/owned (kernels/csrc/fast_topk, byte-identical) "
+        "and compiled by the plugin copy of the unchanged op wrapper "
+        "(kernels/fast_topk.py: own JIT module name and export). around: in "
+        "scope every call goes to the plugin wrapper, so the in-tree module is "
+        "never built or loaded there; out of scope the original runs. Callers "
+        "(the T03 copy and the pinned qsa_fast_topk) import the module "
+        "attribute at call time. " + _FUNCTION_SCOPE
+    ),
+)
+def _fast_topk_keeps_overflow_candidates(original, *args, **kwargs):
+    if scope.target_model_active():
+        return _plugin_fast_topk.fast_topk(*args, **kwargs)
+    return original(*args, **kwargs)
 
 
 # T04: QSAIndexerMetadata.decode_score_width ------------------------------------
@@ -1150,6 +1379,9 @@ patch(
 
 
 # A03/A05/A09: FP8-aware sparse GQA launchers ----------------------------------
+# A11 (packed decode on the A04 kernel) and A12 (torch reference with FP8
+# descales) need no hook: their only pinned callers are the Q12 and Q08/Q12
+# targets, whose in-scope copies bind the plugin copies above (imports).
 
 _KERNEL_REASON = (
     "model_compat: K/V dtype validation, FP8 scales and the plugin kernel "

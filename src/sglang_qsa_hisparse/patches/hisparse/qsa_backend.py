@@ -2,7 +2,9 @@
 
 The attention bodies that consume ``self.qsa_hisparse`` are model_compat
 REPLACE copies (``patches/model_compat/qsa_attention.py``, rule 2); this
-feature only builds the runtime and adds before/after hooks.
+feature only builds the runtime, keeps the pin's fused #40972 KV path off
+while it is attached (the reference's ``_fused_kv_eligible``), and adds
+before/after hooks.
 """
 
 import os
@@ -11,9 +13,45 @@ from sglang_qsa_hisparse import scope
 from sglang_qsa_hisparse.errors import PluginActivationError
 from sglang_qsa_hisparse.features import HISPARSE
 from sglang_qsa_hisparse.hisparse.depends import RUNTIME_DEPENDS
-from sglang_qsa_hisparse.patching import patch
+from sglang_qsa_hisparse.patching import attach_value, patch
 
 _BACKEND = "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend"
+
+
+def _fused_kv_eligible(self) -> bool:
+    """Whether the fused #40972 KV fast path may own this pool.
+
+    It writes the row and packs the sparse selection in one kernel, which
+    would bypass the QSA offload contract (write_locations, after_store,
+    selected, lease-aware packing) that our ChunkCache/host-prefix runtime
+    depends on.
+    """
+    return self.qsa_hisparse is None and self._supports_fused_kv_pool(
+        self.token_to_kv_pool
+    )
+
+
+_Q03_DEPENDS = tuple(RUNTIME_DEPENDS) + (
+    f"{_BACKEND}._supports_fused_kv_pool",
+    f"{_BACKEND}._can_defer_block_expansion",
+)
+attach_value(
+    _BACKEND,
+    "_fused_kv_eligible",
+    _fused_kv_eligible,
+    feature=HISPARSE,
+    row="Q03",
+    depends=_Q03_DEPENDS,
+    reason=(
+        "hisparse: member added by the reference (production merge "
+        "80dc48ddfc); with no runtime it equals the pin's "
+        "_supports_fused_kv_pool(token_to_kv_pool). Called by the Q03 hook; "
+        "the reference's other call (the late pool binding in "
+        "_capture_cuda_graph_metadata) is reached only without a runtime "
+        "(attaching one needs the pool at construction), where the pin's "
+        "expression is equal, so it needs no hook."
+    ),
+)
 
 
 @patch(
@@ -21,14 +59,18 @@ _BACKEND = "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnB
     "after",
     feature=HISPARSE,
     row="Q03",
-    depends=tuple(RUNTIME_DEPENDS),
+    depends=_Q03_DEPENDS,
     reason=(
-        "hisparse: env-gated (SGLANG_QSA_HISPARSE_V3). after: the fork's block "
-        "is followed only by plain None assignments. Fork lines 247-257 with the "
-        "runtime imports rewritten to sglang_qsa_hisparse.hisparse; the fork's "
-        "preceding qsa_hisparse = None is the model_compat Q02 hook, which sets "
-        "it only when absent, so hook order is irrelevant (section 2, C3). "
-        "Plugin addition: rejects a non-target model (unsupported combination)."
+        "hisparse: env-gated (SGLANG_QSA_HISPARSE_V3). after: the reference's "
+        "block is followed only by plain assignments that nothing in __init__ "
+        "reads. Reference lines 282-299 with the runtime imports rewritten to "
+        "sglang_qsa_hisparse.hisparse; the preceding qsa_hisparse = None is the "
+        "model_compat Q02 hook, which sets it only when absent, so hook order is "
+        "irrelevant (section 2, C3). The reference computes "
+        "_fused_kv_pool_eligible after attaching the runtime (moved down from "
+        "the pin's first lines); with a runtime the hook recomputes it, "
+        "otherwise the pin's value is the reference's. Plugin addition: "
+        "rejects a non-target model (unsupported combination)."
     ),
 )
 def _attach_hisparse_runtime(result, self, runner=None):
@@ -50,6 +92,11 @@ def _attach_hisparse_runtime(result, self, runner=None):
         else:
             self.qsa_hisparse = QSAHiSparseSingleRequest(runner, mode)
         self.token_to_kv_pool.qsa_hisparse = self.qsa_hisparse
+        # The fused #40972 write/pack path owns the KV row and the deferred
+        # block expansion; the QSA offload runtime owns both instead
+        # (write_locations/after_store/selected and the FP8 descales), so it
+        # stays off whenever the runtime is live.
+        self._fused_kv_pool_eligible = self._fused_kv_eligible()
 
 
 @patch(

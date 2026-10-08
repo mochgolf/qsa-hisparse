@@ -51,7 +51,18 @@ OVERRIDES = {
         # The fork renamed the original body to PrefillAdder._add_one_req.
         "attach": [{"owner": "sglang.srt.managers.schedule_policy.PrefillAdder", "name": "_add_one_req"}],
     },
-    "Q04": {"attach": [{"owner": BACKEND, "name": "_kv_descales"}, {"owner": BACKEND, "name": "_store_kv"}]},
+    # The runtime turns the pin's fused #40972 KV path off (reference _fused_kv_eligible).
+    "Q03": {
+        "patches": [{"target": f"{BACKEND}.__init__", "hook_type": "after"}],
+        "attach": [{"owner": BACKEND, "name": "_fused_kv_eligible"}],
+    },
+    "Q04": {
+        "attach": [
+            {"owner": BACKEND, "name": "_kv_descales"},
+            {"owner": BACKEND, "name": "_kv_descale_kwargs"},
+            {"owner": BACKEND, "name": "_store_kv"},
+        ]
+    },
     "Q09": {
         "attach": [
             {"owner": BACKEND, "name": "_qsa_local_head_shape"},

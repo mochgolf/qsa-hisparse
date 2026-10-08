@@ -5,10 +5,9 @@ logical indices at ties, emit ascending logical indices and then -1 padding.
 The Python sorting oracle does not call Torch/FlashInfer top-k or argsort.
 Actual CUDA sort and graph evidence comes from the separate GPU probe.
 
-Plugin port: the stable top-k and the flag lookup live in plugin modules
-(inventory T01-T03), so mocks name them there; the JIT ``fast_topk`` moved to
-``sglang.kernels.ops.attention`` at v0.5.21, so mocks name it there;
-assertions are unchanged except where noted.
+Plugin port of the reference's file (production 897286b12a): the stable
+top-k and the flag lookup live in plugin modules (inventory T01-T03), so mocks
+name them there; assertions are unchanged except where noted.
 """
 
 import sys
