@@ -171,12 +171,13 @@ def judge_vit(kind, record, ranks, cache_off):
     return failures
 
 
-def judge_restores(row, cached, rows):
-    """Per rank, the restore lengths of each request's rid: [cached] for a warm
-    hit, [] otherwise (a restore of another request never counts)."""
-    ranks = sorted({r["rank"] for r in rows})
-    if not ranks:
+def judge_restores(row, cached, rows, tp_size):
+    """On every configured TP rank, the restore lengths of each request's rid:
+    [cached] for a warm hit, [] otherwise (a restore of another request never
+    counts; ranks are the configured ones, not those present in the log)."""
+    if not rows:
         return ["the checkpoint observer log holds no records"]
+    ranks = list(range(tp_size))
     failures = []
     for kind, length in (("cold", 0), ("seed", 0), ("warm", cached)):
         record, expected = row[kind], [length] if length else []
@@ -231,7 +232,7 @@ def judge(case, row):
     return failures
 
 
-def run_case(url, fixtures, case, salt, vit_log, cache_off, observer_log):
+def run_case(url, fixtures, case, salt, vit_log, cache_off, observer_log, tp_size):
     row = {"name": case["name"], "cached": case["cached"], "hit_inside": case["hit_inside"]}
     start = case.get("logprob_start_len", -1)
     try:
@@ -240,11 +241,11 @@ def run_case(url, fixtures, case, salt, vit_log, cache_off, observer_log):
         row["warm"] = image_request(url, fixtures, case["prompt"], f"{salt}-warm", start)
         failures = judge(case, row)
         if observer_log is not None:
-            failures += judge_restores(row, case["cached"], log_rows(observer_log))
+            failures += judge_restores(row, case["cached"], log_rows(observer_log), tp_size)
         if vit_log is not None:
             rows = log_rows(vit_log)
-            ranks = {str(r["rank"]) for r in rows}
-            if not ranks:
+            ranks = {str(rank) for rank in range(tp_size)}
+            if not rows:
                 failures.append("the ViT log holds no records")
             for kind in ("cold", "seed", "warm"):
                 attach_vit(row[kind], rows)
@@ -351,6 +352,7 @@ def parse(argv):
     parser.add_argument("--vit-log", type=Path)
     parser.add_argument("--vit-cache-off", action="store_true")
     parser.add_argument("--observer-log", type=Path)
+    parser.add_argument("--tp-size", type=int, help="required with --observer-log or --vit-log")
     parser.add_argument("--text-fixtures", type=Path)
     parser.add_argument("--text-reference", type=Path)
     parser.add_argument("--text-max-prefix", type=int, default=TEXT_MAX_PREFIX)
@@ -364,6 +366,8 @@ def parse(argv):
 
 def main(argv=None):
     args = parse(argv)
+    if (args.observer_log or args.vit_log) and not args.tp_size:
+        raise SystemExit("--tp-size is required with --observer-log or --vit-log")
     data = args.fixtures.read_bytes()
     fixtures = json.loads(data)
     text = args.text_fixtures and load_text(args.text_fixtures, args.text_reference, args.text_max_prefix)
@@ -380,7 +384,7 @@ def main(argv=None):
     for index, case in enumerate(fixtures["cases"]):
         row = run_case(
             args.url, fixtures, case, f"{namespace}-{index}",
-            args.vit_log, args.vit_cache_off, args.observer_log,
+            args.vit_log, args.vit_cache_off, args.observer_log, args.tp_size,
         )  # fmt: skip
         report["cases"].append(row)
         write_json(args.output, report)

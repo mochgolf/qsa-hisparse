@@ -230,3 +230,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 - G3-I re-check: original findings resolved; two harness gaps (a page64 hit
   that is not a multiple of 2048; per-request image restore evidence) sent to
   I-C before the window.
+- G3-I (CPU) closed by the orchestrator after two re-checks (`reviews/G3I-response.md`):
+  image fixtures sha `59f72d85…` (10 cases), per-request restores on every
+  configured TP rank. Window 2 next: I5 (`results/plugin-window2-20261008/`),
+  then U6a/U6b/U8 upstream GPU checks.

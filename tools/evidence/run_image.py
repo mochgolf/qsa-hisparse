@@ -88,6 +88,7 @@ def session(base, output, vlm_cache_mb, harness_args):
         status = image_prefix_harness.main(
             ["--url", url, *harness_args, "--vit-log", str(output / "vit"),
              "--observer-log", str(output / "observer"),
+             "--tp-size", option(command, "--tp-size"),
              "--output", str(output / "image-prefix.json")]
         )  # fmt: skip
     finally:

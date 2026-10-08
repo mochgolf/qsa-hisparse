@@ -247,7 +247,7 @@ def run(evidence, inputs, tmp_path, model, *extra):
     model.vit_dir.mkdir()
     model.observer_dir.mkdir()
     args = ["--fixtures", str(images), "--output", str(output), "--vit-log", str(model.vit_dir),
-            "--observer-log", str(model.observer_dir),
+            "--observer-log", str(model.observer_dir), "--tp-size", "2",
             "--text-fixtures", str(text), "--text-reference", str(reference), *extra]  # fmt: skip
     if model.cache_off:
         args.append("--vit-cache-off")
@@ -373,3 +373,25 @@ def test_text_inputs_must_be_the_references_fixtures(evidence, inputs, tmp_path)
     with pytest.raises(SystemExit, match="missing from the reference"):
         harness.load_text(text, reference, 16384)
     assert len(harness.load_text(text, reference, 8192)) == 6
+
+
+def test_restores_are_required_on_every_configured_rank(evidence):
+    """G3-I re-check: ranks come from --tp-size, not from records present."""
+    harness = evidence("image_prefix_harness")
+    row = {kind: {"id": f"rid-{kind}"} for kind in ("cold", "seed", "warm")}
+    rows = [
+        {"event": "restore", "rank": 0, "rid": "rid-warm", "tokens": 4096},
+        # Rank 1 holds only another request's (e.g. a text control's) restore.
+        {"event": "restore", "rank": 1, "rid": "text-control", "tokens": 4096},
+    ]
+    failures = harness.judge_restores(row, 4096, rows, 2)
+    assert failures == ["warm: rank 1 restored [], expected [4096]"]
+    rows.append({"event": "restore", "rank": 1, "rid": "rid-warm", "tokens": 4096})
+    assert harness.judge_restores(row, 4096, rows, 2) == []
+
+
+def test_tp_size_is_required_with_observer_logs(evidence, tmp_path):
+    harness = evidence("image_prefix_harness")
+    with pytest.raises(SystemExit, match="--tp-size"):
+        harness.main(["--url", "http://127.0.0.1:9", "--fixtures", str(tmp_path / "f.json"),
+                      "--output", str(tmp_path / "o.json"), "--observer-log", str(tmp_path)])
