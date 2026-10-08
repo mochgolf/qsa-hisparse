@@ -30,7 +30,7 @@ from sglang.srt.model_executor.runner.shape_key import ShapeKey
 from sglang.srt.model_executor.runner_backend.full_cuda_graph_backend import (
     FullCudaGraphBackend,
 )
-from sglang.srt.runtime_context import get_context
+from sglang.srt.runtime_context import get_context, get_parallel
 from sglang_qsa_hisparse.hisparse.coordinator import QSAHiSparseCoordinator
 from sglang_qsa_hisparse.patches.hisparse import graph
 
@@ -435,7 +435,6 @@ def _runner_with_pool(runtime):
     runner.token_to_kv_pool = SimpleNamespace()
     if runtime is not None:
         runner.token_to_kv_pool.qsa_hisparse = runtime
-    runner.tp_group = SimpleNamespace(cpu_group="tp cpu group")
     runner.hisparse_coordinator = None
     return runner
 
@@ -445,7 +444,9 @@ def test_coordinator_follows_attention_backends(events, stub_init_attention_back
         uses_qsa_hisparse_leases=True, max_requests=2, mode="p2-offload", real="real rows"
     )
     runner = _runner_with_pool(adapter)
-    with activated("R01"):
+    # Production passes the live TP CPU group (the pin's ModelRunner has no tp_group).
+    tp_group = SimpleNamespace(cpu_group="tp cpu group")
+    with activated("R01"), get_parallel().override(tp_group=tp_group):
         runner.init_attention_backends()
     assert events.names == ["init_attention_backends"]
     coordinator = runner.hisparse_coordinator
