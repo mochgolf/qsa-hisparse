@@ -309,3 +309,5 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   A11/A12, Q13, U02–U04, M05/M06, R01). REPLACE 31 → 32 (M06). CPU suite on
   the production interpreter passes (686 + 4 + 26), 390 fingerprints.
   Next: G5-CPU review.
+- G5-CPU review: no findings, cleared (`reviews/G5CPU.md`). Next: G5-GPU
+  window (owner approval).
