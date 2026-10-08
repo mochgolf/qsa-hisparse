@@ -41,7 +41,7 @@ SELFTEST = {
     ),
     "ST5": ("sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.fused_marlin_moe", "around"),
     "ST6": ("sglang.srt.layers.hyperconnection.GatedResidual.mix", "after"),
-    "ST7": ("sglang.srt.layers.hc_mix_triton.fused_hc_mix_supported", "after"),
+    "ST7": ("sglang.kernels.ops.gemm.hc_mix.fused_hc_mix_supported", "after"),
 }
 # Stand-ins that must be reported (they ignore the scope).
 SELFTEST_NON_DELEGATING = ("ST2", "ST7")
