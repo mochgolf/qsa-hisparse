@@ -157,3 +157,10 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   premature (upstream #42923/#43023 rewriting match/load-back); design doc
   only. Pending owner decision after Phase 2: drop S06 by requiring
   `--prefill-max-requests 1` in the launcher (would be deviation D4).
+- I-B done (branch `worktree-agent-abe5dca0d700d6dac`, `a53192c`): the pin
+  already embeds suffixes, M-RoPE and PLE history correctly at in-image
+  boundaries; only `_namespace` admits supported image requests; 18 tests.
+  I5 GPU evidence must include a per-image ViT cache-miss case (ViT batch
+  invariance is unverified).
+- G2-2 fork arm (run2) passed all four harnesses; observer 1,445 captures
+  and 60 restores per rank.
