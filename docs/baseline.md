@@ -411,8 +411,8 @@ builds as in the Phase 2 window.
   (8a runs with `--runxfail`; 91 IDs collected on CPU
   from production's four files, plus the SM121 skip; production adds the FP8
   descale and decode-width tests and parametrizes the graph metadata tests).
-  P's `tests/qsa/test_qsa.py` must collect production's `test_qsa.py` IDs
-  (P5-C's port); check with `--collect-only` after merging.
+  P's 8a/8b files collect the same 92 IDs (`--collect-only` on CPU after
+  merging P5-C's `tests/qsa/test_qsa.py` port, 2026-10-08).
 - **G2-2** (steps 9-15): `run_g2.py` and `run_compat.py` as in Phase 2 with
   `service/candidate-acceptance.json` (deterministic profile, validation
   weights); F is production's `python/` tree and its `test/manual` harnesses
