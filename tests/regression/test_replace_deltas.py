@@ -30,11 +30,32 @@ MANIFEST = REPO / "src" / "sglang_qsa_hisparse" / "manifest.json"
 # row: (patch module under patches/, qualname of the copy in it, mechanical
 #       edits as (fork text, plugin text) including any rename of the copy
 #       [, the target's module file at the fork if upstream moved it])
-COPIES: dict[str, tuple] = {}
+COPIES: dict[str, tuple] = {
+    "B02": ("hisparse/scheduler.py", "process_batch_result_prebuilt", ()),
+    "B03": ("hisparse/scheduler.py", "process_batch_result_prefill", ()),
+    "B04": ("hisparse/scheduler.py", "_handle_sampling_mask_abort", ()),
+    "B05": ("hisparse/scheduler.py", "_handle_finish_state_updated_req", ()),
+    "M01": ("hisparse/lifecycle.py", "alloc_for_extend", ()),
+    "M03": ("hisparse/lifecycle.py", "release_kv_cache", ()),
+    "P02": ("hisparse/scheduler.py", "add_one_req", ()),
+    "S04": ("hisparse/scheduler.py", "get_next_batch_to_run", ()),
+    "S06": ("hisparse/scheduler.py", "_get_new_batch_prefill_raw", ()),
+    "S07": ("hisparse/scheduler.py", "on_idle", ()),
+}
 
 # row: why the copy differs from "pin + fork change" (an upstream edit overlaps
 # the fork's change and was merged by hand).
-RESOLVED: dict[str, str] = {}
+RESOLVED: dict[str, str] = {
+    "P02": (
+        "The fork split add_one_req into a new wrapper and the renamed original "
+        "body _add_one_req, so on the target qualname its change replaces the "
+        "whole body; the deleted side is the pinned body, which v0.5.21 edited "
+        "(per_req_token_overhead, has_chunked_req, KV-shard scratch). The "
+        "wrapper is the fork's, unchanged; _add_one_req is the pinned "
+        "add_one_req with the fork's ignore_eos edit, checked mechanically by "
+        "tests/lifecycle/test_renamed_copies.py."
+    ),
+}
 
 
 def replace_rows() -> dict[str, str]:

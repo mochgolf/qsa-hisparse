@@ -5,7 +5,10 @@ against the real paged allocator, request-row pool, chunk cache, QSA slots and
 the runtime's release methods. Independent spies append to one ledger, and
 each expected order is written out from the lifecycle contract: capture,
 runtime release (drain), logical free, row free, mark released, after_release,
-free-group end, after_logical_flush, physical slot reuse.
+free-group end, after_logical_flush, physical slot reuse. At v0.5.21 the
+logical free is the tree cache's ``free_kv_row`` (``cache_finished_req``
+before upstream split it), followed by ``on_release``, where
+``QSAHostPrefixCache`` drops a finished request's pending host-prefix match.
 """
 
 from types import SimpleNamespace
@@ -108,7 +111,8 @@ class World:
             cache.before_release = lambda req, is_insert: ledger.append(
                 ("before_release", is_insert)
             )
-        cache.cache_finished_req = spy(ledger, "cache_finished_req", cache.cache_finished_req)
+        cache.free_kv_row = spy(ledger, "free_kv_row", cache.free_kv_row)
+        cache.on_release = spy(ledger, "on_release", cache.on_release)
         pool.alloc = spy(ledger, "req_to_token_pool.alloc", pool.alloc)
         pool.free = spy(ledger, "req_to_token_pool.free", pool.free)
         allocator._release_page_ids = spy(
@@ -134,7 +138,9 @@ class World:
             cache_request_handle=CacheRequestHandle(rid, 1),
             full_untruncated_fill_ids=list(range(TOKENS + PAGE)),
             prefix_indices=torch.empty(0, dtype=torch.int64),
-            effective_kv_committed_len=lambda: kv.kv_committed_len,
+            owned_kv_len=lambda: kv.kv_committed_len,
+            skip_radix_cache_insert=False,
+            last_node=None,
             multimodal_inputs=None,
             return_routed_experts=False,
             finished=lambda: True,
@@ -221,7 +227,8 @@ def test_finish_releases_the_lease_after_the_free_group_flush():
         "prepare_for_kv_cache_release",
         ("before_release", True),
         "runtime.release",
-        "cache_finished_req",
+        "free_kv_row",
+        "on_release",
         *RELEASE_TAIL,
         *DEFERRED_FLUSH,
     ]
@@ -241,7 +248,8 @@ def test_sampling_mask_abort_skips_capture_and_defers_the_slot():
         "prepare_for_kv_cache_release",
         ("before_release", False),
         "runtime.release",
-        "cache_finished_req",
+        "free_kv_row",
+        "on_release",
         *RELEASE_TAIL,
         *DEFERRED_FLUSH,
     ]
@@ -257,8 +265,9 @@ def test_chunked_abort_outside_a_free_group_frees_pages_before_the_slot():
     assert world.events() == [
         ("before_release", False),
         "runtime.release",
-        "cache_finished_req",
+        "free_kv_row",
         "logical_pages_freed",
+        "on_release",
         *RELEASE_TAIL,
         "physical_slot_released",
     ]

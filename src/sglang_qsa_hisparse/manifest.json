@@ -314,7 +314,7 @@
       "patches": [
         {
           "target": "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.clear",
-          "hook_type": "replace"
+          "hook_type": "around"
         }
       ],
       "attach": []
@@ -324,7 +324,7 @@
       "patches": [
         {
           "target": "sglang.srt.managers.schedule_policy.PrefillAdder.add_chunked_req",
-          "hook_type": "replace"
+          "hook_type": "before"
         }
       ],
       "attach": []
@@ -516,7 +516,7 @@
       "patches": [
         {
           "target": "sglang.srt.managers.scheduler.Scheduler.init_hisparse_coordinator",
-          "hook_type": "replace"
+          "hook_type": "after"
         }
       ],
       "attach": []

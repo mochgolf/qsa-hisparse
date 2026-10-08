@@ -94,7 +94,7 @@ def test_plugin_off_keeps_pinned_definitions_and_upstream_tests_pass(w2):
     )
     assert result.returncode == 0, result.stdout[-3000:] + result.stderr[-3000:]
     assert "PROBLEMS []" in result.stdout
-    assert "10 passed" in result.stdout
+    assert "12 passed" in result.stdout  # The two pinned upstream files at v0.5.21.
 
 
 def _global_names(code):

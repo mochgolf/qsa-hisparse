@@ -1,11 +1,11 @@
 """Scheduler, batch-result and prefill-admission integration (inventory W2).
 
 Rows S01, S02, S04-S09, B02-B05, P01 and P02. B01 (an unused import) is a
-drop. REPLACE hooks are the fork's bodies copied verbatim (PLAN.md rule 3);
-they run with this module's globals, so every name they use is imported
-below from the pinned module that defines the target (inventory 6, G3).
-``release_kv_cache`` and the other patched callees are rebound to their
-patched versions by HookRegistry's propagation.
+drop. REPLACE hooks are the pinned bodies with the fork's change (PLAN.md
+rules 3 and P1); they run with this module's globals, so every name they use
+is imported below from the pinned module that defines the target (inventory
+6, G3). ``release_kv_cache`` and the other patched callees are rebound to
+their patched versions by HookRegistry's propagation.
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ from sglang.srt.managers.scheduler import (
     PrefillAdder,
     PrefillStats,
     ScheduleBatch,
+    envs,
     get_schedule,
     get_spec,
     scheduler_stage_method,
@@ -66,6 +67,38 @@ SAME_GATE = (
 )
 
 
+# Declared before S01, so the coordinator is adopted before the cache is wrapped
+# (the fork's order; neither hook reads the other's result).
+@patch(
+    f"{SCHEDULER}.init_hisparse_coordinator",
+    "after",
+    feature=HISPARSE,
+    row="S02",
+    depends=(
+        "sglang.srt.model_executor.model_runner.ModelRunner."
+        "maybe_init_hisparse_coordinator",
+    ),
+    reason=(
+        "hisparse: without a QSA kvcache adapter the fork's gate reduces to "
+        "`not enable_hisparse`. After hook (P3 narrowing of the fork's 9-line "
+        "replace): the original returns with hisparse_coordinator None exactly "
+        "when enable_hisparse is unset, and only then does the fork differ, by "
+        "adopting the runner's coordinator under QSA leases; the hook does that "
+        "with the fork's scheduler.py 1281, 1285-1287. The fork's None guard on "
+        "set_decode_producer_stream is unreachable with enable_hisparse set "
+        "(ModelRunner.maybe_init_hisparse_coordinator builds the coordinator "
+        "whenever enable_hisparse is set, R01 only swaps in another one, and "
+        "TpModelWorker.register_hisparse_coordinator has no callers)."
+    ),
+)
+def _adopt_qsa_coordinator(result, self):
+    qsa = getattr(self.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse", None)
+    if not self.enable_hisparse and getattr(qsa, "uses_qsa_hisparse_leases", False):
+        self.hisparse_coordinator = self.tp_worker.model_runner.hisparse_coordinator
+        if self.hisparse_coordinator is not None:
+            self.hisparse_coordinator.set_decode_producer_stream(self.forward_stream)
+
+
 @patch(
     f"{SCHEDULER}.init_hisparse_coordinator",
     "after",
@@ -78,9 +111,10 @@ SAME_GATE = (
     ),
     reason=(
         "hisparse: requires kvcache.qsa_hisparse.prefix_cache, which no upstream "
-        "kvcache has. After hook: Scheduler.__init__ (pin 629) is the only caller "
-        "and the fork inserts directly after that call; tree_cache is next "
-        "captured by init_batch_result_processor (pin 724). Fork scheduler.py "
+        "kvcache has. After hook: Scheduler.__init__ (pin 618) is the only caller "
+        "and the fork inserts directly after that call, so every later capture "
+        "of tree_cache (e.g. init_batch_result_processor, pin 713) sees the "
+        "wrapped cache in both. Fork scheduler.py "
         "630-645 verbatim; the QSAHostPrefixCache import is rewritten to the "
         "plugin package."
     ),
@@ -142,10 +176,11 @@ def _cap_allocatable_reqs(res, self, running_bs, beam_width=None, running_batch=
         + "After hook: the original is a conjunction of side-effect-free terms "
         "and QSAHiSparseCoordinator.has_ongoing_staging is pure, so the fork's "
         "extra term can be applied after return; with enable_hisparse set the "
-        "original already applies it. Fork scheduler.py 4905."
+        "original already applies it. v0.5.21 added ignore_waiting, which only "
+        "drops the waiting-queue term. Fork scheduler.py 4905."
     ),
 )
-def _wait_for_staging(idle, self, for_health_check=False):
+def _wait_for_staging(idle, self, for_health_check=False, ignore_waiting=False):
     if (
         not for_health_check
         and not self.enable_hisparse
@@ -175,36 +210,7 @@ def _add_staging_reqs(inflight, self):
     return inflight
 
 
-# Fork managers/scheduler.py:1279-1287, verbatim.
-@patch(
-    f"{SCHEDULER}.init_hisparse_coordinator",
-    "replace",
-    feature=HISPARSE,
-    row="S02",
-    depends=(
-        "sglang.srt.model_executor.model_runner.ModelRunner."
-        "maybe_init_hisparse_coordinator",
-    ),
-    reason=(
-        "hisparse: without a QSA kvcache adapter the new gate reduces to "
-        "`not enable_hisparse`, and the None guard is unreachable upstream "
-        "(ModelRunner.maybe_init_hisparse_coordinator builds the coordinator "
-        "whenever enable_hisparse is set). Replace: the early-return predicate "
-        "is mid-function. S01's after hook wraps this replacement (C7)."
-    ),
-)
-def init_hisparse_coordinator(self) -> None:
-    self.hisparse_coordinator: Optional[HiSparseCoordinator] = None
-    qsa = getattr(self.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse", None)
-    if not self.enable_hisparse and not getattr(qsa, "uses_qsa_hisparse_leases", False):
-        return
-    # Coordinator was created inside ModelRunner.initialize() before CUDA graph capture.
-    self.hisparse_coordinator = self.tp_worker.model_runner.hisparse_coordinator
-    if self.hisparse_coordinator is not None:
-        self.hisparse_coordinator.set_decode_producer_stream(self.forward_stream)
-
-
-# Fork managers/scheduler.py:3607-3754, verbatim.
+# Pinned Scheduler.get_next_batch_to_run with the fork's change (fork scheduler.py:3607-3754).
 @patch(
     f"{SCHEDULER}.get_next_batch_to_run",
     "replace",
@@ -250,13 +256,7 @@ def get_next_batch_to_run(
     if self.dllm_config is not None and self.dllm_manager.any_staging_reqs():
         chunked_req_to_exclude.update(self.dllm_manager.staging_queue)
         for req in self.dllm_manager.staging_queue:
-            if self.dllm_config.first_done_first_out_mode:
-                if not req.dllm_incomplete_ids:
-                    self.stash_chunked_request(req)
-                    self.req_to_token_pool.free(req)
-                # Otherwise, keep req slot/KV for reuse.
-            else:
-                self.stash_chunked_request(req)
+            self.finish_dllm_forward(req)
 
     if self.chunked_req is not None:
         # Move the chunked request out of the batch so that we can merge
@@ -335,6 +335,7 @@ def get_next_batch_to_run(
         need_mlp_sync
         and not self.spec_algorithm.is_none()
         and not get_spec().speculative_skip_dp_mlp_sync
+        and not envs.SGLANG_ENABLE_DP_SPEC_PREFILL_COORDINATION.get()
     ):
         # NOTE: This branch makes sure prefill and decode batches will not be mixed when spec and dp-attn is enabled.
         # Before merging the new batch into running batch:
@@ -382,7 +383,7 @@ def get_next_batch_to_run(
     return NextBatchPlan(batch_to_run=ret, running_batch=running_batch)
 
 
-# Fork managers/scheduler.py:3810-4125, verbatim.
+# Pinned Scheduler._get_new_batch_prefill_raw with the fork's change (fork scheduler.py:3810-4125).
 @patch(
     f"{SCHEDULER}._get_new_batch_prefill_raw",
     "replace",
@@ -504,6 +505,12 @@ def _get_new_batch_prefill_raw(
 
     if self.chunked_req is not None:
         self.chunked_req.init_next_round_input()
+        adder.chunked_req_limit = self.policy.shortest_prefill_chunk_limit(
+            self.chunked_req,
+            self.waiting_queue,
+            adder.rem_chunk_tokens or 0,
+            self.page_size,
+        )
         self.chunked_req = adder.add_chunked_req(self.chunked_req)
 
     if self.enable_lora:
@@ -528,6 +535,15 @@ def _get_new_batch_prefill_raw(
         if self.enable_lora and not self.can_schedule_lora_req(req, running_loras):
             continue
 
+        # A forward batch runs one pooling mode, so setwise readout requests
+        # (token_indices_to_pool) cannot share a batch with last-token ones.
+        # Admit only the first request's mode; the other stays queued.
+        if adder.can_run_list and (
+            (req.token_indices_to_pool is not None)
+            != (adder.can_run_list[0].token_indices_to_pool is not None)
+        ):
+            continue
+
         running_bs = len(running_batch.reqs)
         candidate_beam_width = (
             req.beam_group.beam_width if req.beam_group is not None else None
@@ -550,7 +566,7 @@ def _get_new_batch_prefill_raw(
             ):
                 break
 
-        if self.enable_hicache_storage:
+        if self.enable_hicache_storage or self.enable_lmcache:
             prefetch_done = self.tree_cache.check_prefetch_progress(
                 req.cache_request_handle
             )
@@ -593,6 +609,7 @@ def _get_new_batch_prefill_raw(
             if res == AddReqResult.NO_TOKEN:
                 if (
                     self.enable_hierarchical_cache
+                    or self.enable_lmcache
                     or self.enable_unified_cache_external_linker
                 ):
                     # Set batch_is_full after making sure there are requests that can be served
@@ -724,7 +741,7 @@ def _get_new_batch_prefill_raw(
     return new_batch, running_batch
 
 
-# Fork managers/scheduler.py:4774-4854, verbatim.
+# Pinned Scheduler.on_idle with the fork's change (fork scheduler.py:4774-4854).
 @patch(
     f"{SCHEDULER}.on_idle",
     "replace",
@@ -755,7 +772,7 @@ def on_idle(self):
     # (queues parked under KV pressure / disagg transfer) has no
     # process_batch_result to publish the growing gauge, and gating here
     # froze /get_loads, DP balancing, and the LoadStat for the stall. This
-    # path spins without sleeping, so a wall-clock floor bounds the
+    # path is polled repeatedly, so a wall-clock floor bounds the
     # O(queue) get_loads for both sinks; the fully-idle publish runs
     # post-flush below.
     fully_idle = self.is_fully_idle()
@@ -768,6 +785,14 @@ def on_idle(self):
             self.load_publisher.publish_load_stat(
                 self.load_inquirer.get_loads, force=True, snapshot=snapshot
             )
+        if (
+            self.enable_hicache_storage
+            or self.disaggregation_mode != DisaggregationMode.NULL
+            or self.enable_lmcache
+        ):
+            # Storage and transfer workers need the GIL between I/O calls.
+            # Singleton PD polls no longer yield through a collective.
+            time.sleep(0)
         return
     self.metrics_reporter.record_scheduler_idle()
 
@@ -1268,83 +1293,40 @@ def _handle_finish_state_updated_req(
     self._maybe_collect_customized_info(i, req, logits_output)
 
 
-# Fork managers/schedule_policy.py:950-1007, verbatim.
 @patch(
     f"{ADDER}.add_chunked_req",
-    "replace",
+    "before",
     feature=HISPARSE,
     row="P01",
-    depends=(
-        f"{ADDER}._update_prefill_budget",
-        f"{ADDER}._swa_new_tokens",
-        f"{ADDER}._mamba_gap_budget_for_req",
-        f"{ADDER}._get_dllm_remain_tokens",
-    ),
+    depends=(f"{ADDER}.__init__", f"{SCHEDULER}._get_new_batch_prefill_raw"),
     reason=(
         "hisparse: a getattr on the tree cache; no upstream cache defines "
-        "prefill_checkpoint_limit, so the budget is unchanged without "
-        "QSAHostPrefixCache. Replace: inserted after the delayer early return, "
-        "into a local budget."
+        "prefill_checkpoint_limit, so the chunk is unchanged without "
+        "QSAHostPrefixCache. Before hook (P3 narrowing of the fork's replace, "
+        "via v0.5.21's chunked_req_limit seam): the fork caps the local chunk "
+        "budget at the checkpoint limit after the budget early return and "
+        "before the prefill delayer; v0.5.21 applies min(budget, "
+        "chunked_req_limit) after the delayer, which does not read the budget, "
+        "so lowering chunked_req_limit to the limit first is equivalent. "
+        "chunked_req_limit is initialized to None in PrefillAdder.__init__, "
+        "set by the scheduler just before its single add_chunked_req call per "
+        "adder (S06), and read nowhere else; prefill_checkpoint_limit returns a "
+        "positive int or None (upstream asserts > 0) and, apart from memoizing "
+        "the request's image identity, only reads the request, so calling it "
+        "before the budget computation changes nothing. Fork "
+        "schedule_policy.py 960-964 verbatim, then the limit is stored instead "
+        "of applied."
     ),
 )
-def add_chunked_req(self, req: Req):
-    if self.dllm_config is not None:
-        _rem_tokens = self._get_dllm_remain_tokens()
-    else:
-        _rem_tokens = self.memory_budget.available_chunk_tokens(
-            self.rem_chunk_tokens
-        )
-        if _rem_tokens is None:
-            return req
-
+def _cap_chunk_at_checkpoint(self, req):
     checkpoint_limit = getattr(self.tree_cache, "prefill_checkpoint_limit", None)
     if (
         checkpoint_limit is not None
         and (limit := checkpoint_limit(req)) is not None
     ):
-        _rem_tokens = min(_rem_tokens, limit)
-
-    # A mid-chunk rank prefills this pass regardless of the delayer
-    # verdict, so report prefillable=True and ignore the result.
-    if self.prefill_delayer_single_pass is not None:
-        self.prefill_delayer_single_pass.negotiate_should_allow_prefill(
-            local_prefillable=True,
-            running_batch=self.running_batch.batch_size(),
-            max_prefill_bs=self.max_prefill_bs,
-            max_running_requests=self.max_running_requests,
-            waiting_queue_len=self.waiting_queue_len,
-        )
-
-    cand_extend_input_len = len(req.full_untruncated_fill_ids) - len(
-        req.prefix_indices
-    )
-    _rem_tokens = self.memory_budget.fit_chunk(
-        extend_input_len=cand_extend_input_len,
-        max_new_tokens=self._swa_new_tokens(req),
-        chunk_limit=_rem_tokens,
-    )
-    if _rem_tokens is None:
-        return req
-    truncated = cand_extend_input_len > _rem_tokens
-    new_len = min(cand_extend_input_len, _rem_tokens)
-    req.set_extend_range(len(req.prefix_indices), len(req.prefix_indices) + new_len)
-    self.can_run_list.append(req)
-    self._update_prefill_budget(
-        0,
-        req.extend_range.length,
-        (
-            min(req.sampling_params.max_new_tokens, CLIP_MAX_NEW_TOKENS)
-            if not truncated
-            else 0
-        ),
-        req.retracted_stain,
-        mamba_gap_reserve=self._mamba_gap_budget_for_req(req),
-        is_chunked_continuation=True,
-        compute_charge=req.extend_range.length if self.exact_chunk_fill else None,
-    )
-
-    # Return if chunked prefill not finished
-    return req if truncated else None
+        if self.chunked_req_limit is not None:
+            limit = min(limit, self.chunked_req_limit)
+        self.chunked_req_limit = limit
 
 
 # Fork managers/schedule_policy.py:1163-1192, verbatim except the _add_one_req call.
@@ -1360,6 +1342,7 @@ def add_chunked_req(self, req: Req):
         f"{ADDER}.budget_state",
         f"{ADDER}._lock_node",
         f"{ADDER}._mamba_gap_budget_for_req",
+        f"{ADDER}._kv_shard_reserve_scratch",
         "sglang.srt.managers.schedule_policy._PrefillAdmission",
         "sglang.srt.mem_cache.base_prefix_cache.InitLoadBackParams",
     ),
@@ -1368,7 +1351,9 @@ def add_chunked_req(self, req: Req):
         "0, the limit None and the ignore_eos predicate unchanged. Replace: the "
         "ignore_eos predicate is mid-function. The fork renamed the original "
         "body to PrefillAdder._add_one_req, which is attached (absent at the "
-        "pin), so the copy keeps `self._add_one_req(...)` verbatim."
+        "pin), so the copy keeps `self._add_one_req(...)` verbatim. "
+        "_add_one_req is the pinned add_one_req with the fork's change "
+        "(tests/lifecycle/test_renamed_copies.py checks it)."
     ),
 )
 def add_one_req(
@@ -1403,7 +1388,7 @@ def add_one_req(
             self.memory_budget.current_offset -= charge
 
 
-# Fork managers/schedule_policy.py:1194-1308, verbatim.
+# Pinned PrefillAdder.add_one_req with the fork's change (fork schedule_policy.py:1194-1308).
 @attach(ADDER, feature=HISPARSE, row="P02")
 def _add_one_req(
     self, req: Req, has_chunked_req: bool, truncation_align_size: Optional[int]
@@ -1429,7 +1414,7 @@ def _add_one_req(
     cand_extend_input_len = len(req.full_untruncated_fill_ids) - len(
         req.prefix_indices
     )
-    total_tokens = cand_extend_input_len + max_new + self.page_size
+    total_tokens = cand_extend_input_len + max_new + self.per_req_token_overhead
     # Shared Mamba pool: fold the new mamba state's shared-gap cost into
     # `total_tokens` so both `rem_total_tokens` gates reflect the joint budget.
     # Read before `init_load_back` binds `req.mamba_pool_idx` — after that
@@ -1446,6 +1431,7 @@ def _add_one_req(
             host_hit_length=req.host_hit_length,
             swa_host_hit_length=req.swa_host_hit_length,
             truncation_align_size=truncation_align_size,
+            has_chunked_req=has_chunked_req,
         )
         if isinstance(admission, AddReqResult):
             return admission
@@ -1509,13 +1495,19 @@ def _add_one_req(
                     host_hit_length=0,
                     swa_host_hit_length=0,
                     truncation_align_size=truncation_align_size,
+                    has_chunked_req=has_chunked_req,
                 )
                 if isinstance(admission, AddReqResult):
                     return admission
             req.prefix_indices = torch.cat([req.prefix_indices, new_indices])
             req.kv.cache_protected_len = len(req.prefix_indices)
 
-        # Successful materialization has no remaining admission gates.
+        # Sharded pools cannot load host KV; reserve scratch after all other gates.
+        if not self._kv_shard_reserve_scratch(
+            prefix_len=admission.prefix_len, extend_len=admission.extend_len
+        ):
+            return AddReqResult.OTHER
+
         self._commit_prefill_admission(req, admission, mamba_gap_reserve)
 
     # This verdict controls the next candidate, not the committed request.

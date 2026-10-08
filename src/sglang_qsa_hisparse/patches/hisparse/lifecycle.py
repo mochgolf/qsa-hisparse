@@ -2,12 +2,13 @@
 
 Rows B06, M01, M02 and M03. Release order for a request with a QSA lease:
 prefix capture (``before_release``), runtime release (drains GPU and copy
-events), ``cache_finished_req`` (logical free, deferred inside a free group),
-``req_to_token_pool.free``, ``mark_kv_released``, ``after_release(lease)``,
-then the allocator's ``free_group_end`` and ``after_logical_flush``, after
-which the physical slot can be reused. REPLACE hooks are the fork's bodies
-copied verbatim (PLAN.md rule 3) and run with this module's globals, which are
-imported from the pinned module that defines each target (inventory 6, G3).
+events), the tree cache's ``free_kv_row`` (logical free, deferred inside a
+free group), ``req_to_token_pool.free``, ``mark_kv_released``,
+``after_release(lease)``, then the allocator's ``free_group_end`` and
+``after_logical_flush``, after which the physical slot can be reused. REPLACE
+hooks are the pinned bodies with the fork's change (PLAN.md rules 3 and P1)
+and run with this module's globals, which are imported from the pinned module
+that defines each target (inventory 6, G3).
 """
 
 from __future__ import annotations
@@ -255,7 +256,7 @@ def _alloc_for_extend(
     return out_cache_loc, req_pool_indices_device, req_pool_indices_cpu
 
 
-# Fork mem_cache/common.py:254-307, verbatim.
+# Pinned release_kv_cache with the fork's change (fork mem_cache/common.py:254-307).
 @patch(
     "sglang.srt.mem_cache.common.release_kv_cache",
     "replace",
@@ -264,21 +265,30 @@ def _alloc_for_extend(
     depends=(
         "sglang.srt.mem_cache.common._release_overallocated_kv_indices",
         "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free",
+        "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row",
+        "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.free_kv_row",
     ),
     reason=(
         "hisparse: getattrs on the tree cache and the kvcache; without "
         "QSAHostPrefixCache and the QSA runtime nothing is added. Replace: the "
-        "first insertion follows an early-return branch and precedes "
-        "cache_finished_req; after_release must follow req_to_token_pool.free "
-        "and mark_kv_released."
+        "first insertion follows an early-return branch and precedes the tree "
+        "cache's release calls (v0.5.21 replaced cache_finished_req by "
+        "claim_kv_row, insert_req, free_kv_row, unpin and on_release; the "
+        "fork's insertion stays before all of them, so capture and the runtime "
+        "release still precede the logical free in free_kv_row); after_release "
+        "must follow req_to_token_pool.free and mark_kv_released, and is "
+        "skipped when a streaming session claims the row, as the fork skipped "
+        "it after StreamingSession.cache_finished_req kept the row."
     ),
 )
 def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = True):
+    """Give the request's kv row back; with ``is_insert`` the tree first keeps
+    what it can key."""
     assert (not req.kv.holds_kv) == req.kv.is_kv_released
-    # MambaRadixCache may alloc mamba state before alloc KV cache
+    # A mamba-capable cache may alloc mamba state before alloc KV cache
     if not req.kv.holds_kv:
         assert tree_cache.supports_mamba(), (
-            "Only MambaRadixCache allow freeing before alloc"
+            "Only a mamba-capable tree cache allows freeing before alloc"
         )
         # TODO (csy, hanming): clean up this early allocation logic
         if req.kv.holds_mamba:
@@ -296,22 +306,22 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = Tr
         before_release(req, is_insert and not getattr(req, "skip_radix_cache_insert", False))
     if qsa_hisparse is not None:
         qsa_lease = qsa_hisparse.release(req.kv.req_pool_idx, req.rid)
-
-    effective_kv_committed_len = req.effective_kv_committed_len()
-    tree_cache.cache_finished_req(
-        req,
-        is_insert=is_insert and not getattr(req, "skip_radix_cache_insert", False),
-        kv_len_to_handle=effective_kv_committed_len,
-    )
-
-    # StreamingSession.cache_finished_req handles speculative tail trim
-    # internally, then sets req_pool_idx = None.
-    assert (not req.kv.holds_kv) == req.kv.is_kv_released
-    if not req.kv.holds_kv:
+    if tree_cache.claim_kv_row(req):
+        # A streaming session detached the kv record to keep the row.
+        assert not req.kv.holds_kv
         return
 
-    start_p, end_p = effective_kv_committed_len, req.kv.kv_allocated_len
-    _release_overallocated_kv_indices(req, start_p, end_p, tree_cache)
+    owned_kv_len = req.owned_kv_len()
+    is_insert = is_insert and not req.skip_radix_cache_insert
+    if is_insert:
+        tree_cache.insert_req(req, up_to=owned_kv_len)
+    # The protected prefix is not this req's to free.
+    tree_cache.free_kv_row(req.kv, [(req.kv.cache_protected_len, owned_kv_len)])
+    tree_cache.unpin(req)
+    _release_overallocated_kv_indices(
+        req, owned_kv_len, req.kv.kv_allocated_len, tree_cache
+    )
+    tree_cache.on_release(req, inserted=is_insert)
 
     # If the prefix cache doesn't manage mamba states, we must free them here.
     if isinstance(tree_cache.req_to_token_pool, HybridReqToTokenPool) and (
