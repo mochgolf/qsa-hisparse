@@ -30,6 +30,13 @@ OVERRIDES = {
             {"target": "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool.__init__", "hook_type": "before"},
         ]
     },
+    # Deviation D6: the replay scope around execute, finish in the v0.5.21 seam.
+    "G03": {
+        "patches": [
+            {"target": "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.execute", "hook_type": "around"},
+            {"target": "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._process_output_after_replay", "hook_type": "after"},
+        ]
+    },
     "Q01": {
         "patches": [
             {"target": "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func", "hook_type": "replace"},

@@ -5,37 +5,22 @@ Rows R01, R02 (``model_executor/model_runner.py``), F01
 (``model_executor/runner/decode_cuda_graph_runner.py``). All are hisparse: every
 fork change is gated on a ``qsa_hisparse`` runtime on the KV pool or on the
 coordinator's ``adapter``, which upstream ``HiSparseCoordinator`` lacks.
-REPLACE bodies are the pinned definitions with the fork's change carried over
-(PLAN.md Phase 4 rule P1); they run with this module's globals, which import
-the same objects the pinned modules use.
+The G01/G02 REPLACE bodies are the pinned definitions with the fork's change
+carried over (PLAN.md Phase 4 rule P1); they run with this module's globals,
+which import the same objects the pinned modules use. R02 and G03 are
+narrowed to hooks (deviations D7 and D6).
 """
 
 from __future__ import annotations
 
 import contextlib
-import dataclasses
 import inspect
-from typing import Callable, Optional, Union, cast
+from typing import Callable, Optional, cast
 
-from sglang.srt.environ import envs
-from sglang.srt.layers.attention.base_attn_backend import SharedReadEnds
 from sglang.srt.layers.dp_attention import set_dp_buffer_len, set_is_extend_in_batch
-from sglang.srt.layers.logits_processor import LogitsProcessorOutput
 from sglang.srt.model_executor.forward_batch_info import ForwardBatch, PPProxyTensors
-from sglang.srt.model_executor.forward_context import (
-    ForwardContext,
-    forward_context,
-    has_forward_context,
-)
-from sglang.srt.model_executor.model_runner import (
-    ModelRunnerOutput,
-    _prefill_cuda_graph_allows_context_parallel,
-)
-from sglang.srt.model_executor.runner import EagerRunner
-from sglang.srt.model_executor.runner.decode_cuda_graph_runner import (
-    build_replay_fb_view,
-    logger,
-)
+from sglang.srt.model_executor.forward_context import ForwardContext, forward_context
+from sglang.srt.model_executor.runner.decode_cuda_graph_runner import build_replay_fb_view
 from sglang.srt.model_executor.runner.flashinfer_autotune import (
     maybe_flashinfer_autotune_speculative_draft,
 )
@@ -44,10 +29,9 @@ from sglang.srt.model_executor.runner_backend.breakable_cuda_graph_backend impor
 )
 from sglang.srt.model_executor.runner_backend.full_cuda_graph_backend import FullCudaGraphBackend
 from sglang.srt.multiplex.pdmux_context import get_current_stream_idx
-from sglang.srt.runtime_context import get_exec, get_global_dwdp_manager
+from sglang.srt.runtime_context import get_exec
 from sglang.srt.speculative.ragged_verify import resolve_ragged_verify_layout
 from sglang.srt.utils import empty_context
-from sglang.srt.utils.device_timer import device_timer_ctx
 from sglang_qsa_hisparse.features import HISPARSE
 from sglang_qsa_hisparse.patching import patch
 
@@ -129,144 +113,28 @@ def _attach_qsa_coordinator(result, self):
 
 
 @patch(
-    f"{_RUNNER}._forward_raw",
-    "replace",
+    f"{_RUNNER}._prepare_eager_forward_batch",
+    "before",
     feature=HISPARSE,
     row="R02",
-    depends=(
-        f"{_GRAPH}.can_run_graph",
-        f"{_GRAPH}.execute",
-        f"{_RUNNER}._extend_forward_kwargs",
-        f"{_RUNNER}._maybe_execute_deferred_mamba_cow_and_clear",
-        f"{_RUNNER}._prepare_eager_forward_batch",
-        f"{_RUNNER}.forward_split_prefill",
-        "sglang.srt.model_executor.model_runner.ModelRunnerOutput",
-        "sglang.srt.model_executor.model_runner._prefill_cuda_graph_allows_context_parallel",
-        "sglang.srt.model_executor.forward_context.ForwardContext",
-        "sglang.srt.model_executor.forward_context.forward_context",
-        "sglang.srt.model_executor.forward_context.has_forward_context",
-        "sglang.srt.runtime_context.get_global_dwdp_manager",
-        "sglang.srt.utils.device_timer.device_timer_ctx",
-    ),
+    depends=(f"{_RUNNER}._forward_raw",),
     reason=(
-        "Pinned body with the fork change carried over, no edits: raise when QSA "
-        "full-graph decode cannot run the graph (needs the local can_run_graph) "
-        "and skip num_real_reqs.fill_ when the QSA graph is enabled (a "
-        "mid-function statement; no hook can drop it without cross-call state). "
-        "hisparse: gated on hisparse_coordinator.adapter, which upstream "
-        "HiSparseCoordinator lacks."
+        "Deviation D7: the fork raises in _forward_raw when QSA full-graph decode "
+        "cannot run the graph, and skips num_real_reqs.fill_ there while the QSA "
+        "graph is enabled. _prepare_eager_forward_batch's only caller is "
+        "_forward_raw's eager branch, reached exactly when the decode graph cannot "
+        "run, so this hook raises the fork's error for decode under the QSA graph, "
+        "after _forward_raw's coordinator block (wait_for_pending_backup is a no-op "
+        "for QSA). The fill is upstream's: under the QSA graph num_real_reqs is the "
+        "runtime's real-row count, and prepare_graph_replay (G02) writes the same "
+        "batch size into it before every replay. hisparse: gated on "
+        "hisparse_coordinator.adapter, which upstream HiSparseCoordinator lacks."
     ),
 )
-def _forward_raw(
-    self,
-    forward_batch: ForwardBatch,
-    pp_proxy_tensors: Optional[PPProxyTensors],
-    reinit_attn_backend: bool = False,
-    split_forward_count: int = 1,
-) -> ModelRunnerOutput:
-    if has_forward_context():
-        ctx_mgr = contextlib.nullcontext()
-    else:
-        ctx_mgr = forward_context(ForwardContext(attn_backend=self.attn_backend))
-    with ctx_mgr:
-        mode_check = (
-            forward_batch.forward_mode.is_cpu_graph
-            if self.device == "cpu"
-            else forward_batch.forward_mode.is_cuda_graph
-        )
-        can_run_graph = bool(
-            mode_check()
-            and self.decode_cuda_graph_runner
-            and self.decode_cuda_graph_runner.can_run_graph(forward_batch)
-        )
-        qsa = getattr(self.hisparse_coordinator, "adapter", None)
-        if (
-            forward_batch.forward_mode.is_decode()
-            and getattr(qsa, "graph_enabled", False)
-            and not can_run_graph
-        ):
-            raise RuntimeError("QSA full graph decode cannot fall back to eager")
-
-        if (
-            forward_batch.forward_mode.is_decode()
-            and self.hisparse_coordinator is not None
-        ):
-            forward_batch.hisparse_coordinator = self.hisparse_coordinator
-            self.hisparse_coordinator.wait_for_pending_backup()
-            if not getattr(qsa, "graph_enabled", False):
-                self.hisparse_coordinator.num_real_reqs.fill_(
-                    forward_batch.batch_size
-                )
-
-        # Replay cuda graph if applicable
-        if can_run_graph:
-            ret = self.decode_cuda_graph_runner.execute(
-                forward_batch,
-                pp_proxy_tensors=pp_proxy_tensors,
-            )
-            return ModelRunnerOutput(logits_output=ret, can_run_graph=can_run_graph)
-
-        # DP / MLP-sync padding + attn-tp normalization. Only the decode
-        # cuda-graph path above pre-pads its static buffers and returns
-        # early; split prefill, the prefill cuda graph, and the eager
-        # forward all run the live batch and need this first — it sets
-        # global_dp_buffer_len / padded token counts that graph eligibility
-        # and the collectives depend on.
-        self._prepare_eager_forward_batch(forward_batch)
-
-        # Deferred mamba COW/clear on the forward stream, before the extend
-        # dispatch below reads the pool.
-        self._maybe_execute_deferred_mamba_cow_and_clear(forward_batch)
-
-        dwdp_mgr = get_global_dwdp_manager()
-        if dwdp_mgr is not None:
-            dwdp_mgr.prefetch_first_layers()
-
-        if forward_batch.forward_mode.is_split_prefill():
-            # Layer-split mode; stays on ModelRunner, not the eager runner.
-            ret = self.forward_split_prefill(
-                forward_batch,
-                reinit_attn_backend=reinit_attn_backend,
-                forward_count=split_forward_count,
-            )
-        elif (
-            forward_batch.forward_mode.is_extend(include_draft_extend_v2=True)
-            and not isinstance(self.prefill_cuda_graph_runner, EagerRunner)
-            and self.prefill_cuda_graph_runner is not None
-            and self.prefill_cuda_graph_runner.can_run_graph(forward_batch)
-            and forward_batch.token_indices_to_pool is None
-            and _prefill_cuda_graph_allows_context_parallel(
-                self.prefill_cuda_graph_runner, forward_batch
-            )
-        ):
-            # Prefill cuda graph (piecewise).
-            kwargs = self._extend_forward_kwargs(forward_batch, pp_proxy_tensors)
-            category = (
-                "target_verify"
-                if forward_batch.forward_mode.is_target_verify()
-                else "extend"
-            )
-            # TODO: the timing here is too broad -- it also includes
-            # load_batch time. Move it into the prefill cuda graph runner
-            # to capture only the model.forward part.
-            with device_timer_ctx(self.device_timer, category):
-                ret = self.prefill_cuda_graph_runner.execute(
-                    forward_batch, **kwargs
-                )
-            can_run_graph = True
-        else:
-            # Eager: decode / extend / idle dispatched inside the runner.
-            ret = self.eager_runner.execute(
-                forward_batch, pp_proxy_tensors=pp_proxy_tensors
-            )
-
-        if (
-            forward_batch.global_num_tokens_cpu is not None
-            and self.pp_group.is_last_rank
-        ):
-            forward_batch.post_forward_mlp_sync_batch(ret)
-
-        return ModelRunnerOutput(logits_output=ret, can_run_graph=can_run_graph)
+def _reject_eager_qsa_graph_decode(self, forward_batch, *args, **kwargs):
+    qsa = getattr(self.hisparse_coordinator, "adapter", None)
+    if forward_batch.forward_mode.is_decode() and getattr(qsa, "graph_enabled", False):
+        raise RuntimeError("QSA full graph decode cannot fall back to eager")
 
 
 # G01-G03 -----------------------------------------------------------------------
@@ -682,113 +550,61 @@ def load_batch(
 
 @patch(
     f"{_GRAPH}.execute",
-    "replace",
+    "around",
     feature=HISPARSE,
     row="G03",
     depends=(
-        f"{_GRAPH}._process_output_after_replay",
-        f"{_GRAPH}._publish_read_done",
-        f"{_GRAPH}._ragged_capture_slots",
-        f"{_GRAPH}._replay_attn_backend",
-        f"{_GRAPH}._resolve_shared_read_ends",
-        f"{_GRAPH}.load_batch",
-        f"{_FULL_BACKEND}.replay",
-        "sglang.srt.layers.logits_processor.LogitsProcessorOutput",
-        "sglang.srt.model_executor.forward_batch_info.PPProxyTensors",
-        "sglang.srt.utils.common.empty_context",
+        f"{_FULL_BACKEND}.replay_session",
         "sglang.srt.utils.device_timer.device_timer_ctx",
     ),
     reason=(
-        "Pinned body with the fork change carried over, no edits: enter "
-        "qsa.graph_replay_scope inside timer_ctx and replay_session, and call "
-        "qsa.finish_graph_replay directly after backend.replay, before "
-        "_publish_read_done (the pinned _process_output_after_replay seam runs "
-        "after _publish_read_done, so it does not reproduce that order). logger "
-        "is the runner module's logger. hisparse: gated on "
+        "Deviation D6, first half: the fork enters qsa.graph_replay_scope inside "
+        "timer_ctx and replay_session; this around enters it around the whole "
+        "execute call. The scope only acts on an exception (fail_graph_replay, a "
+        "no-op while no graph batch is prepared), the QSA graph requires "
+        "FullCudaGraphBackend (G01), whose replay_session is a bare yield, so the "
+        "only change is that on an error the device timer exits before "
+        "fail_graph_replay drains the streams. hisparse: gated on "
         "hisparse_coordinator.adapter."
     ),
 )
-def execute(
-    self,
-    forward_batch: ForwardBatch,
-    pp_proxy_tensors: Optional[PPProxyTensors] = None,
-) -> Union[LogitsProcessorOutput, PPProxyTensors]:
-    timer_ctx = device_timer_ctx(
-        self.model_runner.device_timer, forward_batch.forward_mode.name.lower()
-    )
-    shared_read_ends = self._resolve_shared_read_ends(
-        self._replay_attn_backend(), forward_batch.forward_mode
-    )
+def _qsa_graph_replay_scope(original, self, *args, **kwargs):
     qsa = getattr(self.model_runner.hisparse_coordinator, "adapter", None)
-    qsa_scope = (qsa.graph_replay_scope() if getattr(qsa, "graph_enabled", False)
-                 else empty_context())
-    with timer_ctx, self.backend.replay_session(), qsa_scope:
-        self.load_batch(forward_batch, pp_proxy_tensors)
-        if envs.SGLANG_LOG_DECODE_GRAPH_KEY.get():
-            logger.info(
-                "Decode graph replay: worker=%s key_size=%s (%s) mode=%s raw_bs=%d%s",
-                "draft" if self.model_runner.is_draft_worker else "target",
-                self._replay_graph_key.size,
-                "num_tokens" if self.ragged_verify_mode else "bs",
-                forward_batch.forward_mode.name,
-                forward_batch.batch_size,
-                (
-                    f" slots={self._ragged_capture_slots(self._replay_graph_key.size)}"
-                    if self.ragged_verify_mode
-                    else ""
-                ),
-            )
-        if shared_read_ends is SharedReadEnds.PRE_REPLAY:
-            self._publish_read_done(in_graph=False)
+    if not getattr(qsa, "graph_enabled", False):
+        return original(self, *args, **kwargs)
+    with qsa.graph_replay_scope():
+        return original(self, *args, **kwargs)
 
-        output = self.backend.replay(self._replay_graph_key, forward_batch)
-        if getattr(qsa, "graph_enabled", False):
-            qsa.finish_graph_replay(self.bs, native_key=self._replay_graph_key,
-                                    native_backend=self.backend)
 
-        if shared_read_ends is SharedReadEnds.IN_REPLAY:
-            self._publish_read_done(in_graph=True)
-
-        if shared_read_ends is SharedReadEnds.POST_REPLAY:
-            self._publish_read_done(in_graph=False)
-
-        output = self._process_output_after_replay(output, forward_batch)
-
-    if isinstance(output, LogitsProcessorOutput):
-        if self.is_dllm:
-            next_token_logits = None
-            full_logits = (
-                output.full_logits[: self.raw_num_token]
-                if output.full_logits is not None
-                else None
-            )
-        else:
-            full_logits = None
-            next_token_logits = (
-                output.next_token_logits[: self.raw_num_token]
-                if output.next_token_logits is not None
-                else None
-            )
-
-        # Preserve extension fields produced by the eager output processor.
-        return dataclasses.replace(
-            output,
-            next_token_logits=next_token_logits,
-            full_logits=full_logits,
-            hidden_states=(
-                output.hidden_states[: self.raw_num_token]
-                if output.hidden_states is not None
-                else None
-            ),
-        )
-    else:
-        assert isinstance(output, PPProxyTensors)
-        # Slice in token rows, not request rows: under speculative verify
-        # each request carries captured_req_width tokens (identical for
-        # plain decode, where captured_req_width == 1).
-        return PPProxyTensors(
-            {
-                k: v[: self.bs * self.captured_req_width]
-                for k, v in output.tensors.items()
-            }
+@patch(
+    f"{_GRAPH}._process_output_after_replay",
+    "after",
+    feature=HISPARSE,
+    row="G03",
+    depends=(
+        f"{_GRAPH}._publish_read_done",
+        f"{_GRAPH}._resolve_shared_read_ends",
+        f"{_GRAPH}.execute",
+        "sglang.srt.layers.attention.base_attn_backend.AttentionBackend.shared_read_ends",
+        "sglang.srt.layers.attention.hybrid_linear_attn_backend.HybridLinearAttnBackend.shared_read_ends",
+        "sglang.srt.layers.attention.linear.gdn_backend.GDNAttnBackend",
+        "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend",
+    ),
+    reason=(
+        "Deviation D6, second half: the fork calls qsa.finish_graph_replay directly "
+        "after backend.replay, before _publish_read_done. This hook calls it from "
+        "the v0.5.21 seam _process_output_after_replay (called only by execute, "
+        "after _publish_read_done, inside the replay scope). For QSA decode the "
+        "HybridLinearAttnBackend over QwenSparseAttnBackend and GDNAttnBackend "
+        "declares IN_REPLAY (resolved to PRE_REPLAY without an external event), "
+        "so the publish that now precedes finish only assigns "
+        "model_runner.shared_read_done_event, which finish does not read. "
+        "hisparse: gated on hisparse_coordinator.adapter."
+    ),
+)
+def _finish_qsa_graph_replay(result, self, output, forward_batch):
+    qsa = getattr(self.model_runner.hisparse_coordinator, "adapter", None)
+    if getattr(qsa, "graph_enabled", False):
+        qsa.finish_graph_replay(
+            self.bs, native_key=self._replay_graph_key, native_backend=self.backend
         )
