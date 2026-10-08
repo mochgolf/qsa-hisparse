@@ -215,3 +215,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   U6a, U6b, U8 ready after their documented GPU validation; U7 group split
   deferred until #35955 merges (rebase and GPU plan then). G3-U closed by the
   orchestrator: every branch classified, none needs further CPU changes.
+- G3-I (CPU) findings addressed (`reviews/G3I-response.md`); I-C harness
+  merged (`6279fcf`): 8 frozen image cases (fixture sha256 `39913ab9…`),
+  ViT observer, text control vs Phase 2 fork arm; CPU 505 + 3 + 26 passed.
+  Accepted I-C deviations: `/generate` prompts, `detail: "high"` as the
+  preprocessing miss, ViT observer added to W8's site hook. Next: G3-I
+  re-check, then the I5 GPU window (needs owner approval).
