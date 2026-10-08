@@ -250,3 +250,11 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   rebuilt HiSparse decode batches; target model only); 3 CPU tests; CPU
   520 + 3 + 26 passed. Window 3 also checks that a logprob image request no
   longer crashes and that text outputs still match Phase 2's fork arm.
+- GPU window 3 (04:41–05:02, production restored and verified;
+  `docs/window3-results.md`): I5 passed in both ViT-cache sessions — hits at
+  the expected page64 boundaries including inside images (2048, 3904, 4096,
+  4352, 6144), per-request restores on both TP ranks equal to their captures,
+  negatives miss, warm token IDs equal cold controls, ViT skipped/encoded as
+  expected, text control equal to the Phase 2 fork reference. D5: a logprob
+  image request now completes (window 2's crash is the failing control).
+  Next: G3-I (GPU) review.
