@@ -245,3 +245,8 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   gathers prompt-token logprobs every decode step); harness avoids it; I-C
   merged (`f8b211c`), CPU 517 + 3 + 26 passed. Pending owner: window 3 for
   I5, and deviation D5 (fix the gather in the S03 hook).
+- Owner (2026-10-08): window 3 approved; deviation D5 accepted and
+  implemented in the S03 hook (each request's own `token_ids_logprob` on
+  rebuilt HiSparse decode batches; target model only); 3 CPU tests; CPU
+  520 + 3 + 26 passed. Window 3 also checks that a logprob image request no
+  longer crashes and that text outputs still match Phase 2's fork arm.

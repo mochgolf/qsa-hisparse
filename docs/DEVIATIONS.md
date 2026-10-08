@@ -9,6 +9,7 @@ Only the orchestrator adds items; the owner may revert any of them.
 | D1 | `FusedMoE.__init__` log (inventory §4) | "deferred finalize" message logged at info | stays at debug | Keeping it needs a ~235-line REPLACE of `FusedMoE.__init__` for a log level | Log output only |
 | D2 | `freeze_gc` log | GC freeze message at info | stays at debug | Cosmetic; avoids a REPLACE | Log output only |
 | D3 | F01 `ForwardBatch` fields | Class fields `req_pool_indices_cpu`, `kv_allocated_lens_cpu` for every model; two-batch overlap's `filter_batch` raises for every model | Instance attribute `req_pool_indices_cpu` set only when the HiSparse runtime is active, carried across `EagerRunner.load_batch`'s `dataclasses.replace` copy by a second hook; `kv_allocated_lens_cpu` (never read) dropped | Avoids a class REPLACE pinning 1,412 lines and does not reproduce a crash in an unsupported configuration | Two-batch overlap (outside the HiSparse contract); dataclass field introspection |
+| D5 | S03 `Scheduler._build_hisparse_decode_batch` | With `return_logprob`, `token_ids_logprobs` is every prompt token ID: image requests crash decode (pad IDs exceed the vocabulary); text requests waste a whole-prompt gather whose result is dropped | Each request's own `token_ids_logprob` (as `ScheduleBatch` builds decode batches), target model only | Removes a crash and wasted work; text outputs and returned logprobs are unchanged | HiSparse decode batches with `return_logprob` |
 
 Decided 2026-10-07 by the orchestrator from P0-A findings; D1–D3 accepted
-by the owner on 2026-10-07.
+by the owner on 2026-10-07; D5 accepted on 2026-10-08 (D4 was declined).
