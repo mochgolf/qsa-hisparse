@@ -276,3 +276,6 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   outside the contract. Full CPU suite at v0.5.21 passes (569 + 4 + 26),
   364 fingerprints, manifest current. Next: G4-CPU review, then the
   G4-GPU window (owner approval).
+- G4-CPU: one finding (the delta check ignored edit positions) fixed with a
+  three-way-merge check, which showed M03 is a hand merge (recorded); re-check
+  cleared (`reviews/G4CPU*.md`). Next: G4-GPU window (owner approval).
