@@ -151,3 +151,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   `./qwen-service.sh start --profile <that path>`, then check 8081 health and
   models. Window script runs G2-1 (F, P), G2-2 deterministic (F, P, observer),
   compat-only (F, P); G2-3 native checks deferred to a production cutover.
+- UB done: U1 local branch `qsa/U1-hisparse-coordinator-gating` in
+  `.worktrees/upstream-UB` (2 commits, incl. a staging-abort bug fix on
+  upstream main); would remove S02, S04, S07, B02–B05 and S08/S09. U23
+  premature (upstream #42923/#43023 rewriting match/load-back); design doc
+  only. Pending owner decision after Phase 2: drop S06 by requiring
+  `--prefill-max-requests 1` in the launcher (would be deviation D4).
