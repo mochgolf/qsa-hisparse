@@ -4,7 +4,7 @@
     "file": "sglang/srt/managers/schedule_batch.py",
     "first_line": 364,
     "kind": "class",
-    "module_sha256": "b2f78c781de88c36ce27cc5d44b343420338b4da299e885c575665d6fab843ca",
+    "module_sha256": "9041283b11d1b7eac18b0167657d8a5a060cf9c54a838453e2a2421cdeff4003",
     "qualname": "MultimodalDataItem",
     "sha256": "e70bee8d888aabbc3c84863811c35ee84c1f391f07e5c02a81d034afc743d6ac"
   },
@@ -13,7 +13,7 @@
     "file": "sglang/srt/managers/schedule_batch.py",
     "first_line": 739,
     "kind": "function",
-    "module_sha256": "b2f78c781de88c36ce27cc5d44b343420338b4da299e885c575665d6fab843ca",
+    "module_sha256": "9041283b11d1b7eac18b0167657d8a5a060cf9c54a838453e2a2421cdeff4003",
     "qualname": "MultimodalInputs.from_processor_output",
     "sha256": "49d79fe7aef9cb6d4050ce9e52d0144667fb12b06c3399119c448f3a92886fb8"
   },

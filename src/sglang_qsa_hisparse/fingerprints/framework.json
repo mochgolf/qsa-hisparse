@@ -1,19 +1,19 @@
 {
   "sglang.srt.managers.scheduler.configure_scheduler_process": {
-    "def_line": 5977,
+    "def_line": 5844,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 5977,
+    "first_line": 5844,
     "kind": "function",
-    "module_sha256": "b61df5b750adc748a99ceb381b8494c199fb3f704d793da5a0217bd6bbb606c4",
+    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
     "qualname": "configure_scheduler_process",
     "sha256": "6ab317d62062e9c15301c3d46e83f69dbfd23cf5b77677bc1a0c2362c5070af2"
   },
   "sglang.srt.managers.scheduler.run_scheduler_process": {
-    "def_line": 6030,
+    "def_line": 5897,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 6030,
+    "first_line": 5897,
     "kind": "function",
-    "module_sha256": "b61df5b750adc748a99ceb381b8494c199fb3f704d793da5a0217bd6bbb606c4",
+    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
     "qualname": "run_scheduler_process",
     "sha256": "6e995b6a16fcbd8aebfaa4fa7ce6529e950f42a59ab8377e90badac9da0c24c9"
   },
@@ -72,20 +72,20 @@
     "sha256": "cd2a423a31293f61ca0e01cfeb4ca9ba554b8be1b464e0130cec49aca18fa89e"
   },
   "sglang.srt.runtime_context.get_parallel": {
-    "def_line": 1262,
+    "def_line": 1261,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1262,
+    "first_line": 1261,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "get_parallel",
     "sha256": "75d1c5f8a754b0424f79d5ade3c47daa167bbbc6210e7afce34a82d03d193b71"
   },
   "sglang.srt.runtime_context.publish": {
-    "def_line": 1466,
+    "def_line": 1465,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1466,
+    "first_line": 1465,
     "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
+    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
     "qualname": "publish",
     "sha256": "a6e7f0df8594d589311fac3099a9c3efcbc8eb45b87974509f235f700b63e6a5"
   }

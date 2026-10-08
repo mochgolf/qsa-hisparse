@@ -1,16 +1,18 @@
-"""Rows N01-N04: the runtime package and the ported tests are the fork's code.
+"""Rows N01-N04: the runtime package and the ported tests are the reference's code.
 
-Each moved module must equal its fork file at the reference commit after
-exactly the import rewrites of PLAN.md ("Import mapping") and the edits that
-``PIN_EDITS`` records for SGLang interfaces changed at the pin, except the
-Track I divergences (PLAN.md Phase 3), which must equal that reference plus
-exactly the diff recorded in ``track_i.diff`` (rerecord with ``python <this
-file>`` after an intended Track I change). ``depends.py`` and the Track I
-identity modules are the only plugin-owned modules in the package. The ported
-fork tests in this directory may differ only by the same rewrites and pin
-edits plus an added ``pytest`` import and ``integration`` marks. The fork is
-read with ``git show`` from ``$QSA_FORK_ROOT`` (default ``../qsa-hisparse``
-next to this repository).
+The reference is production ``REFERENCE_FORK_COMMIT`` (Phase 5), built on the
+pinned SGLang commit, so no pin edits apply. Each moved module must equal its
+reference file after exactly the import rewrites of PLAN.md ("Import
+mapping") and the edits that ``PIN_EDITS`` records for SGLang interfaces
+changed at the pin (none at present), except the Track I divergences (PLAN.md
+Phase 3), which must equal that reference plus exactly the diff recorded in
+``track_i.diff`` (rerecord with ``python <this file>`` after an intended Track
+I change). ``depends.py`` and the Track I identity modules are the only
+plugin-owned modules in the package. The ported reference tests in this
+directory may differ only by the same rewrites and pin edits plus an added
+``pytest`` import and ``integration`` marks. The reference is read with ``git
+show`` from ``$QSA_FORK_ROOT`` (default ``../qsa-hisparse`` next to this
+repository; production's commit is in that repository).
 """
 
 import difflib
@@ -54,7 +56,13 @@ MOVED = {  # plugin module -> fork file
 PLUGIN_OWNED = {"depends.py", "image_identity.py", "image_request.py"}
 DIVERGED = ("prefix.py", "prefix_cache.py", "runtime.py")  # Track I (I-A)
 TRACK_I_DIFF = Path(__file__).with_name("track_i.diff")
-PORTED = ("test_gather.py", "test_runtime.py", "test_single_request.py", "test_slots.py")
+PORTED = (
+    "test_gather.py",
+    "test_parallel_rank_migration.py",  # production-added
+    "test_runtime.py",
+    "test_single_request.py",
+    "test_slots.py",
+)
 ALIASES = {  # N04, dropped
     f"python/sglang/srt/mem_cache/qsa_hisparse_{name}.py"
     for name in ("p2", "slots", "v3")
@@ -62,26 +70,12 @@ ALIASES = {  # N04, dropped
 ADDED_TEST_LINE = re.compile(
     rb"import pytest\n|( {4})?@pytest\.mark\.integration\(rows=\(.+\)\)\n"
 )
-# Fork code that uses an SGLang interface changed at the pin (v0.5.21), as
-# (fork text, plugin text) after the import rewrites; each fork text occurs
-# exactly once in its file.
-PIN_EDITS = {
-    # ModelRunner lost ``ps`` (ParallelState); init_torch_distributed sets tp_rank.
-    "runtime.py": ((b"runner.ps.tp_rank", b"runner.tp_rank"),),
-    "single_request.py": ((b"runner.ps.tp_rank", b"runner.tp_rank"),),
-    "test_single_request.py": ((b"ps=SimpleNamespace(tp_rank=0),", b"tp_rank=0,"),),
-    # ChunkCache lost cache_finished_req: release_kv_cache frees the request's
-    # row itself, then calls on_release (tests/prefix/test_release.py).
-    "prefix_cache.py": (
-        (
-            b"    def cache_finished_req(self, req, is_insert=True, *, kv_len_to_handle):\n"
-            b"        self.release_aborted_request(req.cache_request_handle)\n"
-            b"        super().cache_finished_req(req, is_insert, kv_len_to_handle=kv_len_to_handle)\n",
-            b"    def on_release(self, req, *, inserted):\n"
-            b"        self.release_aborted_request(req.cache_request_handle)\n",
-        ),
-    ),
-}
+# Reference code that uses an SGLang interface changed at the pin, as
+# (reference text, plugin text) after the import rewrites; each reference text
+# occurs exactly once in its file. Production is built on the pin and already
+# carries its adaptations (the TP rank from the published parallel bundle, the
+# checkpoint/claim_kv_row/on_release prefix-cache protocol), so none remain.
+PIN_EDITS: dict[str, tuple[tuple[bytes, bytes], ...]] = {}
 
 
 def git(*args: str) -> bytes:

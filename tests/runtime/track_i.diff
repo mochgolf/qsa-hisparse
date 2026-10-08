@@ -121,7 +121,7 @@
              self._converge(
 --- fork/runtime.py
 +++ plugin/runtime.py
-@@ -1042,9 +1042,11 @@
+@@ -1043,9 +1043,11 @@
  
      def capture_prefix(self, req, namespace, tokens):
          """Capture only an actual complete forward boundary, before handoff."""
@@ -133,7 +133,7 @@
          )
  
          state = self._request(req.kv.req_pool_idx, req.rid)
-@@ -1058,7 +1060,10 @@
+@@ -1059,7 +1061,10 @@
              return None
          if len(tokens) != length * 8:
              raise RuntimeError("QSA prefix token/checkpoint boundary differs")
@@ -145,7 +145,7 @@
          reservation = None
          retained = False
          try:
-@@ -1073,7 +1078,11 @@
+@@ -1074,7 +1079,11 @@
                  previous = None
                  if state.prefix_basis_length:
                      previous = self.prefix_cache.acquire(
@@ -158,7 +158,7 @@
                      )
                      if (
                          previous is not None
-@@ -1127,7 +1136,13 @@
+@@ -1128,7 +1137,13 @@
              rope = self.pool.qsa_rope_position_buffer[ring].to("cpu", copy=True)
              mamba = self._capture_mamba(int(req.kv.mamba_pool_idx))
              snapshot = PrefixSnapshot(

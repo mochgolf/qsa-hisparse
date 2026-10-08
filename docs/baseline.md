@@ -388,6 +388,51 @@ files give 26 IDs, all in the inventory; the one inventory ID they lack is the
 fork-added `test_stable_fused_hc_mix_is_exact_across_batch_sizes`, which 8a
 supplies, as in Phase 2.
 
+### Phase 5 (pin 35f3c96ff4, reference production 897286b12a; G5-GPU)
+
+Prepared on CPU, not run. F is a fresh run of production's code in the same
+window; both arms use production's interpreter
+(`qwen:results/dsh-maintenance-20261004/upstream-runtime-env`). Defaults in
+`tools/evidence/run_g2.py` (`FORK_ROOT` = `.worktrees/sglang-dsh-production-20261004`,
+`PIN_ROOT`, `PYTHON`), which the other runners share; run them from the main
+checkout (the defaults are relative to it). Export PATH/CUDA_HOME for JIT
+builds as in the Phase 2 window.
+
+- **G2-1** (steps 2-8): `run_g21.py --arm fork --output $OUT/F` and
+  `--arm plugin --output $OUT/P` (GPU 0, no model). F runs production's
+  `test/qsa_hisparse/test_marlin_deterministic_alignment.py`, its
+  `test/manual` probes and its registered kernel files at the pin layout
+  (`test/registered/kernels/ops/attention/qsa/{test_qsa,test_qsa_indexer,test_qsa_strided_zero_fill}.py`,
+  `test/registered/kernels/ops/gemm/test_hc_mix.py`); P runs the same probes
+  through `plugin_probe.py`, the ported step 2/8a files and the pin's 8b
+  files. Per-step logs and `steps.json`; compare the step 3-7 JSONs per case
+  and run `pytest_outcomes.py --fork F/step8.log --plugin P/step8a.log
+  P/step8b.log --inventory tools/evidence/g21_step8_inventory_35f3c96ff4.txt`
+  (8a runs with `--runxfail`; 91 IDs collected on CPU
+  from production's four files, plus the SM121 skip; production adds the FP8
+  descale and decode-width tests and parametrizes the graph metadata tests).
+  P's `tests/qsa/test_qsa.py` must collect production's `test_qsa.py` IDs
+  (P5-C's port); check with `--collect-only` after merging.
+- **G2-2** (steps 9-15): `run_g2.py` and `run_compat.py` as in Phase 2 with
+  `service/candidate-acceptance.json` (deterministic profile, validation
+  weights); F is production's `python/` tree and its `test/manual` harnesses
+  (identical to the fork's).
+- **G2-3** (step 16): `run_g23.py run --arm fork|plugin --base-profile
+  <production service profile> --fixtures <fixtures.json> --output <arm dir>`
+  (port 8082 by default; `--ready-timeout` overrides the profile's 600 s for
+  fresh JIT caches), then `run_g23.py compare <F> <P>`. Production weights and
+  production's native profile unchanged except `--port`, including its
+  `numactl --interleave=all` wrapper and `SGLANG_NUMA_*` environment (rows
+  U02-U04). Checks: production's latency and lifecycle harnesses, the 8x128
+  native concurrency and the OpenAI smoke (step 16 logic); the fixtures'
+  tokenizer hash equals the profile model's (`0997f410…`, checked
+  2026-10-08). `compare` requires every check to pass in both arms, equal
+  prompt/cached token counts for every request and equal scheduler numactl
+  arguments (read from SGLang's `/tmp/sglang_temp_file_*.sh` wrappers), and
+  prints latency medians side by side without a threshold. Native outputs are
+  not compared.
+- **G2-4**: as in Phase 2, from the G2-2 arms.
+
 ## Gaps
 
 1. **No fork goldens exist for the Phase 2 environment.** Snapshot 7 used the

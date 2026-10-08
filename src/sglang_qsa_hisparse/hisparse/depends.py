@@ -1,8 +1,9 @@
 """Pinned SGLang definitions that the moved runtime package relies on.
 
-The other modules of this package are verbatim fork copies, so the list lives
-here. Each entry is the function or class that provides something the runtime
-reads, calls or mutates (for an instance attribute, the method creating it);
+The other modules of this package are verbatim copies of the reference
+(production since Phase 5), so the list lives here. Each entry is the
+function or class that provides something the runtime reads, calls or
+mutates (for an instance attribute, the method creating it);
 ``docs/runtime.md`` says which. Row Q03's runtime-construction hook declares
 ``depends=RUNTIME_DEPENDS``, so with ``hisparse`` active any byte change in a
 module defining one of these fails activation (``fingerprints/runtime.json``).
@@ -12,7 +13,8 @@ RUNTIME_DEPENDS = (
     # Runner, pools and allocator handed to the runtime constructors.
     "sglang.srt.model_executor.model_runner.ModelRunner.__init__",
     "sglang.srt.model_executor.model_runner.ModelRunner.alloc_memory_pool",
-    "sglang.srt.model_executor.model_runner.ModelRunner.init_torch_distributed",
+    # config.parallel_tp_rank: the TP rank from the published parallel bundle.
+    "sglang.srt.runtime_context.get_parallel",
     "sglang.srt.configs.model_config.ModelConfig.__init__",
     "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool",
     "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool.__init__",
@@ -95,7 +97,9 @@ RUNTIME_DEPENDS = (
     "sglang.srt.arg_groups.fields.spec.Spec",
     # prefix_cache.py (row N02 code; its behavior is W6's).
     "sglang.srt.mem_cache.chunk_cache.ChunkCache",
+    "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row",
     "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.on_release",
+    "sglang.srt.mem_cache.common.checkpoint_kv_cache",
     "sglang.srt.mem_cache.base_prefix_cache.MatchPrefixParams",
     "sglang.srt.mem_cache.base_prefix_cache.MatchResult",
     "sglang.srt.mem_cache.radix_cache.RadixKey",

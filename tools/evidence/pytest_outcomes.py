@@ -37,6 +37,12 @@ the registered kernel tests to ``test/registered/kernels/ops/attention/qsa/``
 ``test/registered/kernels/ops/gemm/`` and renamed ``test_hc_mix_triton.py`` to
 ``test_hc_mix.py`` (same test names); ``RENAMED`` keys the renamed file under
 its reference name.
+
+Since Phase 5 the fork arm is a fresh ``-v`` run of production's files at the
+pin's layout (``run_g21.py``), so both arms use
+``g21_step8_inventory_35f3c96ff4.txt``. At 35f3c96ff4 (and in production)
+the two former known failures build the QSA backend with its constructor
+instead of ``__new__``, so ``--known`` lists only what that fork run fails.
 """
 
 import argparse

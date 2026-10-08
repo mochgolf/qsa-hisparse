@@ -1,8 +1,8 @@
 """CPU checks for the actual V3 byte-layout helpers and startup guards."""
 
 import json
-import unittest
 import tempfile
+import unittest
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +18,7 @@ from sglang_qsa_hisparse.hisparse.single_request import (
     unpack_index,
     validate_configuration,
 )
+from sglang.srt.runtime_context import get_parallel
 
 
 class TestQSAHiSparseSingleRequest(unittest.TestCase):
@@ -72,6 +73,8 @@ class TestQSAHiSparseSingleRequest(unittest.TestCase):
                 "sglang.srt.model_executor.cuda_graph_config.cuda_graph_fully_disabled",
                 return_value=True,
             ),
+            # The constructor takes the rank from the published parallel bundle.
+            get_parallel().override(tp_rank=0),
             patch("sglang.srt.mem_cache.memory_pool.MHATokenToKVPool", Full),
             patch(
                 "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator",

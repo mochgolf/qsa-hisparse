@@ -5,6 +5,17 @@ N02, moved verbatim from `fork:` `mem_cache/qsa_hisparse/`) and the scheduler
 and allocation call sites it depends on. Line numbers are `pin:` (`76e06febab`)
 unless marked `fork:`. Rows are from [patch-inventory.md](patch-inventory.md).
 
+Since Phase 5 (pin `35f3c96ff4`, reference production `897286b12a`) the
+modules are production's, which use upstream's tree-cache protocol: the
+fork's `before_release`, `cache_unfinished_req` and `cache_finished_req`
+became `claim_kv_row` (refuse while a restore is open), `checkpoint`
+(capture, then `ChunkCache.checkpoint`) and `on_release` (drop the pending
+match). Rows 6, 7 and steps 7, 9 below give both protocols.
+`tests/prefix/test_prefix_cache.py` is production's file (32 tests: it adds
+`test_finished_request_releases_owned_pages` and calls `checkpoint`,
+`claim_kv_row` and production's weight-updater constructor), with the same
+15 `integration` marks.
+
 Objects and owners:
 - `HostPrefixCache` (`runtime.prefix_cache`, one per TP rank): immutable
   `PrefixSnapshot`s at page64 lengths. A `PrefixReader` pins one snapshot; a
@@ -26,8 +37,8 @@ Objects and owners:
 | 3 | `PrefillAdder.add_one_req` 1156 | `pending_prefix_tokens` (budget charge, `ignore_eos` gate), `prefill_checkpoint_limit` (chunk cap) | P02 | `test_final_checkpoint_*`, `test_host_prefix_charge_*`, `test_ordinary_short_prompt_*`, `test_pending_host_hit_ignore_eos_*` |
 | 4 | `PrefillAdder.add_chunked_req` 950 | `prefill_checkpoint_limit` | P01 | `test_chunk_continuation_*` |
 | 5 | `alloc_for_extend` 344 (from `ScheduleBatch.prepare_for_extend` 2677) | `prepare_prefix_for_extend`, `note_extend_allocation`, `restore_prefix_for_extend`, `rollback_prefix_for_extend` | M01 | 8 tests, see section 4 |
-| 6 | `maybe_cache_unfinished_req` (common.py 156) from `Scheduler.stash_chunked_request` 3483 (`chunked=True`) and `process_batch_result_prefill` 383 | `cache_unfinished_req` -> `_capture` | none; B03 keeps `admit_request_into_staging` after it | `test_ordinary_short_prompt_*`, `test_real_request_force_miss_*` |
-| 7 | `release_kv_cache` (common.py 254; v0.5.21: 292) | `before_release` (-> `_capture` if inserting), runtime `release`, `cache_finished_req` (v0.5.21: `release_kv_cache` frees the row itself and then calls `on_release`, which drops the pending match), runtime `after_release` | M03 | `tests/prefix/test_release.py` (v0.5.21: `on_release` from the pinned `release_kv_cache`); W2 lifecycle ledger test |
+| 6 | `maybe_cache_unfinished_req` (common.py 156) from `Scheduler.stash_chunked_request` 3483 (`chunked=True`) and `process_batch_result_prefill` 383; since Phase 5 `checkpoint_kv_cache` (common.py 172) from the same sites | `cache_unfinished_req` -> `_capture`; since Phase 5 `checkpoint(req, up_to=req.extend_range.end)` -> `_capture`, then `ChunkCache.checkpoint` | none; B03 keeps `admit_request_into_staging` after it | `test_ordinary_short_prompt_*`, `test_real_request_force_miss_*` |
+| 7 | `release_kv_cache` (common.py 254; v0.5.21: 292; 35f3c96ff4: 297) | `before_release` (-> `_capture` if inserting), runtime `release`, `cache_finished_req` (v0.5.21: `release_kv_cache` frees the row itself and then calls `on_release`, which drops the pending match), runtime `after_release`. Since Phase 5 (production's copy): `claim_kv_row`, `checkpoint` (-> `_capture`) when inserting, runtime `release`, row free, `on_release`, runtime `after_release` | M03 | `tests/prefix/test_release.py` (`on_release` from the pinned `release_kv_cache`); `test_finished_request_releases_owned_pages`; W2 lifecycle ledger test |
 | 8 | `PagedTokenToKVPoolAllocator.free_group_end` 328 | runtime `after_logical_flush` / `after_release(pending_release)` | M02 | none (W2 lifecycle ledger test) |
 | 9 | `Scheduler._release_aborted_request` 3281 -> `BasePrefixCache.finish(ABORT)` | `release_aborted_request` | none | `test_queued_abort_*`, `test_old_abort_handle_*` |
 | 10 | `Scheduler.flush_cache` 5013, then `req_to_token_pool.clear()` | `reset` | none; M04 keeps generations monotonic across the clear | `test_pool_flush_*` (needs M04), `test_queued_abort_*` |
@@ -37,7 +48,8 @@ Objects and owners:
 Inherited `ChunkCache` traits the flow relies on: `disable` is True (FCFS
 policy, so only site 2 matches; `zero_match_result` is a no-op for chunk
 caches, hence the cache checks `SGLANG_RADIX_FORCE_MISS` itself);
-`is_chunk_cache()` is True; `supports_mamba()` is False, so
+`is_chunk_cache()` is True (since Phase 5: `supports_prefix_sharing()` is
+False); `supports_mamba()` is False, so
 `release_kv_cache` frees the Mamba/PLE slot with the request.
 
 ## 2. Call order and ownership transfer
@@ -97,7 +109,8 @@ disabled, so the steps below run in this order for each request.
 6. **Forward.** A cold first chunk acquires its lease in
    `runtime.begin_batch`; a restored request already holds one.
 7. **Capture** (site 6 after a chunk or a non-finished final prefill; site 7
-   `before_release` for a request finishing at prefill with insertion). Only
+   `before_release` for a request finishing at prefill with insertion; since
+   Phase 5 `checkpoint` at both sites, at site 7 only when inserting). Only
    in phase `prefill` and at `seq_len % 64 == 0`. `runtime.capture_prefix`
    reserves the full new host footprint (shared basis segments count once),
    waits for the producer stream, and copies the new segments plus the full
@@ -115,7 +128,13 @@ disabled, so the steps below run in this order for each request.
    `mark_kv_released` -> `runtime.after_release(lease)`. At v0.5.21 the
    steps between `runtime.release` and the Mamba slot free are upstream's:
    `insert_req` (a no-op here) when inserting -> KV row free -> `unpin` ->
-   over-allocation release -> `on_release` (drops any reader). Inside a free group
+   over-allocation release -> `on_release` (drops any reader). Since Phase 5
+   (production's `release_kv_cache`): `claim_kv_row` (raises if a restore
+   record is still open) -> when inserting, `refresh_fill_ids` and
+   `checkpoint` (-> `_capture`) -> `runtime.release` -> KV row free ->
+   `unpin` -> over-allocation release -> `on_release` (drops any reader) ->
+   Mamba slot free -> `req_to_token_pool.free` -> `mark_kv_released` ->
+   `runtime.after_release(lease)`. Inside a free group
    (`process_batch_result_*` brackets with `free_group_begin/end`) the lease
    is queued and committed by `after_logical_flush` at `free_group_end`; only
    then is the physical slot reusable.
@@ -169,7 +188,8 @@ aborts use the upstream `finish(ABORT)`.
 
 Not exercised by the ported file: S01 (wrap point, guards, TP group), M03
 (order inside `release_kv_cache`: `before_release` and capture before the
-lease drain, `after_release` after the row free) and M02 (deferred commit
+lease drain, since Phase 5 `claim_kv_row` and `checkpoint`; `after_release`
+after the row free) and M02 (deferred commit
 at `free_group_end`). These need W2's lifecycle tests; S01's guards
 (non-`ChunkCache`, hierarchical cache, Mamba extra buffer) have no test.
 

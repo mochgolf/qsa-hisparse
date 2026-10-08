@@ -12,6 +12,11 @@ prefixes). Per arm: fork runs ``<fork>/python``; plugin runs
 events, observer records, server info and the four fork harness reports into
 the arm directory. Compare afterwards with
 ``compare.py <fork> <plugin> --require-observer 2``.
+
+Since Phase 5 the fork arm is production's code (``FORK_ROOT``, production
+``897286b12a``, whose ``test/manual`` harnesses equal the fork's), both arms
+use production's interpreter, and the plugin arm runs on the pin
+``35f3c96ff4``.
 """
 
 import argparse
@@ -28,9 +33,9 @@ from run_compat import preflight, stop, wait_ready  # noqa: E402
 
 QWEN = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
-FORK_ROOT = QWEN / ".worktrees" / "qsa-fork-ref-ee8fe158d6"
+FORK_ROOT = QWEN / ".worktrees" / "sglang-dsh-production-20261004"  # production
 PIN_ROOT = QWEN / ".worktrees" / "sglang-main-35f3c96ff4"
-PYTHON = QWEN / "service" / "runtime-env-sglang-20260923" / "bin" / "python"
+PYTHON = QWEN / "results" / "dsh-maintenance-20261004" / "upstream-runtime-env" / "bin" / "python"
 
 
 def server(arm, base, output):

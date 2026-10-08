@@ -1,10 +1,10 @@
-"""A finished request drops its pending host-prefix match (pin v0.5.21).
+"""A finished request drops its pending host-prefix match.
 
-v0.5.21 removed ``ChunkCache.cache_finished_req``: ``release_kv_cache`` frees
-the request's row itself and then calls ``tree_cache.on_release``. The fork
-dropped a finished request's match in its ``cache_finished_req`` override; the
-runtime's ``prefix_cache.py`` does it in ``on_release`` instead (an edit
-recorded in ``tests/runtime/test_moved_sources.py``).
+Since v0.5.21 ``ChunkCache`` has no ``cache_finished_req``: ``release_kv_cache``
+frees the request's row itself and then calls ``tree_cache.on_release``. The
+fork dropped a finished request's match in its ``cache_finished_req``
+override; production's ``prefix_cache.py`` (the reference since Phase 5) does
+it in ``on_release``.
 """
 
 import unittest

@@ -278,8 +278,11 @@ class TestHostPrefixOwnership(unittest.TestCase):
 
 class TestRuntimeHostPrefixes(unittest.TestCase):
     def setUp(self):
+        from sglang.srt.runtime_context import get_context
+
         self.patches = ExitStack()
         self.addCleanup(self.patches.close)
+        self.patches.enter_context(get_context().override_server_args())
         self.patches.enter_context(patch.object(torch.cuda, "Event", Event))
         self.patches.enter_context(
             patch.object(torch.cuda, "current_stream", return_value=Mock())
@@ -351,6 +354,20 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         a.prefix_namespace = ("fixture-model", "normal-text-position=0", "TP2")
         params = CacheInitParams(True, rp, a.runner.token_to_kv_pool_allocator, 64)
         self.cache = QSAHostPrefixCache(ChunkCache(params), a, None)
+
+    def test_finished_request_releases_owned_pages(self):
+        req = self.req("finished", range(64))
+        self.a.req_pool.alloc([req])
+        allocator = self.a.runner.token_to_kv_pool_allocator
+        indices = allocator.alloc(64)
+        self.a.req_table[req.kv.req_pool_idx, :64] = indices.int()
+        req.kv.kv_allocated_len = req.kv.kv_committed_len = 64
+        available_before = allocator.available_size()
+
+        self.cache.free_kv_row(req.kv, [(req.kv.cache_protected_len, 64)])
+        self.cache.on_release(req, inserted=False)
+
+        self.assertEqual(allocator.available_size(), available_before + 64)
 
     def req(self, name, tokens):
         return SimpleNamespace(
@@ -569,7 +586,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         alloc_for_extend(batch)
         state = self.a._acquire_request(req.kv.req_pool_idx, req.rid)
         state.seq_len = 64
-        self.cache.cache_unfinished_req(req, chunked=True)
+        self.cache.checkpoint(req, up_to=req.extend_range.end)
         warm = self.req("short-warm", range(73))
         self.assertEqual(self.match(warm), 64)
         self.assertEqual(self.cache.pending_prefix_tokens(warm), 64)
@@ -876,15 +893,20 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         )
 
         self.source(64)
-        manager = SchedulerWeightUpdaterManager(
-            tp_worker=None,
-            draft_worker=None,
-            tp_cpu_group=None,
-            memory_saver_adapter=None,
-            flush_cache=Mock(),
-            is_fully_idle=lambda: True,
-            scheduler=SimpleNamespace(tree_cache=self.cache),
-        )
+        # The manager derives tp_cpu_group from the published parallel context;
+        # this CPU fixture has no process group, so pin it to None.
+        with patch(
+            "sglang.srt.managers.scheduler_components.weight_updater.get_parallel",
+            return_value=SimpleNamespace(tp_group=SimpleNamespace(cpu_group=None)),
+        ):
+            manager = SchedulerWeightUpdaterManager(
+                tp_worker=None,
+                draft_worker=None,
+                memory_saver_adapter=None,
+                flush_cache=Mock(),
+                is_fully_idle=lambda: True,
+                scheduler=SimpleNamespace(tree_cache=self.cache),
+            )
         old = self.a.prefix_cache.epoch
         with manager._observe_weight_load("fixture"):
             self.assertEqual(self.a.prefix_cache.epoch, old + 1)
@@ -987,7 +1009,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             alloc_for_extend(batch)
             state = self.a._acquire_request(req.kv.req_pool_idx, req.rid)
             state.seq_len = 64
-            self.cache.cache_unfinished_req(req, chunked=True)
+            self.cache.checkpoint(req, up_to=req.extend_range.end)
         self.assertEqual(len(self.a.prefix_cache.entries), 1)
         probe = self.req("probe", range(65))
         self.assertEqual(self.match(probe), 64)
@@ -1058,7 +1080,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "undrained prefix restore"):
             self.cache.prepare_prefix_for_extend([req])
         with self.assertRaisesRegex(RuntimeError, "must drain through rollback"):
-            self.cache.before_release(req, is_insert=False)
+            self.cache.claim_kv_row(req)
         self.assertIs(self.cache.restoring[req.cache_request_handle], record)
         self.assertIsNotNone(record["reader"].snapshot)
         stream.synchronize.side_effect = None

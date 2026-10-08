@@ -143,6 +143,21 @@ class ProfileValidationTests(unittest.TestCase):
                 control.launcher_argv(loaded, "abc"),
                 [*LAUNCH, "--run-dir", run, "--timeout", "60", "--", "--model-path", "m", "--run-dir", "x"],
             )
+            # Production's profile wraps the interpreter in numactl.
+            wrapper = ["/usr/bin/numactl", "--interleave=all"]
+            path.write_text(json.dumps(dict(profile, command=[*wrapper, *argv])))
+            self.assertEqual(
+                control.launcher_argv(control.load_profile(path), "abc"),
+                [*wrapper, *LAUNCH, "--run-dir", run, "--timeout", "60", "--",
+                 "--model-path", "m", "--run-dir", "x"],
+            )
+            for argv in (
+                [*wrapper, *LAUNCH, "--run-dir", "/tmp/x", "--", "--model-path", "m"],
+                [*wrapper, sys.executable, "-m", "sglang.launch_server", "--", "--port", "1"],
+            ):
+                path.write_text(json.dumps(dict(profile, command=argv)))
+                with self.assertRaises(control.ServiceError):
+                    control.load_profile(path)
 
     def test_ready_requires_the_launcher_marker(self):
         with tempfile.TemporaryDirectory() as temporary:

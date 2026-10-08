@@ -170,11 +170,13 @@ def parse(argv):
     parser.add_argument(
         "--python",
         default=os.environ.get(
-            "QSA_PYTHON", str(parent / "service/runtime-env-sglang-20260923/bin/python")
+            "QSA_PYTHON",
+            str(parent / "results/dsh-maintenance-20261004/upstream-runtime-env/bin/python"),
         ),
     )
+    # Since Phase 5 the fork arm is production's code (897286b12a).
     parser.add_argument(
-        "--fork-root", type=Path, default=parent / ".worktrees/qsa-fork-ref-ee8fe158d6"
+        "--fork-root", type=Path, default=parent / ".worktrees/sglang-dsh-production-20261004"
     )
     parser.add_argument(
         "--pin-root", type=Path, default=parent / ".worktrees/sglang-main-35f3c96ff4"

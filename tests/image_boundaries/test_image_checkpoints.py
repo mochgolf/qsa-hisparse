@@ -81,6 +81,7 @@ class Host:
         a.pool.qsa_hisparse = a
         rp = a.req_pool = HybridReqToTokenPool.__new__(HybridReqToTokenPool)
         ReqToTokenPool.__init__(rp, 2, a.capacity, "cpu", False)
+        rp.layer_transfer_counter = None  # Set by HybridReqToTokenPool.__init__.
         rp.enable_mamba_extra_buffer = False
         rp.req_index_to_mamba_index_mapping = torch.zeros(3, dtype=torch.int32)
         rp.mamba_allocator = MambaSlotAllocator(2, "cpu")

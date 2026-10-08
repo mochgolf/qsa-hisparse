@@ -611,6 +611,36 @@
       ],
       "attach": []
     },
+    "U02": {
+      "feature": "model_compat",
+      "patches": [],
+      "attach": [
+        {
+          "owner": "sglang.srt.environ.Envs",
+          "name": "SGLANG_NUMA_INTERLEAVE"
+        }
+      ]
+    },
+    "U03": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.utils.numa_utils._numactl_cpu_mem_args",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
+    "U04": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.utils.numa_utils._strip_memory_args",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
     "Z01": {
       "feature": "model_compat",
       "patches": [

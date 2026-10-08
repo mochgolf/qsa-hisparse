@@ -52,6 +52,8 @@ OVERRIDES = {
         "attach": [{"owner": "sglang.srt.managers.schedule_policy.PrefillAdder", "name": "_add_one_req"}],
     },
     "Q04": {"attach": [{"owner": BACKEND, "name": "_kv_descales"}, {"owner": BACKEND, "name": "_store_kv"}]},
+    # Production's NUMA interleave switch (eec9df4723).
+    "U02": {"attach": [{"owner": "sglang.srt.environ.Envs", "name": "SGLANG_NUMA_INTERLEAVE"}]},
     "Q09": {
         "attach": [
             {"owner": BACKEND, "name": "_qsa_local_head_shape"},

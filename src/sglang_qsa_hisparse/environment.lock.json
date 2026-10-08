@@ -1,11 +1,11 @@
 {
-  "interpreter": "../service/runtime-env-sglang-20260923/bin/python",
+  "interpreter": "../results/dsh-maintenance-20261004/upstream-runtime-env/bin/python",
   "packages": {
-    "flashinfer-python": "0.6.18",
-    "sglang-kernel": "0.4.7",
-    "torch": "2.13.0",
-    "triton": "3.7.1"
+    "flashinfer-python": "0.7.0.post1",
+    "sglang-kernel": "0.4.9",
+    "torch": "2.14.1",
+    "triton": "3.8.0"
   },
   "python": "3.12.3",
-  "source": "importlib.metadata.version() in the interpreter above (sglang_qsa_hisparse.launch.native_versions), without CUDA"
+  "source": "importlib.metadata.version() in the interpreter above (sglang_qsa_hisparse.launch.native_versions), without CUDA; production's interpreter since Phase 5"
 }

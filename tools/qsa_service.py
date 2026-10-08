@@ -3,7 +3,9 @@
 
 Port of the fork's ``scripts/qsa_service.py`` to the plugin launcher: the
 profile command must be ``[<python>, "-m", "sglang_qsa_hisparse.launch",
-<launcher options>, "--", <sglang.launch_server args>]``. The controller adds
+<launcher options>, "--", <sglang.launch_server args>]``, optionally after a
+wrapper that execs it (production runs ``/usr/bin/numactl --interleave=all``
+first). The controller adds
 ``--run-dir <state_dir>/run-<instance>`` and counts the service as ready only
 after the launcher wrote ``ready.json`` there (every scheduler/TP rank's
 activation record verified) and the health check passes on a listener owned
@@ -74,14 +76,15 @@ def load_profile(path):
             raise ValueError("command must be a nonempty list of strings")
         if not Path(argv[0]).is_absolute():
             raise ValueError("command executable must be an absolute path")
-        if argv[1:3] != ["-m", LAUNCHER] or "--" not in argv:
+        start = launcher_start(argv)
+        if start is None or "--" not in argv[start:]:
             raise ValueError(
-                f"command must run the plugin launcher: <python> -m {LAUNCHER} "
+                f"command must run the plugin launcher: [wrapper] <python> -m {LAUNCHER} "
                 "[options] -- <server args>"
             )
         if any(
             arg == "--run-dir" or arg.startswith("--run-dir=")
-            for arg in argv[3 : argv.index("--")]
+            for arg in argv[start : argv.index("--", start)]
         ):
             raise ValueError("--run-dir is reserved for the controller")
         for key in ("cwd", "state_dir"):
@@ -145,9 +148,18 @@ def run_dir(profile, instance):
     return Path(profile["state_dir"]).resolve() / f"run-{instance}"
 
 
+def launcher_start(argv):
+    """Index just after ``<python> -m <launcher>`` (None if absent)."""
+    for index in range(len(argv) - 2):
+        if argv[index + 1 : index + 3] == ["-m", LAUNCHER]:
+            return index + 3
+    return None
+
+
 def launcher_argv(profile, instance):
     argv = profile["command"]
-    return [*argv[:3], "--run-dir", str(run_dir(profile, instance)), *argv[3:]]
+    start = launcher_start(argv)
+    return [*argv[:start], "--run-dir", str(run_dir(profile, instance)), *argv[start:]]
 
 
 def launcher_ready(profile, state):

@@ -158,6 +158,19 @@ Conventions:
 W6 owns no fork hunks outside N02. The call sites its prefix cache depends on
 are S01, B06, P01, P02, M01 and M03 (all W2); W6 must verify them.
 
+### P5-D: NUMA interleave (production `eec9df4723`)
+
+Production-only rows (Phase 5). Lines are production `897286b12a` lines.
+Upstream (pin) runs the NUMA V2 path (`configure_subprocess`) in the server's
+main process, after `load_plugins()`.
+
+| ID | Fork file:lines | Behavior | Feature: justification | Hook target (pin) | Type: why | depends (key) | WS | U |
+|---|---|---|---|---|---|---|---|---|
+| U02 | environ.py:1537-1539 | Register `SGLANG_NUMA_INTERLEAVE = EnvBool(False)` in `Envs` (NUMA section) | model_compat: changes worker memory placement while `SGLANG_QSA_HISPARSE_V3` is unset (opt-in, default off = upstream). Not scoped: its own opt-in, host memory policy, and the main process publishes no served-model config | new member `SGLANG_NUMA_INTERLEAVE` on `sglang.srt.environ.Envs` (pin 257) | attach: a field absent at the pin; its `name` is set by hand (setattr does not call `EnvField.__set_name__`); `exportable_env_vars` lists it like production's | `environ.Envs`, `EnvField`, `EnvBool`, `exportable_env_vars` | P5-D | none |
+| U03 | utils/numa_utils.py:217-221, 224, 231-235 | `_numactl_cpu_mem_args`: memory argument `--interleave=all` instead of `--membind=<node>` when `SGLANG_NUMA_INTERLEAVE` is set; CPU binding and the None (empty CPU intersection) path unchanged | model_compat (as U02) | `sglang.srt.utils.numa_utils._numactl_cpu_mem_args` (pin 216) | after: every non-None pinned result is `<cpu binding> --membind=<node>` with a space-free CPU binding; the hook swaps the last argument, as production builds `f"{cpu_arg} {memory_arg}"` | `numa_utils.configure_subprocess` (calls it by module global), `_probe_numactl_args` | P5-D | none |
+| U04 | utils/numa_utils.py:241-243 | `_strip_memory_args` also drops `--interleave` tokens, so a rejected interleave policy falls back to the CPU-only binding | model_compat (as U02) | `sglang.srt.utils.numa_utils._strip_memory_args` (pin 231) | after: the pinned result is the kept tokens joined by single spaces; dropping `--interleave` tokens from it equals production's single filter. `_probe_numactl_args` skips its `--membind` → `--preferred` step for interleave and reaches this step directly | `numa_utils._probe_numactl_args` | P5-D | none |
+| U05 | utils/numa_utils.py:239, 262, 311-312 | Docstring of `_strip_memory_args`, docstring and comment of `_probe_numactl_args` describe the interleave fallback | drop: docstring/comments only | none | none | none | P5-D | none |
+
 ## 2. Cross-feature conflicts (rule 2)
 
 No target receives a REPLACE from both features, and hisparse adds no hook to
@@ -507,7 +520,7 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | kernels/ops/moe/moe_wna16_marlin.py | +73,1 | J01 |
 | kernels/ops/moe/moe_wna16_marlin.py | +75,10 | J01 |
 | kernels/ops/moe/moe_wna16_marlin.py | +153,3 | J01 |
-| srt/environ.py | +1537,3 | ? |
+| srt/environ.py | +1537,3 | U02 |
 | srt/hardware_backend/gpu/quantization/gptq_kernels.py | +3,2 | Z01 |
 | srt/hardware_backend/gpu/quantization/gptq_kernels.py | +279,2 | Z01 |
 | srt/hardware_backend/gpu/quantization/gptq_kernels.py | +289,2 | Z01 |
@@ -721,13 +734,13 @@ and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 | srt/models/qwen4_exp.py | +2321,11 | E08 |
 | srt/models/qwen4_exp.py | +2539,11 | ? |
 | srt/utils/common.py | +4294,1 | U01 |
-| srt/utils/numa_utils.py | +217,5 | ? |
-| srt/utils/numa_utils.py | +224,1 | ? |
-| srt/utils/numa_utils.py | +231,5 | ? |
-| srt/utils/numa_utils.py | +239,1 | ? |
-| srt/utils/numa_utils.py | +241,3 | ? |
-| srt/utils/numa_utils.py | +262,1 | ? |
-| srt/utils/numa_utils.py | +311,2 | ? |
+| srt/utils/numa_utils.py | +217,5 | U03 |
+| srt/utils/numa_utils.py | +224,1 | U03 |
+| srt/utils/numa_utils.py | +231,5 | U03 |
+| srt/utils/numa_utils.py | +239,1 | U05 |
+| srt/utils/numa_utils.py | +241,3 | U04 |
+| srt/utils/numa_utils.py | +262,1 | U05 |
+| srt/utils/numa_utils.py | +311,2 | U05 |
 
 ## Appendix B. Candidate `depends` for copied bodies (generated)
 
