@@ -234,3 +234,10 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   image fixtures sha `59f72d85…` (10 cases), per-request restores on every
   configured TP rank. Window 2 next: I5 (`results/plugin-window2-20261008/`),
   then U6a/U6b/U8 upstream GPU checks.
+- GPU window 2 (03:00–03:51, production restored and verified;
+  `docs/window2-results.md`): I5 not obtained — an inherited fork/pin crash
+  (logprob index out of bounds on image requests with logprobs; fork arm
+  identical; without logprobs the plugin serves the image request). Upstream
+  checks: U6a, U6b+U6a, U8 pass with failing controls; U6b's CPU unit test is
+  environment-sensitive (no CPU `store_cache` in sglang-kernel 0.4.9).
+  I-C resumed: root cause, harness adjustment, inter-session GPU wait.
