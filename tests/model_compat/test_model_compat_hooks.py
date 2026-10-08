@@ -7,12 +7,13 @@ monkeypatch).
 
 import inspect
 from types import SimpleNamespace
+from unittest.mock import PropertyMock, patch
 
 import pytest
 import torch
 from torch import nn
 
-from sglang.srt.layers import hc_mix_triton
+from sglang.kernels.ops.gemm import hc_mix as pinned_hc_mix
 from sglang.srt.layers import hyperconnection as pinned_hyperconnection
 from sglang.srt.layers.hyperconnection import GatedResidual
 from sglang.srt.models import qwen4_exp as pinned_qwen4_exp
@@ -37,7 +38,6 @@ REPLACE_COPIES = {
     "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.apply_gptq_quant_layer": (
         quantization.ForkAutoRoundConfig.apply_gptq_quant_layer
     ),
-    "sglang.srt.layers.hc_mix_triton.fused_hc_mix_supported": hc_mix.fused_hc_mix_supported,
     "sglang.srt.models.qwen4_exp.Qwen4ExpNGramEmbedding.__init__": (
         qwen4_exp.ForkQwen4ExpNGramEmbedding.__init__
     ),
@@ -55,7 +55,7 @@ REPLACE_COPIES = {
 
 def test_w5_rows_activate_on_the_pin(compat):
     assert {spec.row for spec in compat.specs} == {
-        "J03", "Z01", "Z02", "Z03", "Z04", "H05", "H06", "H08", "E03", "E06", "E07", "E08"
+        "J03", "Z01", "Z02", "Z03", "Z04", "H06", "H08", "E03", "E06", "E07", "E08"
     }
     # The pinned op itself is untouched; only module bindings are patched.
     assert torch.ops.sglang.fused_marlin_moe is compat.originals[FUSED_MARLIN_MOE]
@@ -162,12 +162,32 @@ def test_stable_hc_mix_launch_runs_the_fork_copy_only_for_the_target(monkeypatch
     ]
 
 
-def test_copied_mix_reaches_the_patched_hc_mix_functions(compat):
-    # Inventory 6, G3: the copy's globals are rebound to the H05/H06 hooks.
-    assert hyperconnection.fused_hc_mix is hc_mix_triton.fused_hc_mix
-    assert hyperconnection.fused_hc_mix_supported is hc_mix_triton.fused_hc_mix_supported
-    assert hyperconnection.fused_hc_mix_supported is not hc_mix.fused_hc_mix_supported
-    assert pinned_hyperconnection.fused_hc_mix_supported is hc_mix_triton.fused_hc_mix_supported
+def test_copied_mix_reaches_the_patched_launch_and_the_fork_predicate(compat):
+    # Inventory 6, G3: the copy's fused_hc_mix is rebound to the H06 hook.
+    assert hyperconnection.fused_hc_mix is pinned_hc_mix.fused_hc_mix
+    assert pinned_hyperconnection.fused_hc_mix is pinned_hc_mix.fused_hc_mix
+    assert pinned_hc_mix.fused_hc_mix is not compat.originals[
+        "sglang.kernels.ops.gemm.hc_mix.fused_hc_mix"
+    ]
+    # H05: the copy binds the fork's predicate; the pinned one stays unpatched.
+    assert hyperconnection.fused_hc_mix_supported is hc_mix.fused_hc_mix_supported
+    assert pinned_hyperconnection.fused_hc_mix_supported is (
+        pinned_hc_mix.fused_hc_mix_supported
+    )
+    assert "sglang.kernels.ops.gemm.hc_mix.fused_hc_mix_supported" not in compat.originals
+
+
+def test_copied_mix_predicate_admits_the_stable_kernel_under_deterministic_inference(
+    monkeypatch,
+):
+    """H05: only the stable path bypasses the deterministic early return."""
+    monkeypatch.setattr(hc_mix, "_deterministic_inference", lambda: True)
+    x = torch.zeros(4, 2048, dtype=torch.bfloat16)
+    w_down = torch.zeros(8, 2048, dtype=torch.bfloat16)
+    w_up = torch.zeros(2048, 8, dtype=torch.bfloat16)
+    with patch.object(torch.Tensor, "is_cuda", new_callable=PropertyMock, return_value=True):
+        assert hyperconnection.fused_hc_mix_supported(x, w_down, w_up, stable=True)
+        assert not hyperconnection.fused_hc_mix_supported(x, w_down, w_up)
 
 
 def _mix_reference(x, w_down, w_up, hc, hs):
@@ -228,6 +248,50 @@ def test_gated_residual_mix_routes_stable_calls_to_the_fork_copy(
     assert residual is x and torch.equal(normed, 2 * x)
     w_down, w_up = layer.input_mix_weight_down.weight, layer.input_mix_weight_up.weight
     assert torch.equal(mixed, _mix_reference(2 * x, w_down, w_up, 2, 4))
+
+
+# E03 -------------------------------------------------------------------------
+
+
+def test_int8_row_table_is_flagged_and_checked_before_the_offload_wrapping(
+    compat, target, monkeypatch
+):
+    """RESOLVED E03: v0.5.21 wraps the offloaded table inside the constructor;
+    the E06 copy reads ple_row_scale_mode when it wraps, so the copy sets it
+    (and rejects an fp8 int8_row table) first."""
+
+    class Table(nn.Module):
+        def __init__(self, *_args, params_dtype, **_kwargs):
+            super().__init__()
+            self.weight = nn.Parameter(torch.empty(1, dtype=params_dtype), requires_grad=False)
+
+    wrapped = []
+
+    def wrap(table, **_kwargs):
+        wrapped.append((table.weight.dtype, table.ple_row_scale_mode))
+        return table
+
+    monkeypatch.setattr(qwen4_exp, "VocabParallelEmbedding", Table)
+    monkeypatch.setattr(qwen4_exp, "Qwen4ExpPinnedHostEmbedding", wrap)
+    config = SimpleNamespace(
+        ngram_size=2,
+        heads_per_ngram=1,
+        vocab_size=32,
+        ngram_vocab_size_base=31,
+        make_ngram_vocab_size_divisible_by=8,
+        eos_token_id=2,
+        seed=1234,
+        ple_embedding_dtype="int8_row",
+        ple_offload_embedding=True,
+    )
+    embedding = pinned_qwen4_exp.Qwen4ExpNGramEmbedding(config, embedding_dim=4)
+    assert wrapped == [(torch.int8, True)]
+    assert embedding.ngram_embedding.ple_row_scale_mode
+
+    monkeypatch.setattr(qwen4_exp, "_ple_table_is_fp8", lambda *args: True)
+    with pytest.raises(ValueError, match="conflicts with the fp8"):
+        pinned_qwen4_exp.Qwen4ExpNGramEmbedding(config, embedding_dim=4)
+    assert len(wrapped) == 1
 
 
 # E08 -------------------------------------------------------------------------

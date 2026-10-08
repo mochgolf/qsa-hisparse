@@ -6,8 +6,9 @@ The Python sorting oracle does not call Torch/FlashInfer top-k or argsort.
 Actual CUDA sort and graph evidence comes from the separate GPU probe.
 
 Plugin port: the stable top-k and the flag lookup live in plugin modules
-(inventory T01-T03), so mocks name them there; assertions are unchanged
-except where noted.
+(inventory T01-T03), so mocks name them there; the JIT ``fast_topk`` moved to
+``sglang.kernels.ops.attention`` at v0.5.21, so mocks name it there;
+assertions are unchanged except where noted.
 """
 
 import sys
@@ -142,7 +143,7 @@ class TestDeterministicQSATopK(unittest.TestCase):
         expected = torch.arange(512, dtype=torch.int32).flip(0).reshape(1, 512)
         with (
             patch(
-                "sglang.kernels.ops.elementwise.fast_topk.fast_topk",
+                "sglang.kernels.ops.attention.fast_topk.fast_topk",
                 return_value=expected,
             ) as native,
             patch.object(
@@ -184,7 +185,7 @@ class TestDeterministicQSATopK(unittest.TestCase):
                 return_value=torch.full((1, 2051), -1, dtype=torch.int32),
             ),
             patch(
-                "sglang.kernels.ops.elementwise.fast_topk.fast_topk",
+                "sglang.kernels.ops.attention.fast_topk.fast_topk",
                 side_effect=AssertionError(
                     "native collector reached during deterministic decode"
                 ),

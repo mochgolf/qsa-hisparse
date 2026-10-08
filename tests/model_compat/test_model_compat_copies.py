@@ -5,6 +5,9 @@ fork ee8fe158d6, not rewritten. Digests below are of the fork definitions
 (decorators included, original indentation); each copy, with its mechanical
 edits reverted, must hash to them. Set QSA_FORK_ROOT to a checkout of the
 fork at ee8fe158d6 to re-derive the recorded digests from the fork itself.
+REPLACE copies whose target changed upstream since the fork base (E03, E08 at
+v0.5.21) are the pinned definition plus the fork's change instead; they are
+checked by tests/regression/test_replace_deltas.py.
 """
 
 import ast
@@ -113,14 +116,6 @@ COPIES = [
         [],
     ),
     (
-        qwen4_exp,
-        "ForkQwen4ExpNGramEmbedding.__init__",
-        QWEN4_EXP,
-        "Qwen4ExpNGramEmbedding.__init__",
-        "0468d50d20fb4e300d9221a44ff71046320e0b2bd52b5fc31ae674be4a6b7e12",
-        [("super().__init__()", "super(Qwen4ExpNGramEmbedding, self).__init__()")],
-    ),
-    (
         ple_gather,
         "_gather_ple_embedding_from_pinned_kernel",
         QWEN4_EXP,
@@ -142,14 +137,6 @@ COPIES = [
         QWEN4_EXP,
         "Qwen4ExpPinnedHostEmbedding.gather",
         "1b3c983659fe8cb99cefae691ee6958d768ddaa1f02c6e64e2d7105d16d9d311",
-        [],
-    ),
-    (
-        qwen4_exp,
-        "ForkQwen4ExpForConditionalGeneration.load_weights",
-        QWEN4_EXP,
-        "Qwen4ExpForConditionalGeneration.load_weights",
-        "4f2f9704f7251c1c5e0d8282449277ef5e306c9fae0220f11f665b3e522dbfb8",
         [],
     ),
 ]

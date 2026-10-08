@@ -6,6 +6,8 @@
 - FP8 descales (Q04, A09) and the hook-order independence of the two backend
   ``__init__`` hooks (inventory section 2, C3).
 - HiSparse runtime wiring (Q03, Q06, Q07) with stand-in runtimes.
+- The hand-merged v0.5.21 ROCm branch of Q12 (RESOLVED in
+  tests/regression/test_replace_deltas.py).
 """
 
 import sys
@@ -155,6 +157,48 @@ def test_paged_attention_routes_through_the_runtime_only_for_the_target_model(
         )
 
 
+def test_rocm_paged_decode_keeps_the_pinned_packed_kernel(target_model, monkeypatch):
+    """RESOLVED Q12: v0.5.21's ROCm branch runs after extraction and returns
+    before flash-attention is resolved; the merged copy keeps it."""
+    backend = _backend(_Pool(), target_model, True)
+    backend.forward_metadata = SimpleNamespace(
+        row_req_pool_indices=torch.tensor([0]),
+        is_cuda_graph=False,
+        sequence_lengths=torch.tensor([8], dtype=torch.int32),
+    )
+    backend._get_fa2_scratch = lambda capacity, heads, dim, dtype, device: (
+        torch.zeros(capacity, heads, dim, dtype=dtype),
+        torch.zeros(capacity, heads, dim, dtype=dtype),
+    )
+    calls = []
+
+    def packed_decode(q, k, v, indices, cu_q, cu_k, kv_lens, scale):
+        calls.append("packed")
+        return torch.ones_like(q)
+
+    def resolver():
+        raise AssertionError("flash-attention resolved on ROCm")
+
+    monkeypatch.setattr(f"{COMPAT}.is_hip", lambda: True)
+    monkeypatch.setattr(f"{COMPAT}._resolve_trtllm_sparse_decode", lambda: None)
+    monkeypatch.setattr(f"{COMPAT}.qwen_sparse_fa2_cu_seqlens_triton", lambda *a: None)
+    monkeypatch.setattr(
+        f"{COMPAT}.qwen_sparse_kv_extraction_compact_triton",
+        lambda *a, **k: calls.append("extract"),
+    )
+    monkeypatch.setattr(f"{COMPAT}.sparse_gqa_packed_decode_triton", packed_decode)
+    monkeypatch.setattr(f"{COMPAT}._resolve_flash_attn_varlen_func", resolver)
+    with patch.object(torch.Tensor, "is_cuda", new_callable=PropertyMock, return_value=True):
+        output = backend._forward_paged_attention(
+            torch.zeros(1, 1, 8, dtype=torch.bfloat16),
+            _layer(),
+            None,
+            torch.tensor([[0, 1, -1, -1]], dtype=torch.int32),
+        )
+    assert calls == ["extract", "packed"]
+    assert output.shape == (1, 8) and bool((output == 1).all())
+
+
 @pytest.mark.parametrize("active", [True, False])
 def test_flash_attention_fallback_only_for_the_target_model(target_model, active):
     resolver = backend_module._resolve_flash_attn_varlen_func
@@ -201,7 +245,7 @@ def test_deterministic_decode_skips_native_topk_only_for_the_target_model(
     monkeypatch.setattr(f"{COMPAT}.get_context", lambda: published)
     monkeypatch.setattr(f"{COMPAT}.get_exec", lambda: config)
     monkeypatch.setattr(
-        "sglang.kernels.ops.elementwise.fast_topk.fast_topk", lambda *a, **k: native
+        "sglang.kernels.ops.attention.fast_topk.fast_topk", lambda *a, **k: native
     )
     indexer = SimpleNamespace(block_topk=512, compress_ratio=4, token_topk=2048)
     with patch.object(torch.Tensor, "is_cuda", new_callable=PropertyMock, return_value=True):

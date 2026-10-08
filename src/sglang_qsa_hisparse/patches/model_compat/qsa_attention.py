@@ -3,9 +3,9 @@
 FP8 K/V descales on store and extraction, the SM86/SM89 flash-attention
 fallback, the eager decode score width, deterministic stable top-k and the
 FP8-aware sparse GQA kernels. Rule 2: this feature owns every QSA backend
-REPLACE and copies the fork bodies verbatim, including their ``qsa_hisparse``
-branches, which stay inert unless ``patches/hisparse/qsa_backend.py`` attaches
-a runtime.
+REPLACE; each copy is the pinned definition plus the fork's change (PLAN.md
+Phase 4 rule P1), including the fork's ``qsa_hisparse`` branches, which stay
+inert unless ``patches/hisparse/qsa_backend.py`` attaches a runtime.
 
 Copies run with this module's globals (inventory section 6, G3). Mechanical
 edits, all at the import level: the kernel launchers, ``is_fp8_kv_dtype`` and
@@ -49,6 +49,7 @@ from sglang.srt.layers.attention.qsa.mqa import qsa_mqa_decode
 from sglang.srt.layers.attention.qsa.sparse_attn import (
     qwen_sparse_fa2_cu_seqlens_triton,
     qwen_sparse_valid_counts_triton,
+    sparse_gqa_packed_decode_triton,
 )
 from sglang.srt.layers.attention.qwen_sparse_attn_backend import (
     _TRTLLM_SPARSE_PAGE_SIZE,
@@ -56,6 +57,7 @@ from sglang.srt.layers.attention.qwen_sparse_attn_backend import (
     logger,
 )
 from sglang.srt.runtime_context import get_context, get_exec
+from sglang.srt.utils import is_hip
 from sglang.srt.utils.nvtx_utils import operations_nvtx_range
 from sglang_qsa_hisparse import scope
 from sglang_qsa_hisparse.features import MODEL_COMPAT
@@ -809,7 +811,6 @@ def _forward_paged_attention(
         )
 
     with operations_nvtx_range("qsa.fa2_metadata_scratch"):
-        flash_attn_varlen_func = _resolve_flash_attn_varlen_func()
         batch, topk = topk_indices.shape
         sequence_lens = metadata.sequence_lengths
         if metadata.is_cuda_graph:
@@ -860,6 +861,26 @@ def _forward_paged_attention(
             k_scale=k_scale,
             v_scale=v_scale,
         )
+    if is_hip():
+        relative_indices = torch.arange(
+            topk, dtype=torch.int32, device=q.device
+        ).expand(batch, -1)
+        relative_indices = relative_indices.masked_fill(
+            relative_indices >= valid_counts[:, None], -1
+        ).contiguous()
+        output = sparse_gqa_packed_decode_triton(
+            q.contiguous(),
+            packed_k,
+            packed_v,
+            relative_indices,
+            cu_seqlens_q,
+            cu_seqlens_k,
+            valid_counts,
+            layer.scaling,
+        )
+        return output.reshape(q.shape[0], -1)
+
+    flash_attn_varlen_func = _resolve_flash_attn_varlen_func()
     with operations_nvtx_range("qsa.fa2_attention"):
         if self._can_run_fa2_graph(
             q, k_buffer, layer, forward_batch, metadata, topk
@@ -903,13 +924,19 @@ patch(
         f"{_BACKEND}._logical_to_physical",
         f"{_BACKEND}._resolve_metadata",
         f"{_QSA}.kernel.qsa_sparse_attention",
+        f"{_SPARSE_ATTN}.sparse_gqa_packed_decode_triton",
+        "sglang.srt.utils.common.is_hip",
         "sglang.srt.utils.nvtx_utils.profile_range",
     ),
     reason=(
         "model_compat (both; rule 2): qsa_hisparse.selected buffers, trtllm "
         "disabled under HiSparse, NVTX ranges, FP8 scratch dtype and descales, "
-        "FA2 graph wrapper, capture_decode. replace (124). Uses the plugin "
-        "Q01 resolver, A09 launcher and A01 is_fp8_kv_dtype. "
+        "FA2 graph wrapper, capture_decode. replace (143). Uses the plugin "
+        "Q01 resolver, A09 launcher and A01 is_fp8_kv_dtype. Copy: the pinned "
+        "method plus the fork's change, merged by hand because v0.5.21's ROCm "
+        "branch (pinned packed decode after extraction, flash-attention "
+        "resolved after it) lands inside the fork's NVTX-range rewrite "
+        "(RESOLVED in tests/regression/test_replace_deltas.py). "
         + _BACKEND_METHOD_SCOPE
     ),
 )(_scoped_method("_forward_paged_attention", _forward_paged_attention))
@@ -986,7 +1013,7 @@ def select_decode_tokens(
     if logits.is_cuda and self.block_topk == 512 and not deterministic:
         # Decode rows start at zero, so compressed lengths double as row lengths;
         # skip the generic zero-fill + subtract.
-        from sglang.kernels.ops.elementwise.fast_topk import fast_topk
+        from sglang.kernels.ops.attention.fast_topk import fast_topk
 
         block_indices = fast_topk(
             logits,
@@ -1020,15 +1047,17 @@ patch(
     depends=(
         f"{_QSA}.mqa.qsa_mqa_decode",
         f"{_QSA}.kernel.expand_qsa_block_indices",
-        "sglang.kernels.ops.elementwise.fast_topk.fast_topk",
+        "sglang.kernels.ops.attention.fast_topk.fast_topk",
         f"{_RUNTIME_CONTEXT}.get_context",
         f"{_RUNTIME_CONTEXT}.get_exec",
     ),
     reason=(
         "model_compat: deterministic decode skips the JIT fast_topk and passes "
         "the flag to qsa_fast_topk (rebound to the T02 hook at activation). "
-        "replace (48): mid-function branch predicate. Per-layer indexer code "
-        "without a backend reference: " + _FUNCTION_SCOPE
+        "replace (48): mid-function branch predicate. Copy: the pinned method "
+        "(fast_topk now imported from sglang.kernels.ops.attention) plus the "
+        "fork's change. Per-layer indexer code without a backend reference: "
+        + _FUNCTION_SCOPE
     ),
 )(_scoped_function(_indexer.QSAIndexer.__dict__["select_decode_tokens"], select_decode_tokens))
 

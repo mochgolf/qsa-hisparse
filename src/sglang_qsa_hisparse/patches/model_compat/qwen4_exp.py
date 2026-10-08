@@ -10,10 +10,11 @@ Qwen4Exp's, but the inventory treats them as shared paths (any model built
 from ``qwen4_exp``), so every REPLACE delegates to the pinned method unless
 ``scope.target_model_active()`` (rule 9).
 
-The ``Fork*`` classes are namespaces holding verbatim copies of the fork's
-method bodies at their original indentation; they are never instantiated.
-Globals are imported from the modules the fork's ``qwen4_exp`` imports them
-from, so every name resolves to the same object as in the fork module.
+The ``Fork*`` classes are namespaces holding the copied method bodies at their
+original indentation (the pinned definition plus the fork's change, PLAN.md
+Phase 4 rule P1); they are never instantiated. Globals are imported from the
+modules the pinned ``qwen4_exp`` imports them from, so every name resolves to
+the same object as in the pinned module.
 """
 
 from contextlib import nullcontext
@@ -25,10 +26,7 @@ from torch import nn
 
 from sglang.srt.configs.qwen4_exp import Qwen4ExpTextConfig
 from sglang.srt.environ import envs
-from sglang.srt.layers.dp_attention import (
-    get_attention_dp_size,
-    is_dp_attention_enabled,
-)
+from sglang.srt.layers.dp_attention import is_dp_attention_enabled
 from sglang.srt.layers.moe.fused_moe_triton.layer import FusedMoE
 from sglang.srt.layers.quantization.base_config import QuantizationConfig
 from sglang.srt.layers.quantization.unquant import UnquantizedEmbeddingMethod
@@ -41,6 +39,7 @@ from sglang.srt.models.qwen4_exp import (
     Qwen4ExpNGramEmbedding,
     Qwen4ExpPinnedHostEmbedding,
     _ple_table_is_fp8,
+    _use_aiter,
     _use_attn_tp_ngram,
 )
 from sglang.srt.models.qwen4_exp_ple_table import (
@@ -48,7 +47,7 @@ from sglang.srt.models.qwen4_exp_ple_table import (
     make_ple_file_prefetcher,
     make_ple_file_rss_trimmer,
 )
-from sglang.srt.runtime_context import get_exec
+from sglang.srt.runtime_context import get_exec, get_parallel
 from sglang.srt.utils import logger
 from sglang_qsa_hisparse.features import MODEL_COMPAT
 from sglang_qsa_hisparse.kernels.ple_gather import (
@@ -133,12 +132,15 @@ class ForkQwen4ExpNGramEmbedding:
         self.use_attn_tp_ngram = _use_attn_tp_ngram()
         self.gather_dp_tokens = (
             is_dp_attention_enabled()
-            and get_attention_dp_size() > 1
+            and get_parallel().attn_dp_size > 1
             and not self.use_attn_tp_ngram
         )
         ngram_prefix = f"{prefix}.ngram_embedding" if prefix else "ngram_embedding"
-        with torch.device("meta") if config.ple_offload_embedding else nullcontext():
-            self.ngram_embedding = VocabParallelEmbedding(
+        offload_embedding = bool(config.ple_offload_embedding)
+        # Offload only needs this embedding's metadata: build it on meta so the
+        # shard is never allocated on the device.
+        with torch.device("meta") if offload_embedding else nullcontext():
+            ngram_embedding = VocabParallelEmbedding(
                 padded_vocab_size,
                 self.head_dim_per_ngram,
                 params_dtype=(
@@ -152,7 +154,8 @@ class ForkQwen4ExpNGramEmbedding:
                 output_dtype=torch.bfloat16,
                 use_attn_tp_group=self.use_attn_tp_ngram,
             )
-        self.ngram_embedding.register_buffer(
+        # weight_scale stays a real device tensor.
+        ngram_embedding.register_buffer(
             "weight_scale", torch.ones(1, dtype=torch.bfloat16), persistent=True
         )
         # "int8_row": per-row symmetric scale, applied inside the pinned-host
@@ -160,9 +163,9 @@ class ForkQwen4ExpNGramEmbedding:
         self.ple_row_scale_mode = (
             getattr(config, "ple_embedding_dtype", None) == "int8_row"
         )
-        self.ngram_embedding.ple_row_scale_mode = self.ple_row_scale_mode
+        ngram_embedding.ple_row_scale_mode = self.ple_row_scale_mode
         if self.ple_row_scale_mode:
-            if self.ngram_embedding.weight.dtype != torch.int8:
+            if ngram_embedding.weight.dtype != torch.int8:
                 raise ValueError(
                     "ple_embedding_dtype='int8_row' conflicts with the fp8 "
                     "embedding storage selected by the quant config"
@@ -173,6 +176,13 @@ class ForkQwen4ExpNGramEmbedding:
                     "ple_offload_embedding (row scales are applied inside the "
                     "pinned-host gather kernel)"
                 )
+        if offload_embedding:
+            ngram_embedding = Qwen4ExpPinnedHostEmbedding(
+                ngram_embedding,
+                backend=getattr(config, "ple_offload_backend", "pinned"),
+                table_dir=getattr(config, "ple_offload_dir", None),
+            )
+        self.ngram_embedding = ngram_embedding
 
 
 class ForkQwen4ExpPinnedHostEmbedding:
@@ -308,12 +318,21 @@ class ForkQwen4ExpForConditionalGeneration:
         ]
 
         num_experts = getattr(self.config, "num_experts", None)
+        # A fused shared expert lives in routed slot `num_experts`, so the
+        # mapping has to cover one more expert than the config declares.
+        num_fused_shared_experts = 0
+        if _use_aiter:
+            for module in self.modules():
+                fused = getattr(module, "num_fused_shared_experts", 0)
+                if fused:
+                    num_fused_shared_experts = fused
+                    break
         expert_params_mapping = (
             FusedMoE.make_expert_params_mapping(
                 ckpt_gate_proj_name="gate_proj",
                 ckpt_down_proj_name="down_proj",
                 ckpt_up_proj_name="up_proj",
-                num_experts=num_experts,
+                num_experts=num_experts + num_fused_shared_experts,
             )
             if num_experts is not None
             else []
@@ -517,6 +536,12 @@ class ForkQwen4ExpForConditionalGeneration:
             elif name.endswith(".v_proj.v_scale"):
                 name = name.replace(".v_proj.v_scale", ".attn.v_scale")
 
+            layer_id = get_layer_id(name)
+            if layer_id is not None and (
+                layer_id < self.start_layer or layer_id >= self.end_layer
+            ):
+                continue
+
             if self._load_qwen4_exp_ple_buffer(
                 name, loaded_weight, buffers, loaded_buffers
             ):
@@ -542,11 +567,22 @@ class ForkQwen4ExpForConditionalGeneration:
                 )
                 weight_loader(lm_head_param, loaded_weight)
 
-            layer_id = get_layer_id(name)
-            if layer_id is not None and (
-                layer_id < self.start_layer or layer_id >= self.end_layer
+            if (
+                not self.pp_group.is_last_rank
+                and "model.hyper_connection_mixer." in name
             ):
                 continue
+
+            if (
+                _use_aiter
+                and num_fused_shared_experts > 0
+                and "mlp.shared_expert." in name
+            ):
+                # Map mlp.shared_expert.xx_proj to mlp.experts.{num_experts}.xx_proj
+                name = name.replace(
+                    "mlp.shared_expert.",
+                    f"mlp.experts.{num_experts}.",
+                )
 
             is_fused_expert = (
                 "experts.gate_up_proj" in name or "experts.down_proj" in name
@@ -698,18 +734,23 @@ patch(
         f"{_QWEN4_EXP}._use_attn_tp_ngram",
         "sglang.srt.layers.vocab_parallel_embedding.VocabParallelEmbedding.__init__",
         "sglang.srt.layers.dp_attention.is_dp_attention_enabled",
-        "sglang.srt.layers.dp_attention.get_attention_dp_size",
+        "sglang.srt.runtime_context.get_parallel",
+        # E06's target: the copy wraps the offloaded table, as the pin does.
+        f"{_PINNED_HOST}.__init__",
     ),
     reason=(
-        "Fork: the n-gram table is built on the meta device whenever "
-        "ple_offload_embedding (bf16 and fp8 too), int8 storage for "
-        "ple_embedding_dtype int8/int8_row, and int8_row validation. "
-        "Mid-function, so replace. model_compat: changes PLE construction (and "
-        "its memory peak) with HiSparse unset. Scope (rule 9): the copy runs "
-        "only when target_model_active(), otherwise the pinned method. "
-        "Mechanical edit (inventory 6, G2): super().__init__() -> "
-        "super(Qwen4ExpNGramEmbedding, self).__init__(), because the copy is "
-        "defined outside the class; the rest is verbatim."
+        "Fork: int8 storage for ple_embedding_dtype int8/int8_row and int8_row "
+        "validation (the fork's meta-device table for ple_offload_embedding is "
+        "upstream at v0.5.21, which also moved the Qwen4ExpPinnedHostEmbedding "
+        "wrapping into this method). Mid-function (constructor dtype; "
+        "ple_row_scale_mode must be set before the wrapping, which reads it in "
+        "E06), so replace. Copy: the pinned method plus the fork's change, "
+        "merged by hand (RESOLVED in tests/regression/test_replace_deltas.py). "
+        "model_compat: changes PLE construction with HiSparse unset. Scope "
+        "(rule 9): the copy runs only when target_model_active(), otherwise the "
+        "pinned method. Mechanical edit (inventory 6, G2): super().__init__() "
+        "-> super(Qwen4ExpNGramEmbedding, self).__init__(), because the copy is "
+        "defined outside the class."
     ),
 )(scoped(Qwen4ExpNGramEmbedding.__init__, ForkQwen4ExpNGramEmbedding.__init__))
 
@@ -774,9 +815,11 @@ patch(
         "closure load_qwen4_exp_ple_shard, which cannot be hooked, so replace. "
         "model_compat: model loading with HiSparse unset. Scope (rule 9): the "
         "copy runs only when target_model_active(), otherwise the pinned method. "
-        "Copy ForkQwen4ExpForConditionalGeneration.load_weights is verbatim; "
+        "Copy ForkQwen4ExpForConditionalGeneration.load_weights is the pinned "
+        "method plus the fork's change (upstream's v0.5.21 edits, aiter fused "
+        "shared experts and the earlier pipeline-stage skip, do not overlap it); "
         "mechanical edits: none (every global is imported from the module the "
-        "fork's qwen4_exp imports it from)."
+        "pinned qwen4_exp imports it from)."
     ),
 )(
     scoped(

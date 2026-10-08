@@ -1,10 +1,10 @@
 {
   "sglang.kernels.jit.utils.common.cache_once": {
-    "def_line": 27,
+    "def_line": 28,
     "file": "sglang/kernels/jit/utils/common.py",
-    "first_line": 27,
+    "first_line": 28,
     "kind": "function",
-    "module_sha256": "cdaab0ec52cd48eddf527e03e3c109745f2bf882751802407bc51b7e7ad4c22b",
+    "module_sha256": "28eb4d7c984bf1df8612e55654a32e0f349ca5b6da6a1b540f7ea17e4c7853a9",
     "qualname": "cache_once",
     "sha256": "8bab34167526a57f6d1b3ba01429c8a12c947d45315d86d228171bbe3adaaa13"
   },
@@ -22,9 +22,9 @@
     "file": "sglang/kernels/jit/utils/compile/loader.py",
     "first_line": 47,
     "kind": "function",
-    "module_sha256": "7888b2074e7ed0d36e81532fbd65183d8221d4bfe66308af481fb8c90065e305",
+    "module_sha256": "2a48d429aa1068e0b2084e271ee2c08e7dca8388aee73edd3a5e5824cf950b02",
     "qualname": "load_jit",
-    "sha256": "f8911a4141f5c56faf5b9806ed0d12ef6b82f0e74a5edf78c1451285ffa2b01f"
+    "sha256": "ab6be4d2932420cf3dbc00dec32d5555cb232615eb4de6890513504877d5a2f5"
   },
   "sglang.kernels.jit.utils.compile.spec.resolve_sources": {
     "def_line": 125,
@@ -45,11 +45,11 @@
     "sha256": "fc75355445c2656dacf8cb4e0d17deeb0db0e1818e8a5e2d40bc2759a32c05a6"
   },
   "sglang.kernels.ops.activation.activation.silu_and_mul": {
-    "def_line": 182,
+    "def_line": 175,
     "file": "sglang/kernels/ops/activation/activation.py",
-    "first_line": 182,
+    "first_line": 175,
     "kind": "function",
-    "module_sha256": "c8ea8e9480ccc488b5b4721fe991e4e901e63fb88e6fe89286767f30e23d9ab6",
+    "module_sha256": "d0c39a06a4ed6b2e05910dc19cf695574a71259b47001216f39bb401f848da53",
     "qualname": "silu_and_mul",
     "sha256": "69f3b9e5242ce24f59f89032742244eee9984394e7a10bb435cbaa13a4dc54f2"
   },
@@ -135,29 +135,29 @@
     "sha256": "93cde228de99616503dd09b1dbf47e7b80065226f42da63bd85224a6a991d7a2"
   },
   "sglang.srt.runtime_context.get_context": {
-    "def_line": 1351,
+    "def_line": 1258,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1351,
+    "first_line": 1258,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_context",
     "sha256": "e259db7cb2d6e0339aac82725b374a0197b63969dbf34a35bbead7939eb95353"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1388,
+    "def_line": 1295,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1388,
+    "first_line": 1295,
     "kind": "function",
-    "module_sha256": "e504f6c6b712e2c4bd47f3d566129542659088d3d529852e74bb7256376251e8",
+    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
   "sglang.srt.utils.common.direct_register_custom_op": {
-    "def_line": 2775,
+    "def_line": 2882,
     "file": "sglang/srt/utils/common.py",
-    "first_line": 2775,
+    "first_line": 2882,
     "kind": "function",
-    "module_sha256": "0f6387b5ed3c1dcd8d822fe52fa5433dbb4eb29aed42a253bc9e7e968591a49d",
+    "module_sha256": "71abb02aca154dfd2f30ed7e13b6550ac98ec9883b32e73e744e317552730fea",
     "qualname": "direct_register_custom_op",
     "sha256": "e1e3ba11ac053980936c2f2c528a66dcef44e2d9cb1ec0f42182aa2f1b84ffce"
   },
