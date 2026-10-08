@@ -1,19 +1,13 @@
 """Monotonic request-row generations across flushes (inventory M04)."""
 
-from sglang.srt.mem_cache.memory_pool import ReqToTokenPool
 from sglang_qsa_hisparse import scope
 from sglang_qsa_hisparse.features import MODEL_COMPAT
 from sglang_qsa_hisparse.patching import patch
 
-# The pinned method for non-target models. Held in a dict because HookRegistry
-# rebinds module-level references to a patched function to its wrapper.
-_PINNED = {"clear": ReqToTokenPool.clear}
 
-
-# Fork mem_cache/memory_pool.py:346-352, verbatim after the added scope check.
 @patch(
     "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.clear",
-    "replace",
+    "around",
     feature=MODEL_COMPAT,
     row="M04",
     depends=("sglang.srt.mem_cache.memory_pool.ReqToTokenPool.alloc_rows",),
@@ -21,17 +15,21 @@ _PINNED = {"clear": ReqToTokenPool.clear}
         "model_compat: request-row generations read by overlap_utils and the "
         "DSpark planner stay monotonic across flushes, with or without the "
         "HiSparse runtime. Scope (rule 9): request-row generations are a generic "
-        "path, so the pinned clear runs unless target_model_active(); that check "
-        "is the only edit to the fork body. Replace: an around that snapshots "
-        "and restores req_generation would be equivalent but heavier."
+        "path, so the pinned clear runs unchanged unless target_model_active(). "
+        "Around hook (P3 narrowing of the fork's replace, which deletes the "
+        "req_generation.zero_() line, memory_pool.py 348-350): the pinned clear "
+        "zeroes req_generation in place and nothing else in it (free_slots, the "
+        "MiniCPM aux cache) reads the generations, so restoring the snapshot "
+        "afterwards equals not zeroing; HybridReqToTokenPool.clear reaches it "
+        "through super().clear() as it reached the fork's body."
     ),
 )
-def clear(self):
+def _keep_generations(original, self):
     if not scope.target_model_active():
-        return _PINNED["clear"](self)
-    self.free_slots = list(range(1, self._alloc_size))
+        return original(self)
     # Row identities remain monotonic across flushes. Physical lease owners
     # retain generations to reject callbacks from a released request; a
     # flush must not make a newly allocated row impersonate that request.
-    if self._aux_cache is not None:
-        self._aux_cache.clear()
+    generations = self.req_generation.clone()
+    original(self)
+    self.req_generation.copy_(generations)

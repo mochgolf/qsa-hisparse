@@ -79,6 +79,16 @@ COPIES: dict[str, tuple] = {
     "G01": ("hisparse/graph.py", "capture_one_shape", ()),
     "G02": ("hisparse/graph.py", "load_batch", ()),
     "G03": ("hisparse/graph.py", "execute", ()),
+    "B02": ("hisparse/scheduler.py", "process_batch_result_prebuilt", ()),
+    "B03": ("hisparse/scheduler.py", "process_batch_result_prefill", ()),
+    "B04": ("hisparse/scheduler.py", "_handle_sampling_mask_abort", ()),
+    "B05": ("hisparse/scheduler.py", "_handle_finish_state_updated_req", ()),
+    "M01": ("hisparse/lifecycle.py", "alloc_for_extend", ()),
+    "M03": ("hisparse/lifecycle.py", "release_kv_cache", ()),
+    "P02": ("hisparse/scheduler.py", "add_one_req", ()),
+    "S04": ("hisparse/scheduler.py", "get_next_batch_to_run", ()),
+    "S06": ("hisparse/scheduler.py", "_get_new_batch_prefill_raw", ()),
+    "S07": ("hisparse/scheduler.py", "on_idle", ()),
 }
 
 # row: why the copy differs from "pin + fork change" (an upstream edit overlaps
@@ -109,6 +119,15 @@ RESOLVED: dict[str, str] = {
         "(the pinned method, unchanged at v0.5.21, plus the fork's change); the "
         "rest is inherited from the pinned class, and topk_transform's change is "
         "T02's around. The class-level edit script cannot match by construction."
+    ),
+    "P02": (
+        "The fork split add_one_req into a new wrapper and the renamed original "
+        "body _add_one_req, so on the target qualname its change replaces the "
+        "whole body; the deleted side is the pinned body, which v0.5.21 edited "
+        "(per_req_token_overhead, has_chunked_req, KV-shard scratch). The "
+        "wrapper is the fork's, unchanged; _add_one_req is the pinned "
+        "add_one_req with the fork's ignore_eos edit, checked mechanically by "
+        "tests/lifecycle/test_renamed_copies.py."
     ),
 }
 
