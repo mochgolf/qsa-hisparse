@@ -26,7 +26,9 @@ the two image-only ones is the base prompt: checkpoints 2048 (in A), 4096
 their own seeds and have no text (no BOS; the harness checks alignment):
 A + C is 2 + 2304 + 2 + 1980 = 4288 = 67 x 64 tokens; A + B is
 2 + 2304 + 2 + 2048 = 4356 tokens, whose last page64 boundary 4352 lies
-inside B and is no chunk end.
+inside B and is no chunk end; C + C is 2 + 1980 + 2 + 1980 = 3964 tokens,
+whose last page64 boundary 3904 = 61 x 64 (an odd page) lies inside the
+second C.
 """
 
 import argparse
@@ -110,6 +112,7 @@ def prompt(first, second, question, detail=None):
 BASE = prompt("A", "B", NOTES + END)
 ALIGNED = {"text": "<image><image>", "images": [{"name": "A"}, {"name": "C"}]}
 IMAGES_ONLY = {"text": "<image><image>", "images": [{"name": "A"}, {"name": "B"}]}
+TWO_C = {"text": "<image><image>", "images": [{"name": "C"}, {"name": "C"}]}
 
 # name, seed, prompt, cached, hit_inside (image index), extra fields, what it shows
 CASES = [
@@ -136,6 +139,11 @@ CASES = [
         "page-boundary-inside-b", IMAGES_ONLY, IMAGES_ONLY, 4352, 1, {},
         "A 4356-token prompt (its own seed) published its last page64 "
         "checkpoint at 4352; the repeat reuses 4352, inside B and no chunk end.",
+    ),
+    (
+        "odd-page-boundary-inside-c", TWO_C, TWO_C, 3904, 1, {},
+        "A 3964-token prompt of C twice (its own seed) published its last page64 "
+        "checkpoint at 3904 = 61 x 64; the repeat reuses 3904, inside the second C.",
     ),
     (
         "input-logprob", BASE, BASE, 4096, 1, {"logprob_start_len": LOGPROB_START},

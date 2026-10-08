@@ -87,8 +87,10 @@ class FakeModel:
             reuse = 0
         boundary = n // PAGE * PAGE if n % PAGE else n
         lengths = [*range(reuse + CHUNK, boundary, CHUNK), *([boundary] if boundary > reuse else [])]
-        # chunk_only: a cache that captures at chunk ends only (no other page64 boundary).
-        captured = [x for x in lengths if fault != "chunk_only" or x % CHUNK == 0]
+        # chunk_only / page128: a cache that captures only at chunk ends, or
+        # only at every other page64 boundary (multiples of 128).
+        step = {"chunk_only": CHUNK, "page128": 2 * PAGE}.get(fault, PAGE)
+        captured = [x for x in lengths if x % step == 0]
         self.published.setdefault(salt, []).append((matched, captured))
         self.encode(items, reuse, [*[x for x in lengths if x < n], n], fault)
         rid = f"rid-{self.requests}"
@@ -276,6 +278,7 @@ def test_correct_server_passes_with_the_frozen_reuse_lengths(evidence, inputs, t
         "boundary-inside-b": 4096,
         "page-aligned": 4096,
         "page-boundary-inside-b": 4352,
+        "odd-page-boundary-inside-c": 3904,
         "input-logprob": 4096,
         "different-image-a": 0,
         "swapped": 0,
@@ -294,7 +297,7 @@ def test_correct_server_passes_with_the_frozen_reuse_lengths(evidence, inputs, t
         assert encoded["divergent-suffix"] == []
         assert encoded["different-image-after-boundary"] == [0, 1]
         assert encoded["boundary-inside-b"] == encoded["page-aligned"] == [1]
-        assert encoded["page-boundary-inside-b"] == [1]
+        assert encoded["page-boundary-inside-b"] == encoded["odd-page-boundary-inside-c"] == [1]
         invariance = report["vit_batch_invariance"]["images"]
         assert {e["image"] for e in invariance if e["alone"] and e["batched"]} >= {"A", "B"}
     else:
@@ -304,7 +307,7 @@ def test_correct_server_passes_with_the_frozen_reuse_lengths(evidence, inputs, t
 
 
 IMAGE_HITS = {"divergent-suffix", "different-image-after-boundary", "boundary-inside-b", "page-aligned",
-              "page-boundary-inside-b", "input-logprob"}  # fmt: skip
+              "page-boundary-inside-b", "odd-page-boundary-inside-c", "input-logprob"}  # fmt: skip
 ALL_IMAGE = IMAGE_HITS | {"different-image-a", "swapped", "different-preprocessing"}
 TEXT = {f"text prefix-{n}-{s}" for n in TEXT_LENGTHS[:3] for s in ("copy", "arithmetic")}
 
@@ -323,7 +326,8 @@ TEXT = {f"text prefix-{n}-{s}" for n in TEXT_LENGTHS[:3] for s in ("copy", "arit
         ("input_logprobs", False, {"input-logprob"}, "input_token_logprobs differ"),
         ("input_logprobs_short", False, {"input-logprob"}, "input logprobs, expected 2361"),
         ("bos", False, {"page-aligned"}, "4289 is not a multiple of 64"),
-        ("chunk_only", False, {"page-boundary-inside-b"}, "warm reused 4096 tokens, expected 4352"),
+        ("chunk_only", False, {"page-boundary-inside-b", "odd-page-boundary-inside-c"}, "tokens, expected"),
+        ("page128", False, {"odd-page-boundary-inside-c"}, "warm reused 2048 tokens, expected 3904"),
         ("restore_other_rid", False, IMAGE_HITS, "warm: rank 0 restored [], expected"),
         ("restore_rank0_only", False, IMAGE_HITS, "warm: rank 1 restored [], expected"),
         ("restore_short", False, IMAGE_HITS, "warm: rank 1 restored ["),
