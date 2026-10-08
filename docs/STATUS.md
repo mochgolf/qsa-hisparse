@@ -258,3 +258,6 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   expected, text control equal to the Phase 2 fork reference. D5: a logprob
   image request now completes (window 2's crash is the failing control).
   Next: G3-I (GPU) review.
+- G3-I (GPU) review (`reviews/G3IGPU.md`): cleared; one documentation fix
+  (D5 result path). Track I is complete. Remaining: Phase 4 (next pin,
+  shrink REPLACE patches) is future work; upstream PRs on hold (owner).

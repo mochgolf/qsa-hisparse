@@ -3,7 +3,7 @@
 Production stopped 04:41 and restored 05:02 (ready, same profile hash,
 `/health` 200, same model id and GPU memory). Raw evidence (private):
 `qwen:results/plugin-window3-20261008/` (`i5/summary.json`,
-`i5/<session>/image-prefix.json`, `d5/plugin/results.json`). Plugin main
+`i5/<session>/image-prefix.json`, `d5/results.json`). Plugin main
 `4476a37` (D5 included), image fixtures sha `59f72d85…` (10 cases), text
 control against Phase 2's fork qualification (`plugin-g2-20261007/run2`).
 
