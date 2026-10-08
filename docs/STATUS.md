@@ -284,3 +284,6 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   on G2-1 (probes, per-test outcomes), G2-2 (10 items incl. observer
   digests), compat-only (401), G2-4 memory; I5 passes and equals window 3.
   Next: G4-GPU review, then merge `phase4` into main.
+- G4-GPU review: no findings, cleared (`reviews/G4GPU.md`). Phase 4 done:
+  `phase4` merged into main; the plugin now targets SGLang v0.5.21
+  (previous state: tag `pin-76e06febab-final`).
