@@ -1042,9 +1042,11 @@ class QSAHiSparseRuntime:
 
     def capture_prefix(self, req, namespace, tokens):
         """Capture only an actual complete forward boundary, before handoff."""
+        from sglang_qsa_hisparse.hisparse.image_request import identity_for
         from sglang_qsa_hisparse.hisparse.prefix import (
             PrefixSegment,
             PrefixSnapshot,
+            image_key,
         )
 
         state = self._request(req.kv.req_pool_idx, req.rid)
@@ -1058,7 +1060,10 @@ class QSAHiSparseRuntime:
             return None
         if len(tokens) != length * 8:
             raise RuntimeError("QSA prefix token/checkpoint boundary differs")
-        previous = self.prefix_cache.acquire(namespace, tokens, count=False)
+        identity = identity_for(req)
+        previous = self.prefix_cache.acquire(
+            namespace, tokens, count=False, identity=identity
+        )
         reservation = None
         retained = False
         try:
@@ -1073,7 +1078,11 @@ class QSAHiSparseRuntime:
                 previous = None
                 if state.prefix_basis_length:
                     previous = self.prefix_cache.acquire(
-                        namespace, tokens, state.prefix_basis_length, count=False
+                        namespace,
+                        tokens,
+                        state.prefix_basis_length,
+                        count=False,
+                        identity=identity,
                     )
                     if (
                         previous is not None
@@ -1127,7 +1136,13 @@ class QSAHiSparseRuntime:
             rope = self.pool.qsa_rope_position_buffer[ring].to("cpu", copy=True)
             mamba = self._capture_mamba(int(req.kv.mamba_pool_idx))
             snapshot = PrefixSnapshot(
-                namespace, tokens, tuple(segments), pending, rope, mamba
+                namespace,
+                tokens,
+                tuple(segments),
+                pending,
+                rope,
+                mamba,
+                image_key(identity, length),
             )
             return reservation, snapshot
         except BaseException:
