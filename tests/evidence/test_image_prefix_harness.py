@@ -35,7 +35,8 @@ class FakeModel:
         self.pieces = re.compile(rf" ?[A-Za-z]+|{digits}|[^\w\s]+|\s+")
         self.published = {}  # salt -> [(tokens, checkpoint lengths)]
         self.encoded = set()  # per-image ViT cache
-        self.requests = 0
+        self.requests = self.logprob_images = 0
+        self.crashed = False
 
     def token(self, piece):
         return 1000 + int.from_bytes(hashlib.sha256(piece.encode()).digest()[:3], "little")
@@ -63,12 +64,23 @@ class FakeModel:
         return padded, plain, items
 
     def handle(self, payload):
+        if self.crashed:
+            raise RuntimeError("the server process died")
         image = "text" in payload
         fault = self.fault if (self.fault or "").startswith("text_") != image else None
         padded, plain, items = self.layout(payload)
+        logprob = payload.get("return_logprob", False)
+        if logprob and items:
+            self.logprob_images += 1
+            if payload["sampling_params"]["max_new_tokens"] > 1:
+                # Inherited pin/fork bug: the HiSparse decode batch asks for
+                # logprobs of the padded prompt ids; image pad values exceed
+                # the vocabulary and the device-side assert kills the server.
+                self.crashed = True
+                raise RuntimeError("index out of bounds in get_token_ids_logprobs")
         if fault == "bos":  # A tokenizer that prepends a token: nothing is page-aligned.
             padded, plain, items = [1, *padded], [1, *plain], [(s + 1, e + 1, k) for s, e, k in items]
-        n, start = len(padded), payload["logprob_start_len"]
+        n, start = len(padded), payload.get("logprob_start_len", -1) if logprob else -1
         matched = plain if fault == "pad_collision" else padded
         salt = "shared" if fault == "shared_salt" else payload["cache_salt"]
         limit = n if fault == "full_hit" else n - 1
@@ -107,19 +119,20 @@ class FakeModel:
         if reuse and fault == "input_logprobs_short":
             inputs = inputs[1:]
         reported = reuse + {"late_hit": 128, "text_cached": 64}.get(fault, 0) * bool(reuse)
-        response = {
-            "output_ids": out,
-            "meta_info": {
-                "id": rid,
-                "cached_tokens": reported,
-                "prompt_tokens": n,
-                "finish_reason": {"type": "length", "length": count},
-                "output_token_logprobs": [[-0.5, t, None] for t in out],
-                "output_top_logprobs": [[[-0.5, t, None]] for t in out],
-                "input_token_logprobs": inputs,
-                "input_top_logprobs": [[entry] for entry in inputs],
-            },
+        info = {
+            "id": rid,
+            "cached_tokens": reported,
+            "prompt_tokens": n,
+            "finish_reason": {"type": "length", "length": count},
         }
+        if logprob:
+            info.update(
+                output_token_logprobs=[[-0.5, t, None] for t in out],
+                output_top_logprobs=[[[-0.5, t, None]] for t in out],
+                input_token_logprobs=inputs,
+                input_top_logprobs=[[entry] for entry in inputs],
+            )
+        response = {"output_ids": out, "meta_info": info}
         if payload.get("return_prompt_token_ids"):
             response["prompt_token_ids"] = plain
         return response
@@ -168,7 +181,11 @@ def serve(model):
         def do_POST(self):
             assert self.path == "/generate"
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-            body = json.dumps(model.handle(payload)).encode()
+            try:
+                body = json.dumps(model.handle(payload)).encode()
+            except RuntimeError:  # A dead server closes the connection unanswered.
+                self.close_connection = True
+                return
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -206,8 +223,8 @@ def reference(text):
     for index, case in enumerate(selected):
 
         def call(ids, salt, count):
-            response = model.handle({"input_ids": ids, "cache_salt": salt, "logprob_start_len": -1,
-                                     "sampling_params": {"max_new_tokens": count}})  # fmt: skip
+            response = model.handle({"input_ids": ids, "cache_salt": salt, "return_logprob": True,
+                                     "logprob_start_len": -1, "sampling_params": {"max_new_tokens": count}})  # fmt: skip
             info = response["meta_info"]
             return {"output_ids": response["output_ids"], "cached_tokens": info["cached_tokens"], "meta_info": info}
 
@@ -269,8 +286,13 @@ def failing(report):
 @pytest.mark.parametrize("cache_off", [False, True])
 @pytest.mark.parametrize("digits", [r"\d", r"\d+"])
 def test_correct_server_passes_with_the_frozen_reuse_lengths(evidence, inputs, tmp_path, cache_off, digits):
-    report = run(evidence, inputs, tmp_path, FakeModel(digits=digits, cache_off=cache_off))
+    model = FakeModel(digits=digits, cache_off=cache_off)
+    report = run(evidence, inputs, tmp_path, model)
     assert report["passed"], report["failures"]
+    # Only the input-logprob case's cold and warm requests ask for logprobs
+    # (one token each), so the inherited decode-batch crash never triggers.
+    assert model.logprob_images == 2 and not model.crashed
+    assert all(row["warm"]["output_token_logprobs"] is None for row in report["cases"] if row["name"] != "input-logprob")
     reused = {row["name"]: row["warm"]["cached_tokens"] for row in report["cases"]}
     assert reused == {
         "divergent-suffix": 6144,
@@ -395,3 +417,73 @@ def test_tp_size_is_required_with_observer_logs(evidence, tmp_path):
     with pytest.raises(SystemExit, match="--tp-size"):
         harness.main(["--url", "http://127.0.0.1:9", "--fixtures", str(tmp_path / "f.json"),
                       "--output", str(tmp_path / "o.json"), "--observer-log", str(tmp_path)])
+
+
+def test_old_image_logprob_options_kill_the_fake_server(evidence, inputs):
+    """The crash emulation the correct-server test relies on is live: an image
+    request returning logprobs over several tokens kills the fake for good."""
+    harness = evidence("image_prefix_harness")
+    fixtures = json.loads(inputs[0].read_text())
+    base = fixtures["cases"][0]["seed"]
+    images = ["data:image/png;base64," + fixtures["images"][i["name"]]["png_base64"] for i in base["images"]]
+    payload = {"text": base["text"], "image_data": images, "cache_salt": "s", "return_logprob": True,
+               "logprob_start_len": -1, "sampling_params": {"temperature": 0, "max_new_tokens": 32}}  # fmt: skip
+    model = FakeModel()
+    with serve(model) as url:
+        with pytest.raises(Exception, match="Remote end closed"):
+            harness.generate(url, payload)
+        with pytest.raises(Exception, match="Remote end closed"):  # Still dead.
+            harness.image_request(url, fixtures, base, "t")
+    assert model.crashed
+
+
+def test_pinned_hisparse_decode_batch_gathers_logprobs_of_padded_prompt_ids():
+    """Window 2 root cause on CPU. The pinned (and fork)
+    Scheduler._build_hisparse_decode_batch sets token_ids_logprobs to each
+    request's padded origin_input_ids when the batch returns logprobs, although
+    the request asked for no token-id logprobs; an image pad value lies beyond
+    the vocabulary, so the decode logprob gather indexes out of bounds (a
+    device-side assert on GPU). In-vocabulary text ids only waste the gather."""
+    from array import array
+    from types import SimpleNamespace
+    from unittest.mock import Mock, patch
+
+    import torch
+
+    from sglang.srt.layers.logprob_processor import OutputLogprobProcessor
+    from sglang.srt.managers.schedule_batch import Req
+    from sglang.srt.managers.scheduler import Scheduler
+    from sglang.srt.sampling.sampling_params import SamplingParams
+    from sglang.srt.speculative.spec_info import SpeculativeAlgorithm
+
+    vocab, pad = 128, 1_000_003  # Image pad values are hashes past the vocabulary.
+    scheduler = SimpleNamespace(
+        device="cpu",
+        req_to_token_pool=SimpleNamespace(device="cpu"),
+        token_to_kv_pool_allocator=None,
+        tree_cache=None,
+        model_config=SimpleNamespace(vocab_size=vocab, is_encoder_decoder=False),
+        enable_overlap=False,
+        spec_algorithm=SpeculativeAlgorithm.NONE,
+        future_map=Mock(),
+    )
+
+    def decode_logprobs(prompt):
+        req = Req("r", "", array("q", prompt), SamplingParams(max_new_tokens=4), return_logprob=True)
+        assert req.logprob.token_ids_logprob is None  # Never requested.
+        req.kv.req_pool_idx, req.output_ids = 1, [9]
+        with (
+            patch("sglang.srt.managers.scheduler.SamplingBatchInfo.from_schedule_batch", return_value=Mock()),
+            patch("sglang.srt.managers.schedule_batch.get_spec",
+                  return_value=SimpleNamespace(speculative_algorithm=None)),
+        ):  # fmt: skip
+            batch = Scheduler._build_hisparse_decode_batch(scheduler, [req])
+        assert batch.token_ids_logprobs == [list(prompt)]
+        logprobs = torch.log_softmax(torch.zeros(1, vocab), dim=-1)
+        return OutputLogprobProcessor().compute_logprobs(
+            logprobs, [0], batch.token_ids_logprobs, torch.tensor([9])
+        )
+
+    assert decode_logprobs([5, 6, 7]).token_ids_logprobs_idx == [[5, 6, 7]]
+    with pytest.raises(IndexError, match="out of bounds"):
+        decode_logprobs([5, 6, pad, pad, 7])

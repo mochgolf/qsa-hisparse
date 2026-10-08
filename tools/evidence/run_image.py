@@ -17,7 +17,8 @@ keys exist only on the preprocess-cache path) and the ViT encode observer
   per-image ViT cache is on);
 - ``vit-cache-off``: ``SGLANG_VLM_CACHE_SIZE_MB=0``, so every request
   encodes the images it computes (straddling images on hits, and the batch
-  invariance check of image_prefix_harness.py).
+  invariance check of image_prefix_harness.py). Before it starts, the run
+  waits up to GPU_IDLE_TIMEOUT for nvidia-smi to list no compute process.
 
 Each session runs image_prefix_harness.py (image cases and the text control,
 with both observer directories, so each image hit needs its own restore at
@@ -32,6 +33,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -44,6 +46,24 @@ from run_compat import option, preflight, stop, wait_ready  # noqa: E402
 
 PREPROCESS_CACHE = ["--mm-preprocess-cache-size-mb", "512"]
 SESSIONS = (("vit-cache-on", None), ("vit-cache-off", "0"))
+GPU_IDLE_TIMEOUT, GPU_IDLE_POLL = 300, 2.0  # seconds
+
+
+def wait_gpu_idle():
+    """Wait (bounded) until nvidia-smi lists no compute process: the previous
+    session's server processes can still be releasing the GPUs after its
+    process group exited (window 2)."""
+    deadline = time.monotonic() + GPU_IDLE_TIMEOUT
+    while True:
+        apps = subprocess.run(
+            ["nvidia-smi", "--query-compute-apps=pid,used_memory", "--format=csv,noheader"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()  # fmt: skip
+        if not apps:
+            return
+        if time.monotonic() >= deadline:
+            raise SystemExit(f"GPU compute processes still listed after {GPU_IDLE_TIMEOUT} s:\n{apps}")
+        time.sleep(GPU_IDLE_POLL)
 
 
 def observer_problems(output, ranks):
@@ -119,7 +139,9 @@ def main(argv=None):
     output = args.output.resolve()
     output.mkdir(parents=True)  # Refuses an existing directory.
     summary = {}
-    for name, vlm_cache_mb in SESSIONS:
+    for index, (name, vlm_cache_mb) in enumerate(SESSIONS):
+        if index:
+            wait_gpu_idle()
         summary[name] = session(base, output / name, vlm_cache_mb, harness_args)
         (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))
