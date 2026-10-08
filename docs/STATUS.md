@@ -164,3 +164,14 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   invariance is unverified).
 - G2-2 fork arm (run2) passed all four harnesses; observer 1,445 captures
   and 60 restores per rank.
+- I-A done (branch `worktree-agent-a02098c91d10c7b42`, `1c040c0`): row I1
+  after-hook on `QwenVLImageProcessor.compose_image_artifacts` carries the
+  artifact key to the scheduler; `identity_for`/`BYPASS` in
+  `hisparse/image_request.py`; matching on the image key in `acquire`,
+  ancestor lookup and TP signatures; 30 image tests. Merge after the Phase 2
+  window (the window runs from this checkout's `src/`): replace I-B's
+  `identity_for` stub with I-A's import, re-record one Track I diff for
+  `prefix.py`/`prefix_cache.py`/`runtime.py`. Decisions: image reuse needs
+  `--mm-preprocess-cache-size-mb > 0` (documented, not forced); image keys
+  not counted in the host footprint (~100 B each); text and image
+  checkpoints never match each other.
