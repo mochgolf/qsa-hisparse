@@ -1,8 +1,10 @@
 """Rows N01-N04: the runtime package and the ported tests are the fork's code.
 
 Each moved module must equal its fork file at the reference commit after
-exactly the import rewrites of PLAN.md ("Import mapping"); ``depends.py`` is
-the only plugin-owned module in the package. The ported fork tests in this
+exactly the import rewrites of PLAN.md ("Import mapping"); Track I modules
+(Phase 3) equal it plus exactly their recorded diff in ``track_i/``.
+``depends.py`` and Track I's ``image_identity.py`` are the plugin-owned
+modules in the package. The ported fork tests in this
 directory may differ only by the same rewrites plus an added ``pytest``
 import and ``integration`` marks. The fork is read with ``git show`` from
 ``$QSA_FORK_ROOT`` (default ``../qsa-hisparse`` next to this repository).
@@ -46,6 +48,8 @@ MOVED = {  # plugin module -> fork file
     },
     "graph.py": "python/sglang/srt/layers/attention/qsa/hisparse_graph.py",  # N03
 }
+PLUGIN_OWNED = {"depends.py", "image_identity.py"}
+TRACK_I = {"prefix_cache.py"}  # Intentional divergences: image prefix reuse.
 PORTED = ("test_gather.py", "test_runtime.py", "test_single_request.py", "test_slots.py")
 ALIASES = {  # N04, dropped
     f"python/sglang/srt/mem_cache/qsa_hisparse_{name}.py"
@@ -83,14 +87,24 @@ def reference_fork():
 
 
 def test_package_holds_exactly_the_moved_modules():
-    assert {p.name for p in PACKAGE.glob("*.py")} == set(MOVED) | {"depends.py"}
+    assert {p.name for p in PACKAGE.glob("*.py")} == set(MOVED) | PLUGIN_OWNED
     listed = git("ls-tree", "--name-only", REFERENCE_FORK_COMMIT, f"{FORK_PACKAGE}/")
     assert {Path(p).name for p in listed.decode().split()} == set(MOVED) - {"graph.py"}
 
 
+def track_i_diff(module: str) -> str:
+    fork = rewrite(fork_file(MOVED[module])).decode().splitlines(keepends=True)
+    ours = (PACKAGE / module).read_text().splitlines(keepends=True)
+    return "".join(difflib.unified_diff(fork, ours, f"fork/{module}", f"plugin/{module}"))
+
+
 @pytest.mark.parametrize("module", sorted(MOVED))
 def test_moved_module_is_the_fork_file(module):
-    assert (PACKAGE / module).read_bytes() == rewrite(fork_file(MOVED[module]))
+    if module in TRACK_I:
+        recorded = Path(__file__).parent / "track_i" / f"{module}.diff"
+        assert track_i_diff(module) == recorded.read_text()
+    else:
+        assert (PACKAGE / module).read_bytes() == rewrite(fork_file(MOVED[module]))
 
 
 @pytest.mark.parametrize("name", PORTED)
