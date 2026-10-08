@@ -221,3 +221,12 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   Accepted I-C deviations: `/generate` prompts, `detail: "high"` as the
   preprocessing miss, ViT observer added to W8's site hook. Next: G3-I
   re-check, then the I5 GPU window (needs owner approval).
+- Owner (2026-10-08): **no PRs to sgl-project/sglang for now** (branches stay
+  local; no pushes, PRs or upstream comments). D4 not adopted (S06 stays
+  fork-faithful). GPU window 2 approved (orchestrator stops/restores
+  production): I5 image evidence, then U6a/U6b/U8 GPU validation in
+  `results/dsh-maintenance-20261004/upstream-runtime-env` (torch 2.14.1,
+  sglang-kernel 0.4.9, FA4 without FA2), evidence kept locally.
+- G3-I re-check: original findings resolved; two harness gaps (a page64 hit
+  that is not a multiple of 2048; per-request image restore evidence) sent to
+  I-C before the window.
