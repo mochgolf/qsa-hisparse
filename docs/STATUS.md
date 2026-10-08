@@ -279,3 +279,8 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 - G4-CPU: one finding (the delta check ignored edit positions) fixed with a
   three-way-merge check, which showed M03 is a hand merge (recorded); re-check
   cleared (`reviews/G4CPU*.md`). Next: G4-GPU window (owner approval).
+- G4-GPU window (10:31–11:43, production restored and verified;
+  `docs/phase4-results.md`): at v0.5.21 the plugin equals Phase 2's fork arm
+  on G2-1 (probes, per-test outcomes), G2-2 (10 items incl. observer
+  digests), compat-only (401), G2-4 memory; I5 passes and equals window 3.
+  Next: G4-GPU review, then merge `phase4` into main.
