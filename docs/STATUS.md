@@ -241,3 +241,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   checks: U6a, U6b+U6a, U8 pass with failing controls; U6b's CPU unit test is
   environment-sensitive (no CPU `store_cache` in sglang-kernel 0.4.9).
   I-C resumed: root cause, harness adjustment, inter-session GPU wait.
+- Logprob crash root-caused (pinned/fork `_build_hisparse_decode_batch`
+  gathers prompt-token logprobs every decode step); harness avoids it; I-C
+  merged (`f8b211c`), CPU 517 + 3 + 26 passed. Pending owner: window 3 for
+  I5, and deviation D5 (fix the gather in the S03 hook).
