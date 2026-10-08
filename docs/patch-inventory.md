@@ -453,167 +453,211 @@ hooks.
 |---|---|---|---|---|---|---|---|---|
 | I1 | none | Record each Qwen-VL fast-path image item's full artifact key (content digest, modality, processor fingerprint, preprocessing kwargs) in `model_specific_data["artifact_key"]`, which the tokenizer-to-scheduler transport carries | hisparse: only host prefixes read the key; the extra string is inert upstream | `sglang.srt.multimodal.processors.qwen_vl.QwenVLImageProcessor.compose_image_artifacts` (pin 864) | after: the method builds one item per artifact, in order, from a deepcopy of the artifact's `model_specific_data`, and returns None on fallback | `cache.identity.build_artifact_key`, `MediaArtifactCacheMixin._artifact_key`, `MultimodalDataItem`, `MultimodalInputs.from_processor_output` | I-A | #41792 (`MultimodalDataItem.identity`) |
 
-## Appendix A. Hunk → row map (generated; every hunk exactly once)
+## Appendix A. Hunk → row map (every hunk exactly once)
 
-Generated from `git diff -U0 76e06febab ee8fe158d6 -- python/sglang`: 31 modified files, 196 hunks, 15 new files, 89 rows. Hunk = new-side `+start,count`.
+Reference since Phase 5: production `897286b12a` against its upstream base
+`35f3c96ff4` (`git diff -U0 35f3c96ff4 897286b12a -- python/sglang`):
+35 modified files, 248 hunks, 15 new files. Rows were carried from the
+previous map (fork `ee8fe158d6` against `76e06febab`) by identical hunk
+content (`tools/remap_hunks.py`); a `?` row is a production change the
+previous reference did not have, or a fork change re-merged by production,
+and must be mapped (Phase 5). Hunk = new-side `+start,count`.
 
 | File (under python/sglang/) | Hunk | Row |
 |---|---|---|
-| kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +27,1 (L27) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +59,2 (L59-60) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +303,2 (L303-304) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +400,6 (L400-405) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +318,2 (L318-319) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +443,1 (L443) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +479,1 (L479) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +542,1 (L542) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +580,1 (L580) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +713,10 (L713-722) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +729,1 (L729) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +801,1 (L801) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +852,1 (L852) | J02 |
-| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +1089,1 (L1089) | J02 |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +16,2 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +60,3 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +106,2 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +112,1 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +129,1 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +132,1 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +146,22 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +181,1 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +190,3 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +194,18 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +227,20 | ? |
+| kernels/jit/csrc/elementwise/fast_topk.cuh | +258,6 | ? |
+| kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +27,1 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +59,2 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +303,2 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/marlin_template.h | +400,6 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +318,2 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +444,1 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +480,1 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +553,1 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +591,1 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +724,10 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +740,1 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +812,1 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +863,1 | J02 |
+| kernels/jit/csrc/gemm/marlin_moe/moe_wna16_marlin.cuh | +1100,1 | J02 |
 | kernels/jit/csrc/gemm/marlin_moe/stripe_schedule.h | (new file) | J02 |
-| kernels/ops/moe/moe_wna16_marlin.py | +20,4 (L20-23) | J01 |
-| kernels/ops/moe/moe_wna16_marlin.py | +25,1 (L25) | J01 |
-| kernels/ops/moe/moe_wna16_marlin.py | +73,1 (L73) | J01 |
-| kernels/ops/moe/moe_wna16_marlin.py | +75,10 (L75-84) | J01 |
-| kernels/ops/moe/moe_wna16_marlin.py | +153,3 (L153-155) | J01 |
-| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +3,2 (L3-4) | Z01 |
-| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +279,2 (L279-280) | Z01 |
-| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +289,2 (L289-290) | Z01 |
-| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +294,6 (L294-299) | Z01 |
-| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +316,2 (L316-317) | Z01 |
+| kernels/ops/gemm/hc_mix.py | +3,25 | H01 |
+| kernels/ops/gemm/hc_mix.py | +67,1 | H02 |
+| kernels/ops/gemm/hc_mix.py | +161,137 | H03 |
+| kernels/ops/gemm/hc_mix.py | +317,0 | H04 |
+| kernels/ops/gemm/hc_mix.py | +319,5 | H05 |
+| kernels/ops/gemm/hc_mix.py | +325,3 | H05 |
+| kernels/ops/gemm/hc_mix.py | +349,3 | H06 |
+| kernels/ops/gemm/hc_mix.py | +359,7 | H06 |
+| kernels/ops/gemm/hc_mix.py | +369,1 | H06 |
+| kernels/ops/gemm/hc_mix.py | +378,34 | H06 |
+| kernels/ops/moe/moe_wna16_marlin.py | +20,4 | J01 |
+| kernels/ops/moe/moe_wna16_marlin.py | +25,1 | J01 |
+| kernels/ops/moe/moe_wna16_marlin.py | +73,1 | J01 |
+| kernels/ops/moe/moe_wna16_marlin.py | +75,10 | J01 |
+| kernels/ops/moe/moe_wna16_marlin.py | +153,3 | J01 |
+| srt/environ.py | +1537,3 | ? |
+| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +3,2 | Z01 |
+| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +279,2 | Z01 |
+| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +289,2 | Z01 |
+| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +294,6 | Z01 |
+| srt/hardware_backend/gpu/quantization/gptq_kernels.py | +316,2 | Z01 |
 | srt/layers/attention/qsa/hisparse_graph.py | (new file) | N03 |
-| srt/layers/attention/qsa/kernel.py | +12,50 (L12-61) | T01 |
-| srt/layers/attention/qsa/kernel.py | +78,1 (L78) | T02 |
-| srt/layers/attention/qsa/kernel.py | +80,6 (L80-85) | T02 |
-| srt/layers/attention/qsa/kernel.py | +89,2 (L89-90) | T02 |
-| srt/layers/attention/qsa/kernel.py | +123,2 (L123-124) | T02 |
-| srt/layers/attention/qsa/metadata.py | +15,1 (L15) | T02 |
-| srt/layers/attention/qsa/metadata.py | +86,3 (L86-88) | T04 |
-| srt/layers/attention/qsa/metadata.py | +123,10 (L123-132) | T02 |
-| srt/layers/attention/qsa/metadata.py | +219,2 (L219-220) | T04 |
-| srt/layers/attention/qsa/metadata.py | +232,2 (L232-233) | T04 |
-| srt/layers/attention/qsa/qsa_indexer.py | +25,1 (L25) | T02 |
-| srt/layers/attention/qsa/qsa_indexer.py | +444,5 (L444-448) | T02 |
-| srt/layers/attention/qsa/qsa_indexer.py | +475,1 (L475) | T02 |
-| srt/layers/attention/qsa/qsa_indexer.py | +505,5 (L505-509) | T03 |
-| srt/layers/attention/qsa/qsa_indexer.py | +523,5 (L523-527) | T03 |
-| srt/layers/attention/qsa/sparse_attn.py | +9,32 (L9-40) | A01 |
-| srt/layers/attention/qsa/sparse_attn.py | +70,2 (L70-71) | A02 |
-| srt/layers/attention/qsa/sparse_attn.py | +93,1 (L93) | A02 |
-| srt/layers/attention/qsa/sparse_attn.py | +135,3 (L135-137) | A02 |
-| srt/layers/attention/qsa/sparse_attn.py | +143,6 (L143-148) | A02 |
-| srt/layers/attention/qsa/sparse_attn.py | +152,9 (L152-160) | A02 |
-| srt/layers/attention/qsa/sparse_attn.py | +174,12 (L174-185) | A03 |
-| srt/layers/attention/qsa/sparse_attn.py | +200,2 (L200-201) | A03 |
-| srt/layers/attention/qsa/sparse_attn.py | +223,1 (L223) | A03 |
-| srt/layers/attention/qsa/sparse_attn.py | +241,2 (L241-242) | A04 |
-| srt/layers/attention/qsa/sparse_attn.py | +264,1 (L264) | A04 |
-| srt/layers/attention/qsa/sparse_attn.py | +307,2 (L307-308) | A04 |
-| srt/layers/attention/qsa/sparse_attn.py | +314,6 (L314-319) | A04 |
-| srt/layers/attention/qsa/sparse_attn.py | +323,9 (L323-331) | A04 |
-| srt/layers/attention/qsa/sparse_attn.py | +345,12 (L345-356) | A05 |
-| srt/layers/attention/qsa/sparse_attn.py | +358,1 (L358) | A05 |
-| srt/layers/attention/qsa/sparse_attn.py | +376,2 (L376-377) | A05 |
-| srt/layers/attention/qsa/sparse_attn.py | +399,1 (L399) | A05 |
-| srt/layers/attention/qsa/sparse_attn.py | +440,3 (L440-442) | A06 |
-| srt/layers/attention/qsa/sparse_attn.py | +474,2 (L474-475) | A07 |
-| srt/layers/attention/qsa/sparse_attn.py | +484,1 (L484) | A07 |
-| srt/layers/attention/qsa/sparse_attn.py | +519,7 (L519-525) | A07 |
-| srt/layers/attention/qsa/sparse_attn.py | +529,3 (L529-531) | A08 |
-| srt/layers/attention/qsa/sparse_attn.py | +555,2 (L555-556) | A09 |
-| srt/layers/attention/qsa/sparse_attn.py | +575,3 (L575-577) | A09 |
-| srt/layers/attention/qsa/sparse_attn.py | +592,2 (L592-593) | A09 |
-| srt/layers/attention/qsa/sparse_attn.py | +602,1 (L602) | A09 |
-| srt/layers/attention/qsa/sparse_attn.py | +609,1 (L609) | A10 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +11,1 (L11) | Q03 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +34,1 (L34) | Q04 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +42,1 (L42) | Q12 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +50,11 (L50-60) | Q09 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +95,9 (L95-103) | Q01 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +239,5 (L239-243) | Q02 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +246,12 (L246-257) | Q03 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +262,30 (L262-291) | Q04 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +704,1 (L704) | Q05 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +741,9 (L741-749) | Q05 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +790,1 (L790) | Q05 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +808,2 (L808-809) | Q06 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +995,12 (L995-1006) | Q07 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1370,1 (L1370) | Q08 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1429,6 (L1429-1434) | Q08 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1436,1 (L1436) | Q08 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1440,1 (L1440) | Q08 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1492,102 (L1492-1593) | Q09 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1650,1 (L1650) | Q10 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1667,2 (L1667-1668) | Q10 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1713,7 (L1713-1719) | Q11 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1741,13 (L1741-1753) | Q12 |
-| srt/layers/attention/qwen_sparse_attn_backend.py | +1766,80 (L1766-1845) | Q12 |
-| srt/layers/hc_mix_triton.py | +3,25 (L3-27) | H01 |
-| srt/layers/hc_mix_triton.py | +67,1 (L67) | H02 |
-| srt/layers/hc_mix_triton.py | +161,137 (L161-297) | H03 |
-| srt/layers/hc_mix_triton.py | +317,0 (deletion) | H04 |
-| srt/layers/hc_mix_triton.py | +319,5 (L319-323) | H05 |
-| srt/layers/hc_mix_triton.py | +325,3 (L325-327) | H05 |
-| srt/layers/hc_mix_triton.py | +349,3 (L349-351) | H06 |
-| srt/layers/hc_mix_triton.py | +359,7 (L359-365) | H06 |
-| srt/layers/hc_mix_triton.py | +369,1 (L369) | H06 |
-| srt/layers/hc_mix_triton.py | +378,34 (L378-411) | H06 |
-| srt/layers/hyperconnection.py | +93,1 (L93) | H07 |
-| srt/layers/hyperconnection.py | +222,1 (L222) | H08 |
-| srt/layers/hyperconnection.py | +236,23 (L236-258) | H08 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +6,0 (deletion) | J03 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +8,4 (L8-11) | J03 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +18,0 (deletion) | J03 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +197,10 (L197-206) | J03 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +255,4 (L255-258) | J03 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +317,7 (L317-323) | J03 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +352,1 (L352) | J03 |
-| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +416,1 (L416) | J03 |
-| srt/layers/moe/fused_moe_triton/layer.py | +497,1 (L497) | Z05 |
-| srt/layers/moe/fused_moe_triton/layer.py | +1024,5 (L1024-1028) | Z04 |
+| srt/layers/attention/qsa/kernel.py | +12,50 | T01 |
+| srt/layers/attention/qsa/kernel.py | +78,1 | T02 |
+| srt/layers/attention/qsa/kernel.py | +80,6 | T02 |
+| srt/layers/attention/qsa/kernel.py | +89,2 | T02 |
+| srt/layers/attention/qsa/kernel.py | +123,2 | T02 |
+| srt/layers/attention/qsa/kernel.py | +334,2 | ? |
+| srt/layers/attention/qsa/kernel.py | +351,1 | ? |
+| srt/layers/attention/qsa/kernel.py | +361,2 | ? |
+| srt/layers/attention/qsa/kernel.py | +364,5 | ? |
+| srt/layers/attention/qsa/kernel.py | +371,2 | ? |
+| srt/layers/attention/qsa/kernel.py | +383,3 | ? |
+| srt/layers/attention/qsa/kernel.py | +388,3 | ? |
+| srt/layers/attention/qsa/metadata.py | +15,1 | T02 |
+| srt/layers/attention/qsa/metadata.py | +89,3 | T04 |
+| srt/layers/attention/qsa/metadata.py | +129,10 | T02 |
+| srt/layers/attention/qsa/metadata.py | +234,2 | T04 |
+| srt/layers/attention/qsa/metadata.py | +247,2 | T04 |
+| srt/layers/attention/qsa/qsa_indexer.py | +32,1 | T02 |
+| srt/layers/attention/qsa/qsa_indexer.py | +454,5 | T02 |
+| srt/layers/attention/qsa/qsa_indexer.py | +485,1 | T02 |
+| srt/layers/attention/qsa/qsa_indexer.py | +516,5 | T03 |
+| srt/layers/attention/qsa/qsa_indexer.py | +534,5 | T03 |
+| srt/layers/attention/qsa/sparse_attn.py | +9,32 | A01 |
+| srt/layers/attention/qsa/sparse_attn.py | +70,2 | A02 |
+| srt/layers/attention/qsa/sparse_attn.py | +93,1 | A02 |
+| srt/layers/attention/qsa/sparse_attn.py | +135,3 | A02 |
+| srt/layers/attention/qsa/sparse_attn.py | +143,6 | A02 |
+| srt/layers/attention/qsa/sparse_attn.py | +152,9 | A02 |
+| srt/layers/attention/qsa/sparse_attn.py | +174,12 | A03 |
+| srt/layers/attention/qsa/sparse_attn.py | +200,2 | A03 |
+| srt/layers/attention/qsa/sparse_attn.py | +223,1 | A03 |
+| srt/layers/attention/qsa/sparse_attn.py | +241,2 | A04 |
+| srt/layers/attention/qsa/sparse_attn.py | +264,1 | A04 |
+| srt/layers/attention/qsa/sparse_attn.py | +307,2 | A04 |
+| srt/layers/attention/qsa/sparse_attn.py | +314,6 | A04 |
+| srt/layers/attention/qsa/sparse_attn.py | +323,9 | A04 |
+| srt/layers/attention/qsa/sparse_attn.py | +345,12 | A05 |
+| srt/layers/attention/qsa/sparse_attn.py | +358,1 | A05 |
+| srt/layers/attention/qsa/sparse_attn.py | +376,2 | A05 |
+| srt/layers/attention/qsa/sparse_attn.py | +399,1 | A05 |
+| srt/layers/attention/qsa/sparse_attn.py | +406,12 | ? |
+| srt/layers/attention/qsa/sparse_attn.py | +426,1 | ? |
+| srt/layers/attention/qsa/sparse_attn.py | +443,2 | A09 |
+| srt/layers/attention/qsa/sparse_attn.py | +466,1 | ? |
+| srt/layers/attention/qsa/sparse_attn.py | +507,3 | A06 |
+| srt/layers/attention/qsa/sparse_attn.py | +541,2 | A07 |
+| srt/layers/attention/qsa/sparse_attn.py | +551,1 | A07 |
+| srt/layers/attention/qsa/sparse_attn.py | +586,7 | A07 |
+| srt/layers/attention/qsa/sparse_attn.py | +596,3 | A08 |
+| srt/layers/attention/qsa/sparse_attn.py | +622,2 | A09 |
+| srt/layers/attention/qsa/sparse_attn.py | +642,3 | A09 |
+| srt/layers/attention/qsa/sparse_attn.py | +659,2 | ? |
+| srt/layers/attention/qsa/sparse_attn.py | +669,1 | A09 |
+| srt/layers/attention/qsa/sparse_attn.py | +676,1 | A10 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +11,1 | Q03 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +38,1 | Q04 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +61,1 | Q12 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +69,11 | Q09 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +130,9 | Q01 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +237,0 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +274,5 | Q02 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +281,19 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +306,38 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +756,1 | Q05 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +793,10 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +843,1 | Q05 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +865,2 | Q06 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +994,1 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1067,12 | Q07 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1444,12 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1526,6 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1581,1 | Q08 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1602,2 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1606,2 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1610,1 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1648,4 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1654,3 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1658,1 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1673,1 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1805,99 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +1962,1 | Q10 |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2010,2 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2074,9 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2100,8 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2111,20 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2143,50 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2195,57 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2253,0 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2254,0 | ? |
+| srt/layers/attention/qwen_sparse_attn_backend.py | +2255,0 | ? |
+| srt/layers/hyperconnection.py | +93,1 | H07 |
+| srt/layers/hyperconnection.py | +222,1 | H08 |
+| srt/layers/hyperconnection.py | +236,23 | H08 |
+| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +9,4 | ? |
+| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +213,10 | J03 |
+| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +271,4 | J03 |
+| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +333,7 | J03 |
+| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +368,1 | J03 |
+| srt/layers/moe/fused_moe_triton/fused_marlin_moe.py | +432,1 | J03 |
+| srt/layers/moe/fused_moe_triton/layer.py | +514,1 | Z05 |
+| srt/layers/moe/fused_moe_triton/layer.py | +1028,5 | Z04 |
 | srt/layers/moe/fused_moe_triton/stable_align.py | (new file) | J04 |
-| srt/layers/quantization/auto_round.py | +524,9 (L524-532) | Z03 |
-| srt/layers/quantization/gptq/schemes/gptq_moe.py | +200,1 (L200) | Z02 |
-| srt/layers/quantization/gptq/schemes/gptq_moe.py | +239,1 (L239) | Z02 |
-| srt/layers/quantization/gptq/schemes/gptq_moe.py | +247,1 (L247) | Z02 |
-| srt/managers/schedule_policy.py | +960,7 (L960-966) | P01 |
-| srt/managers/schedule_policy.py | +1165,31 (L1165-1195) | P02 |
-| srt/managers/schedule_policy.py | +1200,6 (L1200-1205) | P02 |
-| srt/managers/scheduler.py | +630,16 (L630-645) | S01 |
-| srt/managers/scheduler.py | +1281,2 (L1281-1282) | S02 |
-| srt/managers/scheduler.py | +1283,0 (deletion) | S02 |
-| srt/managers/scheduler.py | +1286,2 (L1286-1287) | S02 |
-| srt/managers/scheduler.py | +3563,2 (L3563-3564) | S03 |
-| srt/managers/scheduler.py | +3647,1 (L3647) | S04 |
-| srt/managers/scheduler.py | +3660,1 (L3660) | S04 |
-| srt/managers/scheduler.py | +3770,7 (L3770-3776) | S05 |
-| srt/managers/scheduler.py | +3898,2 (L3898-3899) | S06 |
-| srt/managers/scheduler.py | +4816,1 (L4816) | S07 |
-| srt/managers/scheduler.py | +4905,1 (L4905) | S08 |
-| srt/managers/scheduler.py | +5410,4 (L5410-5413) | S09 |
-| srt/managers/scheduler_components/batch_result_processor.py | +42,0 (deletion) | B01 |
-| srt/managers/scheduler_components/batch_result_processor.py | +125,1 (L125) | B02 |
-| srt/managers/scheduler_components/batch_result_processor.py | +383,1 (L383) | B03 |
-| srt/managers/scheduler_components/batch_result_processor.py | +1245,1 (L1245) | B04 |
-| srt/managers/scheduler_components/batch_result_processor.py | +1329,1 (L1329) | B05 |
-| srt/managers/scheduler_components/weight_updater.py | +95,6 (L95-100) | B06 |
-| srt/mem_cache/allocation.py | +346,16 (L346-361) | M01 |
-| srt/mem_cache/allocation.py | +372,0 (deletion) | M01 |
-| srt/mem_cache/allocation.py | +392,4 (L392-395) | M01 |
-| srt/mem_cache/allocation.py | +433,4 (L433-436) | M01 |
-| srt/mem_cache/allocation.py | +457,2 (L457-458) | M01 |
-| srt/mem_cache/allocation.py | +474,4 (L474-477) | M01 |
-| srt/mem_cache/allocator/paged.py | +336,5 (L336-340) | M02 |
-| srt/mem_cache/common.py | +269,9 (L269-277) | M03 |
-| srt/mem_cache/common.py | +306,2 (L306-307) | M03 |
-| srt/mem_cache/kv_cache_configurator.py | +6,1 (L6) | K02 |
-| srt/mem_cache/kv_cache_configurator.py | +1318,1 (L1318) | K01 |
-| srt/mem_cache/kv_cache_configurator.py | +1860,1 (L1860) | K02 |
-| srt/mem_cache/kv_cache_configurator.py | +1936,18 (L1936-1953) | K02 |
-| srt/mem_cache/memory_pool.py | +348,3 (L348-350) | M04 |
+| srt/layers/quantization/auto_round.py | +524,9 | Z03 |
+| srt/layers/quantization/gptq/schemes/gptq_moe.py | +200,1 | Z02 |
+| srt/layers/quantization/gptq/schemes/gptq_moe.py | +239,1 | Z02 |
+| srt/layers/quantization/gptq/schemes/gptq_moe.py | +247,1 | Z02 |
+| srt/managers/schedule_policy.py | +1148,7 | P01 |
+| srt/managers/schedule_policy.py | +1375,31 | P02 |
+| srt/managers/schedule_policy.py | +1410,6 | P02 |
+| srt/managers/scheduler.py | +617,16 | S01 |
+| srt/managers/scheduler.py | +1277,2 | S02 |
+| srt/managers/scheduler.py | +1279,0 | S02 |
+| srt/managers/scheduler.py | +1282,2 | S02 |
+| srt/managers/scheduler.py | +3620,2 | S03 |
+| srt/managers/scheduler.py | +3701,1 | S04 |
+| srt/managers/scheduler.py | +3714,1 | S04 |
+| srt/managers/scheduler.py | +3825,7 | S05 |
+| srt/managers/scheduler.py | +3953,2 | S06 |
+| srt/managers/scheduler.py | +4998,1 | S07 |
+| srt/managers/scheduler.py | +5088,1 | S08 |
+| srt/managers/scheduler.py | +5457,4 | S09 |
+| srt/managers/scheduler_components/batch_result_processor.py | +43,0 | B01 |
+| srt/managers/scheduler_components/batch_result_processor.py | +126,1 | B02 |
+| srt/managers/scheduler_components/batch_result_processor.py | +384,1 | B03 |
+| srt/managers/scheduler_components/batch_result_processor.py | +1332,1 | B04 |
+| srt/managers/scheduler_components/batch_result_processor.py | +1419,1 | B05 |
+| srt/managers/scheduler_components/weight_updater.py | +111,6 | B06 |
+| srt/mem_cache/allocation.py | +346,16 | M01 |
+| srt/mem_cache/allocation.py | +372,0 | M01 |
+| srt/mem_cache/allocation.py | +392,4 | M01 |
+| srt/mem_cache/allocation.py | +433,4 | M01 |
+| srt/mem_cache/allocation.py | +457,2 | M01 |
+| srt/mem_cache/allocation.py | +474,4 | M01 |
+| srt/mem_cache/allocator/paged.py | +336,5 | M02 |
+| srt/mem_cache/common.py | +16,1 | ? |
+| srt/mem_cache/common.py | +318,5 | ? |
+| srt/mem_cache/common.py | +334,2 | ? |
+| srt/mem_cache/common.py | +344,11 | ? |
+| srt/mem_cache/common.py | +359,2 | M03 |
+| srt/mem_cache/kv_cache_configurator.py | +6,1 | K02 |
+| srt/mem_cache/kv_cache_configurator.py | +1309,1 | K01 |
+| srt/mem_cache/kv_cache_configurator.py | +1879,1 | K02 |
+| srt/mem_cache/kv_cache_configurator.py | +1963,18 | K02 |
+| srt/mem_cache/memory_pool.py | +367,3 | M04 |
 | srt/mem_cache/qsa_hisparse/__init__.py | (new file) | N01 |
 | srt/mem_cache/qsa_hisparse/config.py | (new file) | N01 |
 | srt/mem_cache/qsa_hisparse/coordinator.py | (new file) | N01 |
@@ -626,50 +670,64 @@ Generated from `git diff -U0 76e06febab ee8fe158d6 -- python/sglang`: 31 modifie
 | srt/mem_cache/qsa_hisparse_p2.py | (new file) | N04 |
 | srt/mem_cache/qsa_hisparse_slots.py | (new file) | N04 |
 | srt/mem_cache/qsa_hisparse_v3.py | (new file) | N04 |
-| srt/mem_cache/qsa_kv_pool.py | +71,1 (L71) | K03 |
-| srt/mem_cache/qsa_kv_pool.py | +103,1 (L103) | K03 |
-| srt/model_executor/forward_batch_info.py | +479,4 (L479-482) | F01 |
-| srt/model_executor/forward_batch_info.py | +815,6 (L815-820) | F01 |
-| srt/model_executor/forward_batch_info.py | +840,2 (L840-841) | F01 |
-| srt/model_executor/model_runner.py | +1037,7 (L1037-1043) | R01 |
-| srt/model_executor/model_runner.py | +1811,7 (L1811-1817) | R02 |
-| srt/model_executor/model_runner.py | +1825,4 (L1825-1828) | R02 |
-| srt/model_executor/pool_configurator.py | +17,1 (L17) | C01 |
-| srt/model_executor/pool_configurator.py | +203,1 (L203) | C03 |
-| srt/model_executor/pool_configurator.py | +208,1 (L208) | C01 |
-| srt/model_executor/pool_configurator.py | +298,49 (L298-346) | C01 |
-| srt/model_executor/pool_configurator.py | +588,1 (L588) | C02 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +90,1 (L90) | G01 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +1130,10 (L1130-1139) | G01 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +1205,0 (deletion) | G01 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +1212,7 (L1212-1218) | G01 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +1253,5 (L1253-1257) | G02 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +1324,3 (L1324-1326) | G02 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +1405,1 (L1405) | G02 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +1431,4 (L1431-1434) | G03 |
-| srt/model_executor/runner/decode_cuda_graph_runner.py | +1454,3 (L1454-1456) | G03 |
-| srt/models/qwen4_exp.py | +71,1 (L71) | E01 |
-| srt/models/qwen4_exp.py | +103,7 (L103-109) | E01 |
-| srt/models/qwen4_exp.py | +517,15 (L517-531) | E03 |
-| srt/models/qwen4_exp.py | +535,18 (L535-552) | E03 |
-| srt/models/qwen4_exp.py | +769,1 (L769) | E04 |
-| srt/models/qwen4_exp.py | +774,2 (L774-775) | E04 |
-| srt/models/qwen4_exp.py | +786,2 (L786-787) | E04 |
-| srt/models/qwen4_exp.py | +795,4 (L795-798) | E04 |
-| srt/models/qwen4_exp.py | +811,3 (L811-813) | E05 |
-| srt/models/qwen4_exp.py | +847,5 (L847-851) | E06 |
-| srt/models/qwen4_exp.py | +853,2 (L853-854) | E06 |
-| srt/models/qwen4_exp.py | +891,14 (L891-904) | E06 |
-| srt/models/qwen4_exp.py | +950,1 (L950) | E07 |
-| srt/models/qwen4_exp.py | +955,2 (L955-956) | E07 |
-| srt/models/qwen4_exp.py | +1407,3 (L1407-1409) | E02 |
-| srt/models/qwen4_exp.py | +1421,3 (L1421-1423) | E02 |
-| srt/models/qwen4_exp.py | +1772,3 (L1772-1774) | E02 |
-| srt/models/qwen4_exp.py | +1979,3 (L1979-1981) | E08 |
-| srt/models/qwen4_exp.py | +1990,26 (L1990-2015) | E08 |
-| srt/models/qwen4_exp.py | +2057,11 (L2057-2067) | E08 |
-| srt/models/qwen4_exp.py | +2258,14 (L2258-2271) | E08 |
-| srt/utils/common.py | +4001,1 (L4001) | U01 |
+| srt/mem_cache/qsa_kv_pool.py | +97,1 | K03 |
+| srt/mem_cache/qsa_kv_pool.py | +130,1 | K03 |
+| srt/mem_cache/registry.py | +14,1 | ? |
+| srt/mem_cache/registry.py | +81,24 | ? |
+| srt/mem_cache/registry.py | +110,4 | ? |
+| srt/mem_cache/registry.py | +328,16 | ? |
+| srt/model_executor/forward_batch_info.py | +600,2 | ? |
+| srt/model_executor/forward_batch_info.py | +603,3 | ? |
+| srt/model_executor/forward_batch_info.py | +983,6 | F01 |
+| srt/model_executor/forward_batch_info.py | +1011,8 | ? |
+| srt/model_executor/forward_batch_info.py | +1021,1 | ? |
+| srt/model_executor/model_runner.py | +1044,9 | ? |
+| srt/model_executor/model_runner.py | +1896,7 | R02 |
+| srt/model_executor/model_runner.py | +1910,4 | R02 |
+| srt/model_executor/pool_configurator.py | +12,1 | C01 |
+| srt/model_executor/pool_configurator.py | +216,5 | ? |
+| srt/model_executor/pool_configurator.py | +224,1 | C01 |
+| srt/model_executor/pool_configurator.py | +317,49 | C01 |
+| srt/model_executor/pool_configurator.py | +648,1 | C02 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +91,1 | G01 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +1175,10 | G01 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +1255,0 | G01 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +1262,7 | G01 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +1307,5 | G02 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +1396,3 | G02 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +1490,1 | G02 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +1516,4 | G03 |
+| srt/model_executor/runner/decode_cuda_graph_runner.py | +1539,3 | G03 |
+| srt/models/qwen4_exp.py | +85,1 | ? |
+| srt/models/qwen4_exp.py | +141,7 | E01 |
+| srt/models/qwen4_exp.py | +621,3 | ? |
+| srt/models/qwen4_exp.py | +628,0 | ? |
+| srt/models/qwen4_exp.py | +632,18 | ? |
+| srt/models/qwen4_exp.py | +873,1 | E04 |
+| srt/models/qwen4_exp.py | +878,2 | E04 |
+| srt/models/qwen4_exp.py | +890,2 | E04 |
+| srt/models/qwen4_exp.py | +899,4 | E04 |
+| srt/models/qwen4_exp.py | +915,3 | E05 |
+| srt/models/qwen4_exp.py | +953,5 | E06 |
+| srt/models/qwen4_exp.py | +959,2 | E06 |
+| srt/models/qwen4_exp.py | +997,12 | ? |
+| srt/models/qwen4_exp.py | +1054,1 | E07 |
+| srt/models/qwen4_exp.py | +1059,2 | E07 |
+| srt/models/qwen4_exp.py | +1566,3 | E02 |
+| srt/models/qwen4_exp.py | +1580,3 | E02 |
+| srt/models/qwen4_exp.py | +2006,3 | E02 |
+| srt/models/qwen4_exp.py | +2243,3 | E08 |
+| srt/models/qwen4_exp.py | +2254,26 | E08 |
+| srt/models/qwen4_exp.py | +2321,11 | E08 |
+| srt/models/qwen4_exp.py | +2539,11 | ? |
+| srt/utils/common.py | +4294,1 | U01 |
+| srt/utils/numa_utils.py | +217,5 | ? |
+| srt/utils/numa_utils.py | +224,1 | ? |
+| srt/utils/numa_utils.py | +231,5 | ? |
+| srt/utils/numa_utils.py | +239,1 | ? |
+| srt/utils/numa_utils.py | +241,3 | ? |
+| srt/utils/numa_utils.py | +262,1 | ? |
+| srt/utils/numa_utils.py | +311,2 | ? |
 
 ## Appendix B. Candidate `depends` for copied bodies (generated)
 

@@ -18,7 +18,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_ROOT = os.environ.get(
     "QSA_PIN_ROOT",
-    str(REPO.parent / ".worktrees" / "sglang-v0.5.21"),
+    str(REPO.parent / ".worktrees" / "sglang-main-35f3c96ff4"),
 )
 OUT = REPO / "src" / "sglang_qsa_hisparse" / "fingerprints"
 

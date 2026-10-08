@@ -274,6 +274,43 @@ per-test outcomes, G2-2 qualification against the Phase 2 fork reference,
 compat-only, G2-4 memory) and Track I I5 on v0.5.21. A difference from the
 fork reference is attributed to an upstream commit, never fitted.
 
+## Phase 5: upstream main 35f3c96ff4, reference = production
+
+Owner (2026-10-08): upgrade to upstream main and keep every production
+feature; production cutover follows this phase. Pin `35f3c96ff4` (production's
+upstream base); reference `897286b12a` (production); interpreter
+`results/dsh-maintenance-20261004/upstream-runtime-env` (read-only). Survey:
+`docs/phase5-survey.md`. Rules P1–P4 of Phase 4 apply with the new
+reference, plus:
+
+- **Q1 Production is the reference.** Every REPLACE copy equals production's
+  definition (`test_replace_deltas.py`; pin = reference base); moved runtime
+  modules equal production's files (`test_moved_sources.py`); fork digests
+  of copies and kernels are re-derived from production.
+- **Q2 No production change unmapped.** Every hunk of `git diff 35f3c96ff4
+  897286b12a -- python/sglang` maps to exactly one inventory row
+  (`test_inventory.py`). Map each `?` hunk in your files to the row whose
+  change it is (production re-merged it), or add a row (next free ID in the
+  prefix) and implement it with the narrowest hook. A production feature is
+  implemented, not documented away; only the owner can drop one.
+- **Q3 Deviations.** Re-check D1–D7 against production and report whether
+  each still applies, changed, or is moot (production may already differ
+  from `ee8fe158d6` there). Do not edit `docs/DEVIATIONS.md`.
+
+| Task | Area | Owned paths (besides Phase 4's) |
+|---|---|---|
+| P5-A | scheduler, lifecycle, tree-cache selection | P4-A paths; new rows for `mem_cache/registry.py`, `mem_cache/common.py` `?` hunks |
+| P5-B | graph, pools, forward batch | P4-B paths; `forward_batch_info.py`, `model_runner.py`, `pool_configurator.py` `?` hunks |
+| P5-C | model, QSA, quantization, kernels | P4-C paths; `fast_topk.cuh`, QSA backend/kernel/sparse_attn, `qwen4_exp.py`, `fused_marlin_moe.py` `?` hunks |
+| P5-D | runtime, image, activation, NUMA, evidence | P4-D paths; `environ.py` + `utils/numa_utils.py` (NUMA interleave), `environment.lock.json`, evidence tools with production as the fork arm |
+
+Gates: **G5-CPU** (full CPU suite on the production interpreter, no `?` in
+Appendix A, every REPLACE copy equal to production, review) and **G5-GPU**
+(owner window): the Phase 2 evidence with a fresh fork arm running
+production's code (deterministic profile, validation weights) against the
+plugin, I5, and G2-3 native checks with production weights against
+production. Then the cutover (owner decision).
+
 ## Review protocol
 
 After each gate's work is merged, run from this repository:

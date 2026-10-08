@@ -297,3 +297,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   (`SGLANG_NUMA_INTERLEAVE`). Owner: pause; cut over later together with a
   plugin rebased onto upstream main (next cycle), porting those three
   changes first, then G2-3 with production weights against production.
+- Owner (2026-10-08): Phase 5 — upgrade to upstream main without losing any
+  production feature. Pin `35f3c96ff4` (production's upstream base; owner
+  chose it over the latest main), reference = production `897286b12a`,
+  production interpreter. Appendix A remapped (`tools/remap_hunks.py`): 187
+  of 263 production hunks carried, 76 `?` to map (`docs/phase5-survey.md`).
+  Tasks P5-A..D started.
