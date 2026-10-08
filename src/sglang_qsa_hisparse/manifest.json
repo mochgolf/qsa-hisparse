@@ -186,7 +186,11 @@
       "patches": [
         {
           "target": "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.execute",
-          "hook_type": "replace"
+          "hook_type": "around"
+        },
+        {
+          "target": "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._process_output_after_replay",
+          "hook_type": "after"
         }
       ],
       "attach": []
@@ -481,8 +485,8 @@
       "feature": "hisparse",
       "patches": [
         {
-          "target": "sglang.srt.model_executor.model_runner.ModelRunner._forward_raw",
-          "hook_type": "replace"
+          "target": "sglang.srt.model_executor.model_runner.ModelRunner._prepare_eager_forward_batch",
+          "hook_type": "before"
         }
       ],
       "attach": []

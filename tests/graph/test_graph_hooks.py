@@ -307,7 +307,7 @@ def _execute(events, runner):
     return runner.execute(_decode_batch())
 
 
-def test_replay_scope_nests_inside_session_and_finish_follows_replay(events, published):
+def test_replay_scope_wraps_execute_and_finish_follows_publish(events, published):
     qsa = _qsa(events)
     backend = _FullBackend(events)
     runner = _graph_runner(events, _coordinator(events, qsa), backend)
@@ -315,18 +315,21 @@ def test_replay_scope_nests_inside_session_and_finish_follows_replay(events, pub
     with activated("G03"):
         output = _execute(events, runner)
 
+    # Deviation D6: the scope encloses the whole execute call (the fork enters
+    # it inside replay_session), and finish runs in _process_output_after_replay,
+    # after the IN_REPLAY publish (the fork calls it right after replay).
     assert events.names == [
-        "backend.replay_session:enter",
         "qsa.graph_replay_scope:enter",
+        "backend.replay_session:enter",
         "load_batch",
         "backend.replay",
-        "qsa.finish_graph_replay",
         "publish_read_done",
-        "qsa.graph_replay_scope:exit",
+        "qsa.finish_graph_replay",
         "backend.replay_session:exit",
+        "qsa.graph_replay_scope:exit",
     ]
-    assert events[4][1:] == ((4,), {"native_key": ShapeKey(size=4), "native_backend": backend})
-    assert events[5][2] == {"in_graph": True}
+    assert events[5][1:] == ((4,), {"native_key": ShapeKey(size=4), "native_backend": backend})
+    assert events[4][2] == {"in_graph": True}
     assert output.next_token_logits.shape == (3, 2)
 
 
@@ -344,7 +347,7 @@ def test_replay_without_qsa_graph_is_upstream(events, published):
     ]
 
 
-# R02 _forward_raw -----------------------------------------------------------------
+# R02 _forward_raw, _prepare_eager_forward_batch -------------------------------------
 
 
 def _model_runner(events, coordinator, can_run_graph):
@@ -364,24 +367,56 @@ def test_qsa_graph_decode_cannot_fall_back_to_eager(events):
     forward_batch = SimpleNamespace(forward_mode=ForwardMode.DECODE, batch_size=2)
     with activated("R02"), pytest.raises(RuntimeError, match="cannot fall back to eager"):
         runner._forward_raw(forward_batch, None)
-    assert events == []
+    # Deviation D7: the raise comes from the eager branch's first call, after
+    # the pinned coordinator block (the fork raises before it).
+    assert events.names == ["wait_for_pending_backup", "num_real_reqs.fill_"]
 
 
 @pytest.mark.parametrize("graph_enabled", [True, False])
-def test_qsa_graph_decode_skips_real_request_fill(events, graph_enabled):
+def test_qsa_graph_decode_replays_after_the_pinned_fill(events, graph_enabled):
     coordinator = _coordinator(events, _qsa(events, graph_enabled=graph_enabled))
     runner = _model_runner(events, coordinator, can_run_graph=True)
     forward_batch = SimpleNamespace(forward_mode=ForwardMode.DECODE, batch_size=2)
     with activated("R02"):
         output = runner._forward_raw(forward_batch, "pp")
 
-    fill = [] if graph_enabled else ["num_real_reqs.fill_"]
-    assert events.names == ["wait_for_pending_backup", *fill, "graph.execute"]
-    if not graph_enabled:
-        assert events[1][1] == (2,)
+    # Deviation D7: the pinned fill also runs under the QSA graph (the fork skips
+    # it); it writes the batch size that prepare_graph_replay writes again.
+    assert events.names == ["wait_for_pending_backup", "num_real_reqs.fill_", "graph.execute"]
+    assert events[1][1] == (2,)
     assert events[-1][2] == {"pp_proxy_tensors": "pp"}
     assert forward_batch.hisparse_coordinator is coordinator
     assert output == ModelRunnerOutput(logits_output="graph output", can_run_graph=True)
+
+
+@pytest.fixture
+def stub_prepare_eager(events):
+    original = ModelRunner.__dict__["_prepare_eager_forward_batch"]
+    ModelRunner._prepare_eager_forward_batch = events.call("prepare_eager")
+    yield
+    ModelRunner._prepare_eager_forward_batch = original
+
+
+@pytest.mark.parametrize(
+    "mode, graph_enabled",
+    [(ForwardMode.DECODE, True), (ForwardMode.DECODE, False), (ForwardMode.EXTEND, True)],
+    ids=["graph-decode", "eager-decode", "graph-extend"],
+)
+def test_eager_preparation_rejects_only_qsa_graph_decode(
+    events, stub_prepare_eager, mode, graph_enabled
+):
+    runner = _model_runner(
+        events, _coordinator(events, _qsa(events, graph_enabled)), can_run_graph=False
+    )
+    forward_batch = SimpleNamespace(forward_mode=mode, batch_size=2)
+    with activated("R02"):
+        if mode.is_decode() and graph_enabled:
+            with pytest.raises(RuntimeError, match="cannot fall back to eager"):
+                runner._prepare_eager_forward_batch(forward_batch)
+            assert events == []
+        else:
+            runner._prepare_eager_forward_batch(forward_batch)
+            assert events.names == ["prepare_eager"]
 
 
 # R01 init_attention_backends -------------------------------------------------------

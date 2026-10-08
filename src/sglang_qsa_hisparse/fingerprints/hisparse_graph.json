@@ -1,4 +1,40 @@
 {
+  "sglang.srt.layers.attention.base_attn_backend.AttentionBackend.shared_read_ends": {
+    "def_line": 163,
+    "file": "sglang/srt/layers/attention/base_attn_backend.py",
+    "first_line": 163,
+    "kind": "function",
+    "module_sha256": "fdad1a473de751358de57216c48200157ec5e14791dc0dda3eebd9faa9caa628",
+    "qualname": "AttentionBackend.shared_read_ends",
+    "sha256": "65a4044926c91798082557e9e4998c2d3afbe8582cf1362381002657f964c4f3"
+  },
+  "sglang.srt.layers.attention.hybrid_linear_attn_backend.HybridLinearAttnBackend.shared_read_ends": {
+    "def_line": 1222,
+    "file": "sglang/srt/layers/attention/hybrid_linear_attn_backend.py",
+    "first_line": 1222,
+    "kind": "function",
+    "module_sha256": "8339a92ed5e4fd91f306f81f48d29c60f93a9e0e2ae4974cb6916f9f9a46f858",
+    "qualname": "HybridLinearAttnBackend.shared_read_ends",
+    "sha256": "8807e3eaa30fe62e2b7964607b58eb9fd48f214d6b3d5429487a68fc20201997"
+  },
+  "sglang.srt.layers.attention.linear.gdn_backend.GDNAttnBackend": {
+    "def_line": 513,
+    "file": "sglang/srt/layers/attention/linear/gdn_backend.py",
+    "first_line": 513,
+    "kind": "class",
+    "module_sha256": "c12e054cbe9f85cf15b0590a8ea7e3e175f62121160c3f548e0aa7ce71d1af0d",
+    "qualname": "GDNAttnBackend",
+    "sha256": "acb7d71eaa9a32886dc8e359aea7bcc52fe503ca1eb6d2523d8e9ed33e5f6294"
+  },
+  "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend": {
+    "def_line": 172,
+    "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
+    "first_line": 172,
+    "kind": "class",
+    "module_sha256": "feea3aa2c1f099ef42fd4ac833e2ca13f0566ab68ab078a2886880b02ef22cf8",
+    "qualname": "QwenSparseAttnBackend",
+    "sha256": "727cfb989e289a83495cebae60ee06a4af5c4e8accca91b025c0165b6f95c41d"
+  },
   "sglang.srt.layers.dp_attention.set_dp_buffer_len": {
     "def_line": 314,
     "file": "sglang/srt/layers/dp_attention.py",
@@ -16,15 +52,6 @@
     "module_sha256": "93a2fe6a000428c5b81004b3039a3ed773a036becc1b2ffd4fc8b13a3481e6f6",
     "qualname": "set_is_extend_in_batch",
     "sha256": "6976b54114a8422bac34a5f4ebc6f15a767534f8533dc6c373ba10f15ff96f96"
-  },
-  "sglang.srt.layers.logits_processor.LogitsProcessorOutput": {
-    "def_line": 211,
-    "file": "sglang/srt/layers/logits_processor.py",
-    "first_line": 210,
-    "kind": "class",
-    "module_sha256": "cfa7d5aaf8b37078a956c2fefd61ca0f069b6a4159f97e0e618c0f0ddf0b4ea9",
-    "qualname": "LogitsProcessorOutput",
-    "sha256": "64bb03456bcc85239ef8c1c1835e9743778a53035f6cfb79b773f71281e1115f"
   },
   "sglang.srt.managers.schedule_batch.ScheduleBatch": {
     "def_line": 2335,
@@ -116,24 +143,6 @@
     "qualname": "forward_context",
     "sha256": "b30bf420a709394228a3f4e843e99743818360e57988318a193aee32ac681ae6"
   },
-  "sglang.srt.model_executor.forward_context.has_forward_context": {
-    "def_line": 54,
-    "file": "sglang/srt/model_executor/forward_context.py",
-    "first_line": 54,
-    "kind": "function",
-    "module_sha256": "63900e43eaf683bcc50991e56dac6d194566b9fcef2ed452ff8e5818e503d2d0",
-    "qualname": "has_forward_context",
-    "sha256": "0848dad9c35c108afd4f4e6b01094ec9b3c9e092fb425d8e0754dcea517ec2f2"
-  },
-  "sglang.srt.model_executor.model_runner.ModelRunner._extend_forward_kwargs": {
-    "def_line": 1660,
-    "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1660,
-    "kind": "function",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
-    "qualname": "ModelRunner._extend_forward_kwargs",
-    "sha256": "532bfa3f55fff0c64589d752b054750474fe32f38dcac51d856cbc57ee167796"
-  },
   "sglang.srt.model_executor.model_runner.ModelRunner._forward_raw": {
     "def_line": 1856,
     "file": "sglang/srt/model_executor/model_runner.py",
@@ -142,15 +151,6 @@
     "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner._forward_raw",
     "sha256": "9e6f8e310c832959c518b68eb04131719b70ab44f9eec3ca424b5c631a945bd0"
-  },
-  "sglang.srt.model_executor.model_runner.ModelRunner._maybe_execute_deferred_mamba_cow_and_clear": {
-    "def_line": 1808,
-    "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1808,
-    "kind": "function",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
-    "qualname": "ModelRunner._maybe_execute_deferred_mamba_cow_and_clear",
-    "sha256": "314fe9b096535f7881c703874fe8679a073cab86f3778bb949a3ca36c1f7c8f9"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner._prepare_eager_forward_batch": {
     "def_line": 1616,
@@ -170,15 +170,6 @@
     "qualname": "ModelRunner._prepare_replicated_q_proj",
     "sha256": "c0638fa201004ea2107878b783bb4b743ddd0a5118d8cdac4fb50c701969b5d9"
   },
-  "sglang.srt.model_executor.model_runner.ModelRunner.forward_split_prefill": {
-    "def_line": 1684,
-    "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 1684,
-    "kind": "function",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
-    "qualname": "ModelRunner.forward_split_prefill",
-    "sha256": "f2659e2dce05f8fbafe62cd2ce83510145ce217d19f7c4e4033077a8e3d3f279"
-  },
   "sglang.srt.model_executor.model_runner.ModelRunner.init_attention_backends": {
     "def_line": 1005,
     "file": "sglang/srt/model_executor/model_runner.py",
@@ -187,24 +178,6 @@
     "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
     "qualname": "ModelRunner.init_attention_backends",
     "sha256": "d05bbe5dd7803033546e1d36b30349a85726fb35f9493153b1685a1783046eef"
-  },
-  "sglang.srt.model_executor.model_runner.ModelRunnerOutput": {
-    "def_line": 279,
-    "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 278,
-    "kind": "class",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
-    "qualname": "ModelRunnerOutput",
-    "sha256": "42e17999182b5ef2604ec8a14d9fd992f90e2d3d566b00bd0384fb7634aaf806"
-  },
-  "sglang.srt.model_executor.model_runner._prefill_cuda_graph_allows_context_parallel": {
-    "def_line": 268,
-    "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 268,
-    "kind": "function",
-    "module_sha256": "36e7a69f345cf09f24699eea36a4ab0a2a305acb8b8a7e9b4e975f3fd09527f3",
-    "qualname": "_prefill_cuda_graph_allows_context_parallel",
-    "sha256": "cf5495e2a7eca56363d496b32563beb2d67bbf9f05e34cfb90bbeaca159bb483"
   },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner._capture_graph_size": {
     "def_line": 582,
@@ -341,15 +314,6 @@
     "qualname": "DecodeCudaGraphRunner._validate_capture_hidden_mode",
     "sha256": "cfc9e1f83384c5013712b4783dd41eac0760f995786dc15c1cb8bb824f94379c"
   },
-  "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.can_run_graph": {
-    "def_line": 672,
-    "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
-    "first_line": 672,
-    "kind": "function",
-    "module_sha256": "1ec64d53550012a006d2fb7acbcabeefb6d3a3729864373d870314aed19f94cd",
-    "qualname": "DecodeCudaGraphRunner.can_run_graph",
-    "sha256": "4baa48638d8ae3757005ff38923d88b48d6c49fd11f00a8fe72793aa30d19b0b"
-  },
   "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_one_shape": {
     "def_line": 1143,
     "file": "sglang/srt/model_executor/runner/decode_cuda_graph_runner.py",
@@ -422,14 +386,14 @@
     "qualname": "FullCudaGraphBackend",
     "sha256": "813667c275441d1074827d6b785973f9152121766bbe92dcb18de19186abbbfc"
   },
-  "sglang.srt.model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend.replay": {
-    "def_line": 203,
+  "sglang.srt.model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend.replay_session": {
+    "def_line": 200,
     "file": "sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py",
-    "first_line": 203,
+    "first_line": 199,
     "kind": "function",
     "module_sha256": "fcfca3c5d286a77594742fd05791fe5ad4c7fd46327ab7f126b2cdcf697b685d",
-    "qualname": "FullCudaGraphBackend.replay",
-    "sha256": "f30c688eae933c767722c5587ae551e19ac31c7edf60bffbd2663fda9afb905f"
+    "qualname": "FullCudaGraphBackend.replay_session",
+    "sha256": "78fe856eed8797ed1cbb2023624b23a3c983ba7a39359f691b868c3200072c78"
   },
   "sglang.srt.multiplex.pdmux_context.get_current_stream_idx": {
     "def_line": 167,
@@ -448,15 +412,6 @@
     "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
-  },
-  "sglang.srt.runtime_context.get_global_dwdp_manager": {
-    "def_line": 1615,
-    "file": "sglang/srt/runtime_context.py",
-    "first_line": 1615,
-    "kind": "function",
-    "module_sha256": "50f1e87490d0b5c2bb1ddf820d65719cd1c9b876d265e902934692cd3719b10e",
-    "qualname": "get_global_dwdp_manager",
-    "sha256": "1e1f503d960be79880193ccc9412766a05c134abf808a4f5344ef4f54d70a959"
   },
   "sglang.srt.speculative.ragged_verify.resolve_ragged_verify_layout": {
     "def_line": 219,
