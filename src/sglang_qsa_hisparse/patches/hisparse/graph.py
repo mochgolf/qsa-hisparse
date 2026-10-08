@@ -57,29 +57,35 @@ _FULL_BACKEND = (
         "sglang.srt.model_executor.cuda_graph_buffer_registry.build_decode_registry",
         "sglang.srt.model_executor.cuda_graph_buffer_registry.build_eager_registry",
         "sglang.srt.model_executor.forward_batch_info.ForwardBatch",
+        "sglang.srt.model_executor.forward_batch_info.ForwardMode.is_decode",
+        "sglang.srt.model_executor.forward_batch_info.ForwardMode.is_extend_without_speculative",
         "sglang.srt.model_executor.runner.eager_runner.EagerRunner.load_batch",
     ),
     reason=(
-        "Deviation D3: upstream declares ForwardBatch.req_pool_indices_cpu (read "
-        "by the runtime's begin_batch) and fills it in init_new only for extend "
-        "without speculative decoding; production also fills it for decode when "
-        "the ScheduleBatch's hisparse_coordinator uses QSA leases (the fork: every "
-        "batch), and adds kv_allocated_lens_cpu (filled from req.kv; no reader; "
-        "dropped). When the KV pool carries a "
-        "qsa_hisparse runtime this hook sets the field from the ScheduleBatch for "
-        "every mode (for that extend case it is the object upstream already set); "
-        "otherwise the field stays exactly as upstream sets it. The after hook "
-        "covers every return of init_new, and nothing in init_new reads the field "
-        "after constructing the batch. EagerRunner.load_batch's copy "
-        "(dataclasses.replace directly or in extract_buffer, whose eager registry "
-        "from build_eager_registry/build_decode_registry has no "
-        "req_pool_indices_cpu slot) carries the field, so the eager paths hand it "
-        "to init_forward_metadata without a second hook."
+        "Deviation D3 (kv_allocated_lens_cpu only): upstream declares "
+        "ForwardBatch.req_pool_indices_cpu (read by the runtime's begin_batch) and "
+        "fills it in init_new for extend without speculative decoding; production "
+        "also fills it, with the same expression, for decode when the "
+        "ScheduleBatch's hisparse_coordinator uses QSA leases. Decode is never "
+        "extend, so this after hook sets exactly that case and every other batch "
+        "keeps upstream's value, i.e. production's condition. Production's "
+        "kv_allocated_lens_cpu field (filled from req.kv when seq_lens_cpu is None) "
+        "has no reader and would make two-batch overlap's filter_batch raise; it "
+        "is dropped. The after hook covers every return of init_new, and nothing "
+        "in init_new reads the field after constructing the batch. "
+        "EagerRunner.load_batch's copy (dataclasses.replace directly or in "
+        "extract_buffer, whose eager registry from "
+        "build_eager_registry/build_decode_registry has no req_pool_indices_cpu "
+        "slot) carries the field, so the eager paths hand it to "
+        "init_forward_metadata without a second hook. hisparse: upstream "
+        "HiSparseCoordinator has no uses_qsa_hisparse_leases."
     ),
 )
 def _carry_req_pool_indices_cpu(ret, cls, batch, model_runner, *args, **kwargs):
-    if getattr(model_runner.token_to_kv_pool, "qsa_hisparse", None) is not None:
-        ret.req_pool_indices_cpu = batch.req_pool_indices_cpu
+    if batch.forward_mode.is_decode() and getattr(
+        getattr(batch, "hisparse_coordinator", None), "uses_qsa_hisparse_leases", False
+    ):
+        ret.req_pool_indices_cpu = getattr(batch, "req_pool_indices_cpu", None)
 
 
 # R01 ---------------------------------------------------------------------------

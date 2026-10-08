@@ -116,6 +116,24 @@
     "qualname": "ForwardBatch.init_new",
     "sha256": "eaab7d5de3a6e24b983fad1c7ba2ea21775f5bf186680c8682e493c45bde03d3"
   },
+  "sglang.srt.model_executor.forward_batch_info.ForwardMode.is_decode": {
+    "def_line": 260,
+    "file": "sglang/srt/model_executor/forward_batch_info.py",
+    "first_line": 260,
+    "kind": "function",
+    "module_sha256": "9b95838f31331d9489e6f8e70885d8c09520ff1cc93f20e9a246111a348e7c74",
+    "qualname": "ForwardMode.is_decode",
+    "sha256": "f8a0b8db4b7f1757aa98dbce9262a2b7bd757aa548bf43f858309cd5cdb1e89b"
+  },
+  "sglang.srt.model_executor.forward_batch_info.ForwardMode.is_extend_without_speculative": {
+    "def_line": 304,
+    "file": "sglang/srt/model_executor/forward_batch_info.py",
+    "first_line": 304,
+    "kind": "function",
+    "module_sha256": "9b95838f31331d9489e6f8e70885d8c09520ff1cc93f20e9a246111a348e7c74",
+    "qualname": "ForwardMode.is_extend_without_speculative",
+    "sha256": "36a2f0e72d87fd8fc7a78ba51a8ec37e2fb5c028f587466a97ac4b779c7d9430"
+  },
   "sglang.srt.model_executor.forward_batch_info.PPProxyTensors": {
     "def_line": 2151,
     "file": "sglang/srt/model_executor/forward_batch_info.py",
