@@ -4,7 +4,7 @@
     "file": "sglang/srt/mem_cache/memory_pool.py",
     "first_line": 335,
     "kind": "function",
-    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
+    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
     "qualname": "ReqToTokenPool.alloc_rows",
     "sha256": "7b854577478ec66cf772a7cb2195a7bb74c4eb5a6476f6c4bc9cac0d5bbd2fb6"
   },
@@ -13,7 +13,7 @@
     "file": "sglang/srt/mem_cache/memory_pool.py",
     "first_line": 365,
     "kind": "function",
-    "module_sha256": "47e13954eb8b06836a5279fedd1f79f03dbd40245819ae152af3a02f3887c1ac",
+    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
     "qualname": "ReqToTokenPool.clear",
     "sha256": "ccbd330e0d851b06d2d1b820b513d5a860d2ff6370ff8281e1b3af4904411180"
   }

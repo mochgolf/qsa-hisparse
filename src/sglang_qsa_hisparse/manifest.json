@@ -309,6 +309,26 @@
       ],
       "attach": []
     },
+    "M05": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.registry.default_radix_cache_factory",
+          "hook_type": "around"
+        }
+      ],
+      "attach": []
+    },
+    "M06": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.mem_cache.registry.create_tree_cache",
+          "hook_type": "replace"
+        }
+      ],
+      "attach": []
+    },
     "P01": {
       "feature": "hisparse",
       "patches": [
