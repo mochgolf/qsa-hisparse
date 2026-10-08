@@ -211,3 +211,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   next pin; U5, U7, U8, U23). Ready for owner decision: U1, U9a, U9b, U7 w13
   (contribution to #35955). Need GPU validation before opening: U6a, U6b
   (with U6a on SM89), U8, U7 group split.
+- G3-U re-check: U1, U9a, U9b, U7 w13 ready for owner publication decision;
+  U6a, U6b, U8 ready after their documented GPU validation; U7 group split
+  deferred until #35955 merges (rebase and GPU plan then). G3-U closed by the
+  orchestrator: every branch classified, none needs further CPU changes.
