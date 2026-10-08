@@ -53,6 +53,33 @@
     "qualname": "CudaGraphBufferRegistry.fill_from",
     "sha256": "373a9776f51f5e43ee864bef0b8b435edfb7d2e5af7280bbe8e0aca81a6d2bcc"
   },
+  "sglang.srt.model_executor.cuda_graph_buffer_registry.build_decode_registry": {
+    "def_line": 516,
+    "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
+    "first_line": 516,
+    "kind": "function",
+    "module_sha256": "839a1a077a6c7ec50148d4a6481e37880baa8947432db7ac09574b7e601f0d78",
+    "qualname": "build_decode_registry",
+    "sha256": "11f795f7d31017512e17a5f659ee2ed2634ff550e23f08722e0b147a166773f5"
+  },
+  "sglang.srt.model_executor.cuda_graph_buffer_registry.build_eager_registry": {
+    "def_line": 1011,
+    "file": "sglang/srt/model_executor/cuda_graph_buffer_registry.py",
+    "first_line": 1011,
+    "kind": "function",
+    "module_sha256": "839a1a077a6c7ec50148d4a6481e37880baa8947432db7ac09574b7e601f0d78",
+    "qualname": "build_eager_registry",
+    "sha256": "e90209558638b09ad7f4da4d3bc1772e7606c57278c3a64ee3ba2ebe4ba737c5"
+  },
+  "sglang.srt.model_executor.forward_batch_info.ForwardBatch": {
+    "def_line": 489,
+    "file": "sglang/srt/model_executor/forward_batch_info.py",
+    "first_line": 488,
+    "kind": "class",
+    "module_sha256": "ef4426b3ece1b515eeb5223d394de6a8d154d912bcf62e7ed4bae20e17064797",
+    "qualname": "ForwardBatch",
+    "sha256": "b7354dec262190fe358eadf3bb69d219f5dc7930e3d4b34ba86c04f6dc4b1305"
+  },
   "sglang.srt.model_executor.forward_batch_info.ForwardBatch.init_new": {
     "def_line": 904,
     "file": "sglang/srt/model_executor/forward_batch_info.py",

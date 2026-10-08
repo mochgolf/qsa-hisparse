@@ -17,7 +17,7 @@ from sglang.srt.batch_overlap.two_batch_overlap import TboForwardBatchPreparer
 from sglang.srt.environ import envs
 from sglang.srt.layers.attention.base_attn_backend import SharedReadEnds
 from sglang.srt.layers.logits_processor import LogitsProcessorOutput
-from sglang.srt.model_executor.cuda_graph_buffer_registry import CudaGraphBufferRegistry
+from sglang.srt.model_executor.cuda_graph_buffer_registry import build_eager_registry
 from sglang.srt.model_executor.forward_batch_info import (
     CaptureHiddenMode,
     ForwardBatch,
@@ -429,10 +429,10 @@ def test_no_coordinator_without_lease_runtime(events, stub_init_attention_backen
     assert runner.hisparse_coordinator is None
 
 
-# F01 ForwardBatch.init_new, EagerRunner.load_batch ---------------------------------
+# F01 ForwardBatch.init_new ---------------------------------------------------------
 
 
-def _forward_batch():
+def _forward_batch(req_pool_indices_cpu=None):
     return ForwardBatch(
         forward_mode=ForwardMode.DECODE,
         batch_size=2,
@@ -443,14 +443,21 @@ def _forward_batch():
         seq_lens_sum=19,
         seq_lens_cpu=torch.tensor([9, 10]),
         positions=torch.tensor([8, 9]),
+        req_pool_indices_cpu=req_pool_indices_cpu,
     )
 
 
 @pytest.fixture
 def stub_init_new():
+    """Stand-in for the pinned init_new; the test sets ``upstream["rows"]``, the
+    value upstream leaves in ``req_pool_indices_cpu`` (None except for extend
+    without speculative decoding)."""
+    upstream = {"rows": None}
     original = ForwardBatch.__dict__["init_new"]
-    ForwardBatch.init_new = classmethod(lambda cls, batch, model_runner, **kwargs: _forward_batch())
-    yield
+    ForwardBatch.init_new = classmethod(
+        lambda cls, batch, model_runner, **kwargs: _forward_batch(upstream["rows"])
+    )
+    yield upstream
     ForwardBatch.init_new = original
 
 
@@ -466,16 +473,25 @@ def _init_new(runtime):
 
 
 def test_forward_batch_carries_cpu_request_rows_with_runtime(stub_init_new):
-    with activated("F01"):
+    with activated("F01"):  # Decode: upstream leaves the field None.
         batch, forward_batch = _init_new(runtime=object())
     assert forward_batch.req_pool_indices_cpu is batch.req_pool_indices_cpu
 
 
-def test_two_batch_overlap_unaffected_without_runtime(stub_init_new, published):
+@pytest.mark.parametrize("upstream_rows", [None, torch.tensor([7, 8])], ids=["unset", "set"])
+def test_two_batch_overlap_unaffected_without_runtime(stub_init_new, published, upstream_rows):
+    stub_init_new["rows"] = upstream_rows
+    fields = set(ForwardBatch.__dataclass_fields__)
     with activated("F01"):
-        _, forward_batch = _init_new(runtime=None)
-    assert not hasattr(forward_batch, "req_pool_indices_cpu")
-    assert "req_pool_indices_cpu" not in ForwardBatch.__dataclass_fields__
+        batch, forward_batch = _init_new(runtime=None)
+        # No class replace: the plugin adds no ForwardBatch field (the fork's
+        # kv_allocated_lens_cpu is dropped).
+        assert set(ForwardBatch.__dataclass_fields__) == fields
+    assert "kv_allocated_lens_cpu" not in fields
+    # Without the runtime the field is exactly what upstream set, never the
+    # ScheduleBatch rows the hook would copy.
+    assert forward_batch.req_pool_indices_cpu is upstream_rows
+    assert upstream_rows is None or upstream_rows is not batch.req_pool_indices_cpu
     child = TboForwardBatchPreparer.filter_batch(
         forward_batch,
         start_token_index=0,
@@ -486,29 +502,37 @@ def test_two_batch_overlap_unaffected_without_runtime(stub_init_new, published):
     )
     assert child.batch_size == 1
     assert child.req_pool_indices.tolist() == [1]
+    if upstream_rows is None:
+        assert child.req_pool_indices_cpu is None
+    else:
+        assert child.req_pool_indices_cpu.tolist() == [7]
 
 
 def _eager_runner():
     runner = EagerRunner.__new__(EagerRunner)
-    runner._eager_registry = CudaGraphBufferRegistry(device="cpu", max_bs=8, max_num_tokens=64)
+    # The pinned eager registry (the slot set EagerRunner.__init__ builds).
+    runner._eager_registry = build_eager_registry(
+        device="cpu", max_bs=8, max_num_token=64, cache_loc_dtype=torch.int64
+    )
     return runner
 
 
 @pytest.mark.parametrize("no_copy", [False, True])
-def test_eager_batch_copy_keeps_cpu_request_rows(no_copy):
+def test_eager_batch_copy_keeps_cpu_request_rows(published, no_copy):
     runner = _eager_runner()
-    with_rows = _forward_batch()
-    with_rows.req_pool_indices_cpu = torch.tensor([1, 2])
+    rows = torch.tensor([1, 2])
+    with_rows = _forward_batch(rows)
     without_rows = _forward_batch()
     with envs.SGLANG_EAGER_INPUT_NO_COPY.override(no_copy):
         pinned = runner.load_batch(with_rows)
         with activated("F01"):
-            kept = runner.load_batch(with_rows)
+            active = runner.load_batch(with_rows)
             inert = runner.load_batch(without_rows)
-    # The pinned eager runner hands a dataclasses.replace copy to
-    # init_forward_metadata (where the runtime's begin_batch reads the rows);
-    # the copy drops instance attributes.
-    assert pinned is not with_rows and not hasattr(pinned, "req_pool_indices_cpu")
-    assert kept is not with_rows
-    assert kept.req_pool_indices_cpu is with_rows.req_pool_indices_cpu
-    assert not hasattr(inert, "req_pool_indices_cpu")
+    # The eager runner hands a dataclasses.replace copy to init_forward_metadata,
+    # where the runtime's begin_batch reads the rows. Upstream's field survives
+    # that copy (the eager registry has no slot for it), so F01 needs no hook on
+    # EagerRunner.load_batch.
+    for copy in (pinned, active):
+        assert copy is not with_rows
+        assert copy.req_pool_indices_cpu is rows
+    assert inert is not without_rows and inert.req_pool_indices_cpu is None

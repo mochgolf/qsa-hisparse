@@ -1,22 +1,26 @@
 """Scheduler gates under W2's hooks: host-prefix wrap (S01) and coordinator
 adoption (S02), multimodal decode batches (S03), the staging-to-decode
-transition (S04), lease admission (S05), idle leak checks (S07), idleness (S08), abort of staging requests (S09) and
-weight-load invalidation (B06). Expected values follow the fork's code at
-ee8fe158d6."""
+transition (S04), lease admission (S05), idle leak checks (S07), idleness (S08), abort of staging requests (S09),
+weight-load invalidation (B06) and the chunk checkpoint cap (P01). Expected
+values follow the fork's code at ee8fe158d6."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+import torch
 
 from sglang.srt.disaggregation.utils import DisaggregationMode
 from sglang.srt.managers.schedule_batch import FINISH_ABORT, NextBatchPlan, ScheduleBatch
+from sglang.srt.managers.schedule_policy import PrefillAdder
 from sglang.srt.managers.scheduler import Scheduler
 from sglang.srt.managers.scheduler_components.weight_updater import (
     SchedulerWeightUpdaterManager,
 )
 from sglang.srt.mem_cache.cache_init_params import CacheInitParams
+from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.chunk_cache import ChunkCache
+from sglang.srt.mem_cache.memory_pool import ReqToTokenPool
 from sglang.srt.sampling.sampling_batch_info import SamplingBatchInfo
 from sglang_qsa_hisparse.hisparse.prefix_cache import QSAHostPrefixCache
 from sglang_qsa_hisparse.hisparse.slots import QSAHiSparseSlots
@@ -276,19 +280,22 @@ def test_staging_requests_keep_the_scheduler_busy_except_for_health_checks():
         dllm_manager=SimpleNamespace(any_staging_reqs=lambda: False),
         last_batch=None,
         enable_overlap=False,
-        ps=SimpleNamespace(pp_size=1),
         waiting_queue=[],
         _engine_paused=False,
         disaggregation_mode=DisaggregationMode.NULL,
         grammar_manager=SimpleNamespace(grammar_queue=[]),
         enable_hisparse=False,
         enable_hierarchical_cache=False,
+        enable_lmcache=False,
         hisparse_coordinator=coordinator,
     )
-    assert not s.is_fully_idle()
-    assert s.is_fully_idle(for_health_check=True)
-    coordinator.has_ongoing_staging = lambda: False
-    assert s.is_fully_idle()
+    parallel = SimpleNamespace(pp_size=1)
+    with patch("sglang.srt.managers.scheduler.get_parallel", return_value=parallel):
+        assert not s.is_fully_idle()
+        assert s.is_fully_idle(for_health_check=True)
+        assert not s.is_fully_idle(ignore_waiting=True)
+        coordinator.has_ongoing_staging = lambda: False
+        assert s.is_fully_idle()
 
 
 # S09 ------------------------------------------------------------------------
@@ -312,7 +319,6 @@ def test_abort_reaches_requests_waiting_in_qsa_staging(leases):
         dllm_config=None,
         grammar_manager=Mock(),
         disaggregation_mode=DisaggregationMode.NULL,
-        ps=SimpleNamespace(pp_size=1),
         running_batch=SimpleNamespace(reqs=[]),
         last_batch=None,
         hisparse_coordinator=SimpleNamespace(
@@ -320,9 +326,13 @@ def test_abort_reaches_requests_waiting_in_qsa_staging(leases):
             ack_staging_queue=[SimpleNamespace(req=staged)],
         ),
     )
-    s.abort_request(
-        SimpleNamespace(rid="staged", abort_all=False, abort_message=None, finished_reason=None)
-    )
+    parallel = SimpleNamespace(pp_size=1)
+    with patch("sglang.srt.managers.scheduler.get_parallel", return_value=parallel):
+        s.abort_request(
+            SimpleNamespace(
+                rid="staged", abort_all=False, abort_message=None, finished_reason=None
+            )
+        )
     assert isinstance(staged.to_finish, FINISH_ABORT) == leases
 
 
@@ -333,12 +343,15 @@ def test_any_weight_load_attempt_invalidates_host_prefixes_first():
     events = []
     cache = SimpleNamespace(invalidate_model=lambda: events.append("invalidate"))
 
-    def failed_load(recv_req):
+    def failed_load(model_path, load_format, recapture_cuda_graph=False):
         events.append("load")
         return False, "load failed"
 
+    runner = SimpleNamespace(
+        weight_updater=SimpleNamespace(update_weights_from_disk=failed_load)
+    )
     manager = SchedulerWeightUpdaterManager(
-        tp_worker=SimpleNamespace(update_weights_from_disk=failed_load),
+        tp_worker=SimpleNamespace(weight_update_runners=lambda: [("target", runner)]),
         draft_worker=None,
         tp_cpu_group=None,
         memory_saver_adapter=None,
@@ -346,7 +359,57 @@ def test_any_weight_load_attempt_invalidates_host_prefixes_first():
         is_fully_idle=lambda: True,
         scheduler=SimpleNamespace(tree_cache=cache),
     )
-    output = manager.update_weights_from_disk(SimpleNamespace(flush_cache=False))
+    output = manager.update_weights_from_disk(
+        SimpleNamespace(
+            model_path="m", load_format=None, recapture_cuda_graph=False, flush_cache=False
+        )
+    )
     assert not output.success
     assert events == ["invalidate", "load"]
     manager.flush_cache.assert_not_called()
+
+
+# P01 ------------------------------------------------------------------------
+
+
+def chunked_continuation(checkpoint_limit, chunked_req_limit=None):
+    """add_chunked_req for a 201-token prompt with 64 tokens already cached."""
+    allocator = PagedTokenToKVPoolAllocator(4096, 64, torch.uint8, "cpu", SimpleNamespace(), False)
+    pool = ReqToTokenPool(size=1, max_context_len=4096, device="cpu", enable_memory_saver=False)
+    cache = ChunkCache(
+        CacheInitParams(
+            disable=True, req_to_token_pool=pool, token_to_kv_pool_allocator=allocator, page_size=64
+        )
+    )
+    cache.prefill_checkpoint_limit = lambda req: checkpoint_limit
+    adder = PrefillAdder(64, cache, allocator, None, 1.0, 4096, 4096)
+    adder.chunked_req_limit = chunked_req_limit  # As the scheduler sets it.
+    req = SimpleNamespace(
+        full_untruncated_fill_ids=list(range(201)),
+        prefix_indices=torch.arange(64),
+        sampling_params=SimpleNamespace(max_new_tokens=8),
+        output_ids=[],
+        retracted_stain=False,
+        kv=SimpleNamespace(mamba_pool_idx=None),
+    )
+    req.set_extend_range = lambda start, end: setattr(
+        req, "extend_range", SimpleNamespace(start=start, end=end, length=end - start)
+    )
+    return adder.add_chunked_req(req), req
+
+
+@pytest.mark.parametrize(
+    "checkpoint_limit, chunked_req_limit, end, unfinished",
+    [
+        (None, None, 201, False),  # No checkpoint: the whole remainder.
+        (128, None, 192, True),  # Stops at the last full page (fork 960-964).
+        (128, 64, 128, True),  # The tighter upstream limit still applies.
+        (128, 200, 192, True),
+    ],
+)
+def test_a_chunk_continuation_stops_at_the_host_prefix_checkpoint(
+    checkpoint_limit, chunked_req_limit, end, unfinished
+):
+    result, req = chunked_continuation(checkpoint_limit, chunked_req_limit)
+    assert (req.extend_range.start, req.extend_range.end) == (64, end)
+    assert (result is req) == unfinished

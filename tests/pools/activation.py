@@ -18,10 +18,9 @@ MODULES = (
     "sglang_qsa_hisparse.patches.hisparse.graph",
 )
 ROWS = ("K01", "K02", "K03", "F01", "R01", "R02", "C01", "C02", "G01", "G02", "G03")
-# Hooks W3 added beyond the inventory, until the orchestrator updates
-# docs/patch-inventory.md and manifest.json: under deviation D3 the F01
-# instance attribute must also survive EagerRunner.load_batch's copy.
-PENDING_MANIFEST: dict = {}  # F01's EagerRunner hook is in manifest.json now.
+# Hooks added beyond the inventory, until the orchestrator updates
+# docs/patch-inventory.md and manifest.json (none at present).
+PENDING_MANIFEST: dict = {}
 
 
 def manifest_rows(rows):
