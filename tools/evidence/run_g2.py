@@ -61,6 +61,31 @@ def server(arm, base, output):
     return argv, env, run_dir / "ready.json"
 
 
+def _tree(root, path):
+    result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", f"HEAD:{path}"], capture_output=True, text=True
+    )
+    dirty = subprocess.run(
+        ["git", "-C", str(root), "status", "--porcelain", "--", path], capture_output=True, text=True
+    ).stdout.strip()
+    return {"tree": result.stdout.strip(), "dirty": bool(dirty)}
+
+
+def provenance(arm, command, env):
+    """Command, relevant environment and source trees of this arm."""
+    keep = ("SGLANG_", "QSA_", "CUDA", "PYTHON")
+    return {
+        "arm": arm,
+        "argv": command,
+        "environment": {k: v for k, v in sorted(env.items()) if k.startswith(keep) or k == "PATH"},
+        "sources": {
+            "fork_python": _tree(FORK_ROOT, "python"),
+            "pin_python": _tree(PIN_ROOT, "python"),
+            "plugin_src": _tree(PLUGIN_ROOT, "src"),
+        },
+    }
+
+
 def harness(output, url, fixtures, name, *args):
     manual = FORK_ROOT / "test" / "manual"
     with (output / f"{name}.log").open("w") as log:
@@ -90,7 +115,7 @@ def main(argv=None):
     url = f"http://{host}:{port}"
     preflight(host, port)
     command, env, ready_file = server(args.arm, base, output)
-    (output / "run.json").write_text(json.dumps({"arm": args.arm, "argv": command[:3]}, indent=2))
+    (output / "run.json").write_text(json.dumps(provenance(args.arm, command, env), indent=2, sort_keys=True))
 
     with (output / "server.log").open("w") as log:
         process = subprocess.Popen(

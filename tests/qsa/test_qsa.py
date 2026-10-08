@@ -1,7 +1,7 @@
 # Fork test/registered/kernel/qsa/test_qsa.py (the pinned file plus the fork's
 # test_qsa_decode_score_width_matches_graph_without_padding_page_table), run
 # with the W4 rows active (tests/qsa/conftest.py). Port edits are marks only:
-# the known fork failure is a strict xfail and the CUDA-only tests are `gpu`.
+# the two known fork failures are strict xfails and the CUDA-only tests are `gpu`.
 import sys
 from types import ModuleType, SimpleNamespace
 
@@ -592,6 +592,14 @@ def test_qsa_indexer_ignores_dp_attention_token_padding():
 
 
 @pytest.mark.gpu  # Skips or returns early without CUDA.
+@pytest.mark.xfail(
+    strict=True,
+    raises=AttributeError,
+    reason=(
+        "Known fork failure (inherited, G2-1 on both arms): the backend is "
+        "built with __new__, so attributes the fork sets in __init__ are missing"
+    ),
+)
 def test_qsa_cuda_extend_ignores_dp_attention_padding(monkeypatch):
     if not torch.cuda.is_available():
         return
@@ -670,8 +678,7 @@ def _make_paged_extend_backend():
     reason=(
         "Known fork failure (docs/baseline.md): the test builds the backend with "
         "QwenSparseAttnBackend.__new__ and never sets the attributes the fork adds "
-        "in __init__ (fork: 'qsa_hisparse' in _store_kv; plugin: the Q02 scope "
-        "flag '_qsa_target_model', read first by the forward_extend hook). "
+        "in __init__ ('qsa_hisparse', read in _store_kv, on both arms). "
         "It passes at the pin. Reported, not fixed."
     ),
 )
