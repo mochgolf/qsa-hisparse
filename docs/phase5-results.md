@@ -100,7 +100,7 @@ restored and the switch is left to the owner.
 ## Cutover (2026-10-09)
 
 With the owner's approval (manual permission mode), production on 8081 was
-restarted at 02:59 with `qwen:service/profiles/qwen-local-plugin-20261009.json`
+restarted at 03:04 with `qwen:service/profiles/qwen-local-plugin-20261009.json`
 (release worktree `qsa-plugin-6a1c401`, pin `35f3c96ff4`) and was ready at
 03:11 (first start builds the plugin's JIT kernels): the launcher verified 2
 scheduler activation records for `model_compat` and `hisparse`; `/health`
