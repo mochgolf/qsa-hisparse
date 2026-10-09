@@ -317,3 +317,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   latency within about 1% after the first request. Cutover start was refused
   by the session permission check; original production restored and
   verified; release worktree and plugin profile are prepared for the owner.
+- G5-GPU review cleared after two re-checks (reporting precision only:
+  exact latency figures, memory snapshots). Production cut over to the
+  plugin on 2026-10-09 03:04 (owner, manual permission mode), ready 03:11,
+  launcher verified both TP ranks; smoke and prefix hits correct; the
+  plugin profile is the default `service/current.json` (owner). Rollback:
+  `service/profiles/qwen-local-20261004.json`. `phase5` merged into main.
