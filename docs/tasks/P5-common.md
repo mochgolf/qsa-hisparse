@@ -5,11 +5,11 @@ common rules in this folder's README. Survey: `docs/phase5-survey.md`. CPU
 only. Environment (export in every shell; relative defaults do not resolve
 from an agent worktree):
 
-    export QSA_PIN_ROOT=/home/zyk/projects/interests/ai-video/qwen/.worktrees/sglang-main-35f3c96ff4
-    export QSA_PYTHON=/home/zyk/projects/interests/ai-video/qwen/results/dsh-maintenance-20261004/upstream-runtime-env/bin/python
-    export QSA_FORK_ROOT=/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse
+    export QSA_PIN_ROOT=qwen:.worktrees/sglang-main-35f3c96ff4
+    export QSA_PYTHON=qwen:results/dsh-maintenance-20261004/upstream-runtime-env/bin/python
+    export QSA_FORK_ROOT=qwen:qsa-hisparse
 
-Production source (read-only): `/home/zyk/projects/interests/ai-video/qwen/.worktrees/sglang-dsh-production-20261004`
+Production source (read-only): `qwen:.worktrees/sglang-dsh-production-20261004`
 (`897286b12a`); previous pin: `.worktrees/sglang-v0.5.21`. Read the fork
 repository only with `git show`/`git diff`. Production's own history
 (`git log 35f3c96ff4..897286b12a`, e.g. `773f3c2d84`, `bdb935d70f`,

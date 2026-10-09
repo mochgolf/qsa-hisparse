@@ -4,14 +4,14 @@ reference. Work read-only. Be proportionate (owner's instruction).
 
 Read `docs/phase5-results.md` (both sections) and `docs/PLAN.md` "Phase 5",
 and the raw evidence (private, read-only):
-`/home/zyk/projects/interests/ai-video/qwen/results/plugin-g5-20261009/`
+`qwen:results/plugin-g5-20261009/`
 (`window5.sh`, `status.txt`, `provenance.txt`, `compare-g21.txt`,
 `compare-g21-tests.txt`, `compare-g22.txt`, `compare-compat.txt`,
 `compare-g23.txt`, `topk-*.log`, `F/`, `P/`, `i5/`, `make_plugin_profile.py`),
 the prepared cutover profile
-`/home/zyk/projects/interests/ai-video/qwen/service/profiles/qwen-local-plugin-20261009.json`
+`qwen:service/profiles/qwen-local-plugin-20261009.json`
 against production's
-`/home/zyk/projects/interests/ai-video/qwen/lab/results/dsh-local-promotion-20261004/promoted-8081-profile.json`,
+`qwen:lab/results/dsh-local-promotion-20261004/promoted-8081-profile.json`,
 and the tools at `phase5` (`tools/evidence/{compare,pytest_outcomes,run_g2,run_g21,run_g23,run_compat,run_image}.py`).
 
 Check: the run used the reviewed plugin commit and clean pin/production

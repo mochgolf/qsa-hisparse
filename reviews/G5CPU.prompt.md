@@ -6,9 +6,9 @@ against over-engineering): report real correctness gaps, not style.
 
 Repository: this worktree, branch `phase5` at `df1c718`; previous state:
 `main` (v0.5.21 pin, fork `ee8fe158d6` reference). Read-only checkouts:
-pin `/home/zyk/projects/interests/ai-video/qwen/.worktrees/sglang-main-35f3c96ff4`,
-production `/home/zyk/projects/interests/ai-video/qwen/.worktrees/sglang-dsh-production-20261004`;
-history via `git -C /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse` (log/show/diff only).
+pin `qwen:.worktrees/sglang-main-35f3c96ff4`,
+production `qwen:.worktrees/sglang-dsh-production-20261004`;
+history via `git -C qwen:qsa-hisparse` (log/show/diff only).
 
 Read: `docs/PLAN.md` ("Phase 4" P1–P4, "Phase 5" Q1–Q3), `docs/phase5-survey.md`,
 `docs/phase5-results.md`, `docs/DEVIATIONS.md`, `docs/patch-inventory.md`
@@ -31,7 +31,7 @@ Check, in priority order:
 4. Test changes: assertions weakened, or ported tests edited beyond what
    the move requires?
 
-You may run CPU tests (`QSA_PIN_ROOT=<pin> QSA_PYTHON=/home/zyk/projects/interests/ai-video/qwen/results/dsh-maintenance-20261004/upstream-runtime-env/bin/python QSA_FORK_ROOT=/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse tools/run_cpu_tests.sh <paths>`)
+You may run CPU tests (`QSA_PIN_ROOT=<pin> QSA_PYTHON=qwen:results/dsh-maintenance-20261004/upstream-runtime-env/bin/python QSA_FORK_ROOT=qwen:qsa-hisparse tools/run_cpu_tests.sh <paths>`)
 if your sandbox allows. For each finding: severity, file:line, a concrete
 failure scenario, the smallest fix. Final line "G5-CPU: cleared" or
 "G5-CPU: not cleared".

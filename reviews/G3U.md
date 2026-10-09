@@ -38,7 +38,7 @@ Source locations below refer to the named branch’s Git tree.
 
    `python/sglang/srt/layers/quantization/gptq/gptq.py:620`: repeating group rows before TP sharding is mathematically sound. The selection test and real w2 loader test provide useful CPU evidence, including the split group on rank 1. The type guard improves on the fork’s broader retry.
 
-   [U7.md:69](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/upstream/U7.md:69) and `:239`: the examples conflate full expert widths with per-rank widths. The listed 640/768/1536 values are divisible by 128. **Smallest fix:** explicitly distinguish full widths 640/768/1536 from partitions 320/192/192 at TP2/TP4/TP8.
+   [U7.md:69](/docs/upstream/U7.md:69) and `:239`: the examples conflate full expert widths with per-rank widths. The listed 640/768/1536 values are divisible by 128. **Smallest fix:** explicitly distinguish full widths 640/768/1536 from partitions 320/192/192 at TP2/TP4/TP8.
 
    Before opening, validate the changed backend’s outputs against the existing MoeWNA16 path or dequantized reference on an affected shape, run the required model accuracy evaluation, and measure representative prefill/decode performance. These are material for a backend-selection change. Contribute first or rebase after the parent fixes merge.
 
@@ -48,7 +48,7 @@ Source locations below refer to the named branch’s Git tree.
 
    `test/registered/kernels/ops/attention/qsa/test_qsa.py:173`: the new tests run on CPU but belong to a file registered only for B200 GPU CI at `:39`. **Smallest fix:** move the resolver regression into a CPU-registered unit file under `unit/layers/attention/`.
 
-   [U6.md:217](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/upstream/U6.md:217): “Served on 2x RTX 4090” must identify the historical fork validation; this branch has not been GPU-tested.
+   [U6.md:217](/docs/upstream/U6.md:217): “Served on 2x RTX 4090” must identify the historical fork validation; this branch has not been GPU-tested.
 
    **Required before opening:** one real SM89 head-dimension-256 decode/reference smoke without classic FA2, confirming the selected implementation. SM86 can remain explicitly untested if unavailable; a multi-architecture model campaign is unnecessary.
 
@@ -72,11 +72,11 @@ Source locations below refer to the named branch’s Git tree.
 
 The dropped/deferred decisions need these qualifications:
 
-- **U4:** deferral remains reasonable, but [U4.md:29](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/upstream/U4.md:29) incorrectly treats [#35594](https://github.com/sgl-project/sglang/pull/35594) as open. It is merged in `b7b2975b57`. Reassess K02 using the existing pool-class selection and `full_kv_pool_class` seam before asserting a new prebuilt-pool factory is necessary.
-- **U5:** deferring graph hooks and bundling the decode CPU mirror with its consumer is sound. [U5.md:27](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/upstream/U5.md:27) should distinguish U1’s gating change from #35488’s protocol: U1 does not introduce that protocol.
-- **U23:** deferral around [#42923](https://github.com/sgl-project/sglang/pull/42923) and [#43023](https://github.com/sgl-project/sglang/pull/43023) is sound. However, [U23.md:184](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/upstream/U23.md:184) cannot treat `on_release` as the frozen post-row-free point: it runs before `req_to_token_pool.free`. Preserve an after-release function hook or supply an explicit equivalence argument, including failures, before claiming M03 disappears through cache overrides alone.
+- **U4:** deferral remains reasonable, but [U4.md:29](/docs/upstream/U4.md:29) incorrectly treats [#35594](https://github.com/sgl-project/sglang/pull/35594) as open. It is merged in `b7b2975b57`. Reassess K02 using the existing pool-class selection and `full_kv_pool_class` seam before asserting a new prebuilt-pool factory is necessary.
+- **U5:** deferring graph hooks and bundling the decode CPU mirror with its consumer is sound. [U5.md:27](/docs/upstream/U5.md:27) should distinguish U1’s gating change from #35488’s protocol: U1 does not introduce that protocol.
+- **U23:** deferral around [#42923](https://github.com/sgl-project/sglang/pull/42923) and [#43023](https://github.com/sgl-project/sglang/pull/43023) is sound. However, [U23.md:184](/docs/upstream/U23.md:184) cannot treat `on_release` as the frozen post-row-free point: it runs before `req_to_token_pool.free`. Preserve an after-release function hook or supply an explicit equivalence argument, including failures, before claiming M03 disappears through cache overrides alone.
 - **INT8-row PLE:** deferral is sound given [#41624](https://github.com/sgl-project/sglang/pull/41624), format coordination, and absent public checkpoint/evidence. That PR supplies related plumbing; it does not already support `int8_row`.
-- **Stable HC:** avoiding a second kernel is reasonable for the target SM89 compiled path. [U8.md:83](/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse-plugin/docs/upstream/U8.md:83) should scope the conclusion: main’s SM100 low-M CuTe HC path bypasses the compiled chain. Crossing its 24-row dispatch boundary remains a separate validation question.
+- **Stable HC:** avoiding a second kernel is reasonable for the target SM89 compiled path. [U8.md:83](/docs/upstream/U8.md:83) should scope the conclusion: main’s SM100 low-M CuTe HC path bypasses the compiled chain. Crossing its 24-row dispatch boundary remains a separate validation question.
 - **Stable top-k:** avoiding duplication of [#42087](https://github.com/sgl-project/sglang/pull/42087) is sound. Its CUDA contract matches the fork’s stated ordering/tie rules. SM89 graph-replay equivalence and acceptance of changed prefill numerics remain prerequisites for removing plugin rows.
 - **Shared reasoning correction:** “no in-tree consumer therefore fails unit-test admission” overstates the rules in U4/U5/U6/U23. Protocol properties and critical bookkeeping are admitted categories. Describe those deferrals as scope, evidence, and maintenance judgments.
 

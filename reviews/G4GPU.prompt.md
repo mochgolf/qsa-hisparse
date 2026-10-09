@@ -6,13 +6,13 @@ do not ask for new infrastructure.
 Read `docs/phase4-results.md` (both sections), `docs/PLAN.md` "Phase 4"
 (gates), `docs/phase2-results.md` (what Phase 2 compared), and the raw
 evidence (private, read-only):
-- this window: `/home/zyk/projects/interests/ai-video/qwen/results/plugin-g4-20261008/`
+- this window: `qwen:results/plugin-g4-20261008/`
   (`window4.sh`, `window4b.sh`, `status.txt`, `provenance.txt`,
   `compare-g21.txt`, `compare-g21-tests.txt`, `compare-g22.txt`,
   `compare-compat.txt`, `g21-plugin*.log`, `P/`, `i5/`, `failed-first/`);
-- reference fork arm: `/home/zyk/projects/interests/ai-video/qwen/results/plugin-g2-20261007/run2/`
+- reference fork arm: `qwen:results/plugin-g2-20261007/run2/`
   (`F/`, `g21-fork-step8.log`);
-- window 3 I5 (old pin): `/home/zyk/projects/interests/ai-video/qwen/results/plugin-window3-20261008/i5/`.
+- window 3 I5 (old pin): `qwen:results/plugin-window3-20261008/i5/`.
 Tools at `phase4` `70fbab1`: `tools/evidence/{compare,pytest_outcomes,run_g2,run_compat,run_image}.py`,
 `tools/evidence/g21_step8_inventory{,_v0.5.21}.txt`, and commit `5daef87`
 (the `--plugin-inventory` change made during the window).

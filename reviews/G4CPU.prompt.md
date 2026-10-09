@@ -7,9 +7,9 @@ correctness problems, not style or new infrastructure.
 Repository: this worktree, branch `phase4` at `e8e377f`; compare with the
 previous state at tag `pin-76e06febab-final` (`git diff pin-76e06febab-final..phase4`).
 Pristine checkouts (read-only): new pin
-`/home/zyk/projects/interests/ai-video/qwen/.worktrees/sglang-v0.5.21`, old
-pin `/home/zyk/projects/interests/ai-video/qwen/.worktrees/sglang-pin-76e06febab`,
-fork `ee8fe158d6` via `git -C /home/zyk/projects/interests/ai-video/qwen/qsa-hisparse show ee8fe158d6:<path>`.
+`qwen:.worktrees/sglang-v0.5.21`, old
+pin `qwen:.worktrees/sglang-pin-76e06febab`,
+fork `ee8fe158d6` via `git -C qwen:qsa-hisparse show ee8fe158d6:<path>`.
 
 Read: `docs/PLAN.md` (shared rules, "Activation guarantees", "Phase 4"),
 `docs/phase4-survey.md`, `docs/phase4-results.md`, `docs/DEVIATIONS.md`
@@ -37,7 +37,7 @@ Check, in priority order:
    what the pin move requires (`tests/prefix/conftest.py`, pool tests'
    `override`, `test_plugin_off` counts, graph tests)?
 
-You may run CPU tests (`QSA_PIN_ROOT=<new pin> QSA_PYTHON=/home/zyk/projects/interests/ai-video/qwen/service/runtime-env-sglang-20260923/bin/python QSA_FORK_ROOT=/home/zyk/projects/interests/ai-video/qwen/qsa-hisparse tools/run_cpu_tests.sh <paths>`)
+You may run CPU tests (`QSA_PIN_ROOT=<new pin> QSA_PYTHON=qwen:service/runtime-env-sglang-20260923/bin/python QSA_FORK_ROOT=qwen:qsa-hisparse tools/run_cpu_tests.sh <paths>`)
 if your sandbox allows. For each finding: severity, file:line, a concrete
 failure scenario, and the smallest fix. Final line "G4-CPU: cleared" or
 "G4-CPU: not cleared".

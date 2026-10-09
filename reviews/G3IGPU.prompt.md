@@ -8,7 +8,7 @@ Read:
 - `docs/window3-results.md` (claims) and `docs/window2-results.md` (D5's
   failing control);
 - raw evidence (private, read-only) in
-  `/home/zyk/projects/interests/ai-video/qwen/results/plugin-window3-20261008/`:
+  `qwen:results/plugin-window3-20261008/`:
   `window3.sh`, `status.txt`, `i5/summary.json`,
   `i5/{vit-cache-on,vit-cache-off}/{image-prefix.json,run.json,server_info.json}`,
   observer and ViT logs under each session, `d5_check.py`, `d5.log`,
