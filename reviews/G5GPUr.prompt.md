@@ -10,5 +10,5 @@ the "G5-GPU" section), against the raw evidence in
 "Cutover" section's facts match
 `/home/zyk/projects/interests/ai-video/qwen/results/plugin-g5-20261009/cutover-after.txt`.
 
-Report a finding only if a stated number or bound is wrong. Final line
+Report a finding only if a stated number or bound is wrong. Also check the "Cutover" section against `cutover-evidence.txt` in the same directory. Final line
 "G5-GPU: cleared" or "G5-GPU: not cleared".

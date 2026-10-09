@@ -87,7 +87,7 @@ F is a fresh run of production's code in the same window. Raw evidence
 | G2-2 compat-only | **PASS.** F = P on 401 items, server log and server info |
 | G2-4 | **PASS.** `fixed_bytes` 1,611,399,936, `logical_bytes_per_token` 768 on both. Measured weight memory (reported, not compared) is 36.867 GB on F and 36.869 GB on P in both G2-2 and compat (about 2 MB), likely the plugin's own JIT kernel images; GPU usage snapshots differ by a few MiB (compat's initial GPU-0 usage 43,334 / 43,338 MiB) |
 | I5 | **PASS** in both ViT-cache sessions (hits, per-request restores on both ranks equal to their captures, negatives, warm = cold token IDs, ViT checks), text control equal to this window's F. Two multi-token cases differ from window 3's token IDs (old pin and interpreter); not a criterion |
-| G2-3 | **PASS** (production's profile and weights, port 8082): every check passed on both arms, token accounting equal for 31 requests, equal scheduler numactl (`--cpunodebind=2/3 --interleave=all`). Latency medians (2 samples each, s), F / P: 8192 cold 6.992 / 7.307 (first request after start 12.72 / 13.34, second 1.263 / 1.276), warm 0.126 / 0.128; 65536 cold 9.841 / 9.880, warm 0.203 / 0.205; 262016 cold 62.825 / 63.201, warm 0.515 / 0.514. After the first request, cold requests differ by at most 1.0% (P slower); 8192 warm requests (about 0.13 s) are 2.0% slower at the median (+2.6 ms) and 3.8% in the second sample (+4.9 ms); 65536 warm 1.0% slower, 262016 warm 0.2% faster. Two samples per case, so these small differences are not resolved from noise |
+| G2-3 | **PASS** (production's profile and weights, port 8082): every check passed on both arms, token accounting equal for 31 requests, equal scheduler numactl (`--cpunodebind=2/3 --interleave=all`). Latency medians (2 samples each, s), F / P: 8192 cold 6.992 / 7.307 (first request after start 12.72 / 13.34, second 1.263 / 1.276), warm 0.126 / 0.128; 65536 cold 9.841 / 9.880, warm 0.203 / 0.205; 262016 cold 62.825 / 63.201, warm 0.515 / 0.514. P relative to F per sample (median): 8192 cold +4.84% (the server's first request), +1.02% (+4.50%); 8192 warm +0.22%, +3.83% (+2.04%, +2.6 ms on about 0.13 s); 65536 cold +0.49%, +0.31% (+0.40%); 65536 warm +0.88%, +0.31% (+0.59%); 262016 cold +0.48%, +0.69% (+0.60%); 262016 warm −0.51%, −0.17% (−0.34%). Two samples per case, so these small differences are not resolved from noise |
 
 Cutover (owner-approved if all passed): the release worktree
 `qwen:.worktrees/qsa-plugin-6a1c401` and the profile
@@ -104,8 +104,15 @@ restarted at 03:04 with `qwen:service/profiles/qwen-local-plugin-20261009.json`
 (release worktree `qsa-plugin-6a1c401`, pin `35f3c96ff4`) and was ready at
 03:11 (first start builds the plugin's JIT kernels): the launcher verified 2
 scheduler activation records for `model_compat` and `hisparse`; `/health`
-200, same model id, GPU memory 45,358 / 45,356 MiB as before. Real requests:
-a short question answered correctly; a 6,501-token prompt sent twice was
-answered identically, the second with 6,464 cached tokens (4.2 s → 0.87 s).
-`service/current.json` still names production's previous profile; rollback:
-`./qwen-service.sh restart --profile lab/results/dsh-local-promotion-20261004/promoted-8081-profile.json`.
+200, same model id, GPU memory 45,358 / 45,356 MiB as before
+(`cutover-after.txt`; start, readiness and launcher lines in
+`cutover-evidence.txt`). Smoke at 03:18 (`cutover-evidence.txt`): a short
+question answered `42` (16.5 s, queued behind a concurrent ~190K-token user
+request); a 6,497-token prompt sent twice was answered correctly both times,
+the second with 6,464 cached tokens (2.06 s → 0.73 s). The service is serving
+real long-context traffic with no error lines.
+
+The owner then made the plugin the default: `service/current.json` equals
+`service/profiles/qwen-local-plugin-20261009.json`; `service/README.md`
+describes it. Rollback to the previous production:
+`./qwen-service.sh restart --profile service/profiles/qwen-local-20261004.json`.
