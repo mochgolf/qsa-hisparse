@@ -116,3 +116,19 @@ The owner then made the plugin the default: `service/current.json` equals
 `service/profiles/qwen-local-plugin-20261009.json`; `service/README.md`
 describes it. Rollback to the previous production:
 `./qwen-service.sh restart --profile service/profiles/qwen-local-20261004.json`.
+
+## Image prefix reuse in production (2026-10-09)
+
+Owner: enable it with `--mm-preprocess-cache-size-mb 2048` (CPU LRU in the
+tokenizer process; the flag's help and `MultimodalPreprocessCache.put` keep
+GPU tensors out; eviction only re-runs preprocessing, artifact keys are
+built on misses too). Production restarted 05:38 with
+`qwen:service/profiles/qwen-local-plugin-mm-20261009.json` (the plugin
+profile plus that flag; now `service/current.json`), ready 05:42, launcher
+verified both ranks. Startup GPU accounting equals the 03:04 start exactly
+(TP0 avail after weights 9.77 GB, after pools 4.48 GB, after graph capture
+3.13 GB); nvidia-smi's extra ~2 GB at 05:45 came from a concurrent real
+long-context request. Smoke (`qwen:results/plugin-g5-20261009/mm-smoke.txt`):
+images A (1536×1536) and B (2048×1024) plus text, 4,863 prompt tokens:
+first request 0 cached, the identical request 4,800 cached, a different
+question 4,800 cached; no error lines.

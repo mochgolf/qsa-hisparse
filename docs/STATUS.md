@@ -323,3 +323,7 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   launcher verified both TP ranks; smoke and prefix hits correct; the
   plugin profile is the default `service/current.json` (owner). Rollback:
   `service/profiles/qwen-local-20261004.json`. `phase5` merged into main.
+- Image prefix reuse enabled in production (owner, 2026-10-09 05:38):
+  `--mm-preprocess-cache-size-mb 2048` (CPU only; startup GPU accounting
+  unchanged); repeated image prompts hit 4,800 of 4,863 tokens. Default
+  `service/current.json` = `service/profiles/qwen-local-plugin-mm-20261009.json`.
