@@ -311,3 +311,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   Next: G5-CPU review.
 - G5-CPU review: no findings, cleared (`reviews/G5CPU.md`). Next: G5-GPU
   window (owner approval).
+- G5-GPU window (2026-10-09 00:35–02:53; `docs/phase5-results.md`): plugin
+  equals production's code on G2-1, fast_topk GPU tests, G2-2 (10 items),
+  compat (401), G2-4; I5 passes; G2-3 with production's profile passes with
+  latency within about 1% after the first request. Cutover start was refused
+  by the session permission check; original production restored and
+  verified; release worktree and plugin profile are prepared for the owner.

@@ -69,3 +69,30 @@ xfailed, 17 subtests; regression/model_compat integration 4 passed, 1
 skipped; full activation on `tests/runtime` and `tests/prefix` 26 passed.
 `tools/fingerprint.py check`: 390 records match; `tools/manifest.py --check`
 passes.
+
+## G5-GPU (window 2026-10-09 00:35–02:53)
+
+Production stopped 00:35 and restored 02:53 with its original profile
+(ready, same profile hash, `/health` 200, same model id and GPU memory).
+Plugin `phase5` `6a1c401` (main checkout detached for the window), pin
+`35f3c96ff4` clean, production `897286b12a` clean, production interpreter.
+F is a fresh run of production's code in the same window. Raw evidence
+(private): `qwen:results/plugin-g5-20261009/` (`window5.sh`, `compare-*.txt`).
+
+| Gate | Result |
+| --- | --- |
+| G2-1 | **PASS.** Probe comparator F = P on 5 reports (alignment 1, whole-K 1,187, native 1,187, graphs 217, top-k 110). Per-test outcomes against `g21_step8_inventory_35f3c96ff4.txt`: 91 outcomes + 2 skips equal, no failures on either arm (production fixed the two former known failures; the port follows it) |
+| fast_topk (`773f3c2d84`) | **PASS.** Production's GPU test on production and the port on the plugin (T05): 29 passed each, including the overflow and graph-replay regressions |
+| G2-2 | **PASS.** `--require-observer 2`: F = P on all 10 items — concurrency 79, lifecycle 89, qualification 1,181 (token IDs, cached tokens, logprobs to 262,016 tokens, concurrency 8), ledger 30, per-rank events 1,514, per-rank observer byte digests 1,505, server log 9, server info 4 |
+| G2-2 compat-only | **PASS.** F = P on 401 items, server log and server info |
+| G2-4 | **PASS.** `fixed_bytes` 1,611,399,936, `logical_bytes_per_token` 768 on both. Measured weight memory (reported, not compared) is 36.867 GB on F and 36.869 GB on P in both G2-2 and compat (about 2 MB), likely the plugin's own JIT kernel images; no other memory figure differs beyond 2 MB |
+| I5 | **PASS** in both ViT-cache sessions (hits, per-request restores on both ranks equal to their captures, negatives, warm = cold token IDs, ViT checks), text control equal to this window's F. Two multi-token cases differ from window 3's token IDs (old pin and interpreter); not a criterion |
+| G2-3 | **PASS** (production's profile and weights, port 8082): every check passed on both arms, token accounting equal for 31 requests, equal scheduler numactl (`--cpunodebind=2/3 --interleave=all`). Latency medians (2 samples each, s), F / P: 8192 cold 6.992 / 7.307 (first request after start 12.72 / 13.34, second 1.263 / 1.276), warm 0.126 / 0.128; 65536 cold 9.841 / 9.880, warm 0.203 / 0.205; 262016 cold 62.825 / 63.201, warm 0.515 / 0.514. No regression beyond about 1% after the first request |
+
+Cutover (owner-approved if all passed): the release worktree
+`qwen:.worktrees/qsa-plugin-6a1c401` and the profile
+`qwen:service/profiles/qwen-local-plugin-20261009.json` (production's profile
+with only the launcher, `PYTHONPATH`, `SGLANG_QSA_MODEL_COMPAT=1`, cwd and a
+1200 s readiness timeout changed) are prepared; starting production with it
+was refused by the session's permission check, so the original production was
+restored and the switch is left to the owner.
