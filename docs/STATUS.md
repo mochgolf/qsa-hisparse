@@ -348,3 +348,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   (#41933 FP8 descale applied once; #43463 bound only with `fast_topk`).
   CPU suite on the Phase 6 interpreter at v0.5.22: 723 + 4 + 11 passed,
   402 fingerprints, manifest current. Next: G6-CPU review.
+- G6-CPU (`reviews/G6CPU*.md`): one P2 (fingerprints did not cover the tree
+  core behind the disabled cache's empty match) fixed in M05's `depends`;
+  the re-check's P2 (the Rust adapter import loads the optional native
+  extension at activation) fixed by keeping only the pure-Python tree-core
+  definitions; cleared in round 3. 405 fingerprints; CPU 723 + 4 + 11.
+  Next: G6-GPU window (owner approval; production stop/restore).
