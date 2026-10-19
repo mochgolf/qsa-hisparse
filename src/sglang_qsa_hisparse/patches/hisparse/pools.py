@@ -26,7 +26,6 @@ from sglang.srt.mem_cache.memory_pool import (
     HybridLinearKVPool,
     KVCache,
     MHATokenToKVPool,
-    MHATokenToKVPoolMXFP8,
     ReqToTokenPool,
 )
 from sglang.srt.model_executor import pool_configurator
@@ -93,10 +92,10 @@ def _bind_max_running_requests(original, self, *, sizes, **kwargs):
         "sglang.srt.configs.model_config.is_deepseek_dsa",
         "sglang.srt.layers.attention.qsa.config.parse_qsa_profile",
         f"{_KVC}._build_mha_quant_method",
+        f"{_KVC}._hybrid_full_attention_pool_class",
         "sglang.srt.mem_cache.kv_cache_configurator.calculate_mla_kv_cache_dim",
         "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool",
         "sglang.srt.mem_cache.memory_pool.MHATokenToKVPool",
-        "sglang.srt.mem_cache.memory_pool.MHATokenToKVPoolMXFP8",
         "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool.__init__",
         "sglang.srt.mem_cache.qsa_kv_pool.resolve_qsa_indexer_dtype",
         "sglang.srt.runtime_context.get_exec",
@@ -107,12 +106,18 @@ def _bind_max_running_requests(original, self, *, sizes, **kwargs):
     ),
     reason=(
         "Production's definition (_build_hybrid_linear_kv_pool below: the pinned "
-        "body, which now resolves --qsa-indexer-dtype, with the fork change): "
+        "body, which resolves --qsa-indexer-dtype and, since v0.5.22, picks the "
+        "full-attention pool class with _hybrid_full_attention_pool_class from "
+        "the pool classes its caller resolves, with the fork change): "
         "with SGLANG_QSA_HISPARSE_V3=p2-offload it validates the "
         "bounded logical capacity (including the configurator's use_mla_backend "
         "and post_capture_kv_active) and builds the raw staging MHATokenToKVPool "
         "passed as full_kv_pool, which must enter extra_args mid-function, "
-        "before pool_class(...). Mechanical edit: the QSAHiSparseSlots import is "
+        "before pool_class(...). The v0.5.22 platform seam for vendor KV pool "
+        "classes (get_kv_pool_cls) does not remove this copy: the class it "
+        "returns is built with the hybrid pool's logical size at every MHA site, "
+        "while the staging pool has the bounded raw size and exists only under "
+        "p2-offload. Mechanical edit: the QSAHiSparseSlots import is "
         "rewritten to the plugin package. "
         "The replacement keeps the pinned signature and supplies the fork's "
         "extra max_running_requests argument from K01. hisparse: env-gated."
@@ -131,6 +136,8 @@ def _build_hybrid_linear_kv_pool(
     max_running_requests: int,
     req_to_token_pool: ReqToTokenPool,
     mha_pool_class: type,
+    mla_pool_class: type,
+    dsa_pool_class: type,
 ) -> KVCache:
     full_attention_layer_ids = (
         [0]
@@ -177,12 +184,10 @@ def _build_hybrid_linear_kv_pool(
     quant_method = self._build_mha_quant_method(
         num_layers=len(full_attention_layer_ids)
     )
-    # MXFP8 KV cache needs the block-scaled pool (data + UE8M0 scale
-    # buffers) for the full-attention layers, same as the SWA branch.
-    full_pool_class = (
-        MHATokenToKVPoolMXFP8
-        if self.kv_cache_dtype_str == "mxfp8" and not self.use_mla_backend
-        else mha_pool_class
+    full_pool_class = self._hybrid_full_attention_pool_class(
+        mha_pool_class=mha_pool_class,
+        mla_pool_class=mla_pool_class,
+        dsa_pool_class=dsa_pool_class,
     )
     from sglang.srt.layers.attention.qsa.config import (
         parse_qsa_profile,
@@ -397,8 +402,11 @@ def _price_p2_offload_staging(result, self, kvc):
     row="C02",
     reason=(
         "Fork subtracts self._bias (C01) in the first statement, "
-        "max(available_bytes - self._bias, 0), which is the argument's only use; "
-        "passing available_bytes - self._bias to the pinned body is identical. "
+        "max(available_bytes - self._bias, 0). Since v0.5.22 that statement is "
+        "max(available_bytes - self._fixed_overhead_bytes, 0) (the logical-page "
+        "KV sharding scratch, 0 without sharding) and is still the argument's "
+        "only use, so passing available_bytes - self._bias charges both fixed "
+        "reservations once each, as the hand merge of the two edits would. "
         "hisparse: _bias is 0 unless p2-offload."
     ),
 )
