@@ -1,7 +1,7 @@
 """Release ordering and physical-slot ownership through W2's hooks.
 
-Every path runs the patched SGLang entry point (B04, B05, M01, M03, M02, M04)
-against the real paged allocator, request-row pool, chunk cache, QSA slots and
+Every path runs the patched SGLang entry point (B04, B05, M01, M03, M02)
+against the real paged allocator, request-row pool, tree cache, QSA slots and
 the runtime's release methods. Independent spies append to one ledger, and
 each expected order is written out from production's lifecycle contract
 (897286b12a): the tree's ``claim_kv_row`` (where ``QSAHostPrefixCache``
@@ -11,6 +11,13 @@ after_release, free-group end, after_logical_flush, physical slot reuse. The
 logical free is the tree cache's ``free_kv_row``, followed by ``on_release``,
 where ``QSAHostPrefixCache`` drops a finished request's pending host-prefix
 match.
+
+v0.5.22 serves ``--disable-radix-cache`` with a disabled ``UnifiedRadixCache``
+(``ChunkCache`` is gone, #43201): QSA leases without host prefixes run on it,
+and M05's ``QSAHostPrefixCache`` is a subclass of it. On a hybrid pool that
+cache owns the request's mamba slot: it frees it in ``checkpoint`` (finished
+request) or in ``on_release`` (not checkpointed), exactly once, where
+production's M03 freed it after ``on_release``.
 """
 
 from types import SimpleNamespace
@@ -24,12 +31,14 @@ from sglang.srt.managers.scheduler_components.batch_result_processor import (
     SchedulerBatchResultProcessor,
 )
 from sglang.srt.mem_cache import allocation, common
+from sglang.srt.mem_cache.allocator.mamba import MambaSlotAllocator
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.base_prefix_cache import CacheRequestHandle, MatchPrefixParams
 from sglang.srt.mem_cache.cache_init_params import CacheInitParams
-from sglang.srt.mem_cache.chunk_cache import ChunkCache
-from sglang.srt.mem_cache.memory_pool import ReqToTokenPool
+from sglang.srt.mem_cache.memory_pool import HybridReqToTokenPool, ReqToTokenPool
 from sglang.srt.mem_cache.radix_cache import RadixKey
+from sglang.srt.mem_cache.unified_cache.components import ComponentType
+from sglang.srt.mem_cache.unified_radix_cache import UnifiedRadixCache
 from sglang_qsa_hisparse.hisparse.prefix_cache import QSAHostPrefixCache
 from sglang_qsa_hisparse.hisparse.runtime import QSAHiSparseRuntime
 from sglang_qsa_hisparse.hisparse.slots import QSAHiSparseSlots
@@ -83,13 +92,28 @@ def spy(ledger, label, fn):
     return recorded
 
 
+def hybrid_pool(rows):
+    """A real HybridReqToTokenPool row/mamba-slot allocator without state tensors."""
+    pool = HybridReqToTokenPool.__new__(HybridReqToTokenPool)
+    ReqToTokenPool.__init__(pool, rows, 64, "cpu", False)
+    pool.enable_mamba_extra_buffer = False
+    pool.req_index_to_mamba_index_mapping = torch.zeros(rows + 1, dtype=torch.int32)
+    pool.mamba_allocator = MambaSlotAllocator(rows, "cpu")
+    pool.mamba_pool = SimpleNamespace(replayssm_write_pos=None)
+    return pool
+
+
 class World:
-    def __init__(self, cache_type=ChunkCache, rows=1):
+    def __init__(self, cache_type=UnifiedRadixCache, rows=1, hybrid=False):
         self.ledger = ledger = []
         kvcache = SimpleNamespace()
         allocator = PagedTokenToKVPoolAllocator(64, PAGE, torch.uint8, "cpu", kvcache, False)
-        pool = ReqToTokenPool(
-            size=rows, max_context_len=64, device="cpu", enable_memory_saver=False
+        pool = (
+            hybrid_pool(rows)
+            if hybrid
+            else ReqToTokenPool(
+                size=rows, max_context_len=64, device="cpu", enable_memory_saver=False
+            )
         )
         rt = QSAHiSparseRuntime.__new__(QSAHiSparseRuntime)
         rt.slots = QSAHiSparseSlots(staging_tokens=64, page_size=PAGE, max_requests=1)
@@ -100,21 +124,23 @@ class World:
         rt.prefix_namespace = ("fixture",)
         rt.prefix_cache = SimpleNamespace(epoch=0, reused_tokens=0)
         kvcache.qsa_hisparse = rt
+        components = (ComponentType.FULL,) + ((ComponentType.MAMBA,) if hybrid else ())
         params = CacheInitParams(
             disable=True,
             req_to_token_pool=pool,
             token_to_kv_pool_allocator=allocator,
             page_size=PAGE,
+            tree_components=components,
         )
-        cache = ChunkCache(params)
-        if cache_type is QSAHostPrefixCache:
-            cache = QSAHostPrefixCache(cache, rt, None)
+        cache = cache_type(params)
         cache.claim_kv_row = spy(ledger, "claim_kv_row", cache.claim_kv_row)
         cache.checkpoint = spy(ledger, "checkpoint", cache.checkpoint)
         cache.free_kv_row = spy(ledger, "free_kv_row", cache.free_kv_row)
         cache.on_release = spy(ledger, "on_release", cache.on_release)
         pool.alloc = spy(ledger, "req_to_token_pool.alloc", pool.alloc)
         pool.free = spy(ledger, "req_to_token_pool.free", pool.free)
+        if hybrid:
+            pool.free_mamba_cache = spy(ledger, "free_mamba_cache", pool.free_mamba_cache)
         allocator._release_page_ids = spy(
             ledger, "logical_pages_freed", allocator._release_page_ids
         )
@@ -137,10 +163,12 @@ class World:
             kv=kv,
             cache_request_handle=CacheRequestHandle(rid, 1),
             full_untruncated_fill_ids=list(range(TOKENS + PAGE)),
-            prefix_indices=torch.empty(0, dtype=torch.int64),
+            prefix_len=0,
             owned_kv_len=lambda: kv.kv_committed_len,
             skip_radix_cache_insert=False,
             last_node=None,
+            lock=None,
+            session=None,
             multimodal_inputs=None,
             return_routed_experts=False,
             finished=lambda: True,
@@ -262,7 +290,7 @@ def test_chunked_abort_outside_a_free_group_frees_pages_before_the_slot():
     world = World()
     req = world.leased_req(decoding=False)
 
-    common.release_kv_cache(req, world.cache, is_insert=False)
+    common.release_kv_cache(req, world.cache, checkpoint=False)
 
     assert world.events() == [
         "claim_kv_row",
@@ -273,6 +301,36 @@ def test_chunked_abort_outside_a_free_group_frees_pages_before_the_slot():
         *RELEASE_TAIL,
         "physical_slot_released",
     ]
+
+
+@pytest.mark.parametrize("checkpoint", [True, False])
+def test_host_prefix_release_frees_the_mamba_slot_exactly_once(checkpoint):
+    world = World(QSAHostPrefixCache, hybrid=True)
+    captures = []
+    world.cache._capture = lambda req: captures.append(
+        (world.ledger[-1], req.kv.holds_mamba)
+    )
+    req = world.leased_req()
+    mamba_free = world.pool.mamba_allocator.available_size()
+
+    world.allocator.free_group_begin()
+    common.release_kv_cache(req, world.cache, checkpoint=checkpoint)
+    world.allocator.free_group_end()
+
+    if checkpoint:
+        # Capture observes the live lease and mamba slot; the disabled
+        # checkpoint then hands the finished request's slot back.
+        assert captures == [("checkpoint", True)]
+        expected = ["claim_kv_row", "checkpoint", "free_mamba_cache", "runtime.release"]
+        expected += ["free_kv_row", "on_release"]
+    else:
+        assert captures == []
+        expected = ["claim_kv_row", "runtime.release", "free_kv_row", "on_release"]
+        expected += ["free_mamba_cache"]
+    assert world.events() == [*expected, *RELEASE_TAIL, *DEFERRED_FLUSH]
+    assert world.ledger.count("free_mamba_cache") == 1
+    assert world.pool.mamba_allocator.available_size() == mamba_free + 1
+    assert not req.kv.holds_mamba and world.slot_reusable()
 
 
 def test_failed_restore_rolls_back_before_the_error_propagates():
@@ -288,8 +346,8 @@ def test_failed_restore_rolls_back_before_the_error_propagates():
     rt.prefix_cache.acquire = lambda namespace, tokens, count, identity=None: reader
     for name in (
         "prepare_prefix_for_extend",
-        "note_extend_allocation",
-        "restore_prefix_for_extend",
+        "prefix_device_indices",
+        "maybe_hand_to_session",
         "rollback_prefix_for_extend",
     ):
         setattr(cache, name, spy(ledger, name, getattr(cache, name)))
@@ -301,13 +359,16 @@ def test_failed_restore_rolls_back_before_the_error_propagates():
 
     rt.restore_prefix = failing_restore
     key = RadixKey(req.full_untruncated_fill_ids, limit=len(req.full_untruncated_fill_ids) - 1)
-    req.prefix_indices = cache.match_prefix(MatchPrefixParams(key, req=req)).device_indices
-    assert len(req.prefix_indices) == TOKENS
+    result = cache.match_prefix(MatchPrefixParams(key, req=req))
+    assert (result.device_prefix_len, result.host_hit_length) == (0, TOKENS)
+    # Admission accepted the host hit: init_load_back's length became prefix_len.
+    assert cache.init_load_back(SimpleNamespace(req=req))[0] == TOKENS
+    req.prefix_len = TOKENS
     seq_len = len(req.full_untruncated_fill_ids)
-    req.extend_range = SimpleNamespace(start=TOKENS, end=seq_len, length=seq_len - TOKENS)
     batch = SimpleNamespace(
         tree_cache=cache,
         req_to_token_pool=world.pool,
+        hisparse_coordinator=None,
         reqs=[req],
         device="cpu",
         prefix_lens=[TOKENS],
@@ -324,10 +385,10 @@ def test_failed_restore_rolls_back_before_the_error_propagates():
         allocation.alloc_for_extend(batch)
 
     assert world.events() == [
-        "req_to_token_pool.alloc",
         "prepare_prefix_for_extend",
-        "note_extend_allocation",
-        "restore_prefix_for_extend",
+        "prefix_device_indices",
+        "req_to_token_pool.alloc",
+        "maybe_hand_to_session",
         "runtime.restore_prefix",
         "rollback_prefix_for_extend",
         "runtime.release",
@@ -347,7 +408,7 @@ def test_physical_slot_is_never_reusable_before_the_logical_flush():
 
     free_tokens = world.allocator.available_size()
     world.allocator.free_group_begin()
-    common.release_kv_cache(req, world.cache)
+    common.release_kv_cache(req, world.cache, checkpoint=True)
     # Released and drained, but its logical pages are still held by the open group.
     assert world.allocator.available_size() == free_tokens
     assert not world.slot_reusable()
@@ -378,22 +439,19 @@ def test_single_request_runtime_releases_its_pending_lease_after_the_flush():
 
 
 @pytest.mark.parametrize("target", [True, False])
-def test_flush_keeps_row_generations_monotonic_for_the_target_model(target_model, target):
+def test_flush_keeps_row_generations_monotonic(target_model, target):
+    # M04 is dropped at v0.5.22: upstream's clear keeps req_generation
+    # (#43439) for every model, which is what M04 did for the target model.
     world = World()
     target_model(target)
     req = world.leased_req()
-    common.release_kv_cache(req, world.cache)
+    common.release_kv_cache(req, world.cache, checkpoint=True)
     released = world.lease
 
     world.pool.clear()  # Scheduler.flush_cache, after the release committed.
     world.pool.alloc([fresh := world.req("fresh")])
     row = fresh.kv.req_pool_idx
 
-    if not target:
-        # Pinned behavior: the flush restarts generations, so the row's new
-        # owner carries the released request's generation.
-        assert int(world.pool.req_generation[row]) == released.generation
-        return
     assert int(world.pool.req_generation[row]) == released.generation + 1
     world.acquire(row, fresh.rid)
     with pytest.raises(RuntimeError, match="stale QSA lease callback"):

@@ -82,18 +82,25 @@ COPIES: dict[str, tuple] = {
     "B03": ("hisparse/scheduler.py", "process_batch_result_prefill", ()),
     "B04": ("hisparse/scheduler.py", "_handle_sampling_mask_abort", ()),
     "B05": ("hisparse/scheduler.py", "_handle_finish_state_updated_req", ()),
-    "M01": ("hisparse/lifecycle.py", "alloc_for_extend", ()),
     "M03": ("hisparse/lifecycle.py", "release_kv_cache", ()),
-    "M06": ("hisparse/lifecycle.py", "create_tree_cache", ()),
-    "P02": ("hisparse/scheduler.py", "add_one_req", ()),
     "S04": ("hisparse/scheduler.py", "get_next_batch_to_run", ()),
-    "S06": ("hisparse/scheduler.py", "_get_new_batch_prefill_raw", ()),
     "S07": ("hisparse/scheduler.py", "on_idle", ()),
 }
 
 # row: why the copy differs from "pin + fork change" (an upstream edit overlaps
 # the fork's change and was merged by hand).
 RESOLVED: dict[str, str] = {
+    "M03": (
+        "The merge applies cleanly but keeps production's mamba free for a "
+        "tree without mamba support (M05's ChunkCache, admitted by M06). At "
+        "v0.5.22 M05 builds QSAHostPrefixCache, a disabled UnifiedRadixCache "
+        "that owns the slot (checkpoint frees a finished request's, on_release "
+        "an unchecked one's), and create_tree_cache rejects every other "
+        "hybrid-SSM tree without mamba support, so the block is dropped with "
+        "its comment: it could only free the slot a second time. v0.5.22's "
+        "checkpoint= keyword, unlock(req.lock) and on_release(checkpointed=) "
+        "are kept as merged."
+    ),
     "T04": (
         "Class REPLACE by a frozen msgspec subclass: the copy holds only the "
         "fork's added decode_score_width field and its get_decode_mqa_inputs "

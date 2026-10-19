@@ -4,7 +4,10 @@ cache; PLE n-gram history over pad tokens is part of the restored state; a
 hit leaves the logits tail and keeps the input-logprob limit.
 
 The scaled CPU runtime mirrors tests/prefix (no CUDA, no TP group). Requests
-reach the cache methods directly, in M01's order, so no hook is needed.
+reach the cache methods directly, in the order v0.5.22's admission and
+``alloc_for_extend`` call them (M01), so no hook is needed: a hit is a
+``host_hit_length`` accepted by ``init_load_back``, its fresh pages come from
+``prefix_device_indices`` and ``maybe_hand_to_session`` restores it.
 """
 
 from array import array
@@ -17,14 +20,19 @@ import torch
 from sglang.srt.managers.schedule_batch import Req, ReqKvInfo
 from sglang.srt.mem_cache.allocator.mamba import MambaSlotAllocator
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
-from sglang.srt.mem_cache.base_prefix_cache import CacheRequestHandle, MatchPrefixParams
+from sglang.srt.mem_cache.base_prefix_cache import (
+    CacheRequestHandle,
+    InitLoadBackParams,
+    MatchPrefixParams,
+)
 from sglang.srt.mem_cache.cache_init_params import CacheInitParams
-from sglang.srt.mem_cache.chunk_cache import ChunkCache
 from sglang.srt.mem_cache.memory_pool import HybridReqToTokenPool, MambaPool, ReqToTokenPool
 from sglang.srt.mem_cache.ple_state_pool import NGramPool, ShortConvPool
 from sglang.srt.mem_cache.radix_cache import RadixKey
+from sglang.srt.mem_cache.unified_cache.components import ComponentType
 from sglang.srt.model_executor.forward_batch_info import ForwardBatch, ForwardMode
 from sglang.srt.models import qwen4_exp
+from sglang.srt.runtime_context import get_context
 from sglang_qsa_hisparse.hisparse.prefix import HostPrefixCache
 from sglang_qsa_hisparse.hisparse.prefix_cache import QSAHostPrefixCache
 from sglang_qsa_hisparse.hisparse.runtime import QSAHiSparseRuntime
@@ -83,6 +91,7 @@ class Host:
         ReqToTokenPool.__init__(rp, 2, a.capacity, "cpu", False)
         rp.layer_transfer_counter = None  # Set by HybridReqToTokenPool.__init__.
         rp.enable_mamba_extra_buffer = False
+        rp.mamba_initial_tracking_slots = 0  # Read by v0.5.22's allocation.
         rp.req_index_to_mamba_index_mapping = torch.zeros(3, dtype=torch.int32)
         rp.mamba_allocator = MambaSlotAllocator(2, "cpu")
         mamba = rp.mamba_pool = MambaPool.__new__(MambaPool)
@@ -111,8 +120,16 @@ class Host:
         a.record = Mock()
         a.prefix_cache = HostPrefixCache(4_000_000)
         a.prefix_namespace = ("fixture-model", "normal-text-position=0", "TP2")
-        params = CacheInitParams(True, rp, a.runner.token_to_kv_pool_allocator, 64)
-        self.cache = QSAHostPrefixCache(ChunkCache(params), a, None)
+        # M05 builds it with create_unified_radix_cache(ctx, cache_class=...),
+        # whose hybrid-SSM tree components are these.
+        params = CacheInitParams(
+            True,
+            rp,
+            a.runner.token_to_kv_pool_allocator,
+            64,
+            tree_components=(ComponentType.FULL, ComponentType.MAMBA),
+        )
+        self.cache = QSAHostPrefixCache(params)
 
     @property
     def allocator(self):
@@ -124,12 +141,18 @@ class Host:
             kv=ReqKvInfo(),
             cache_request_handle=CacheRequestHandle(name, 1),
             full_untruncated_fill_ids=array("q", prompt.ids),
-            prefix_indices=torch.empty(0, dtype=torch.int64),
+            prefix_len=0,
             multimodal_inputs=prompt.mm,
             extra_key=None,
             cache_salt=None,
             lora_id=None,
+            session=None,
             last_node=None,
+            best_match_node=None,
+            host_hit_length=0,
+            host_loaded_length=0,
+            lock=None,
+            finished=lambda: False,
         )
 
     def match(self, req, limit=None):
@@ -139,8 +162,14 @@ class Host:
                 RadixKey(ids, limit=len(ids) - 1 if limit is None else limit), req=req
             )
         )
-        req.prefix_indices = result.device_indices
-        return len(req.prefix_indices)
+        # As match_kv_cache writes a match back onto the request.
+        req.prefix_len = result.device_prefix_len
+        req.last_node, req.best_match_node = (
+            result.last_device_node,
+            result.best_match_node,
+        )
+        req.host_hit_length = result.host_hit_length
+        return result.device_prefix_len + result.host_hit_length
 
     def ple(self, req, start, stop, *, commit):
         """Real Qwen4-Exp PLE n-gram layout for the extend chunk [start, stop)."""
@@ -174,7 +203,7 @@ class Host:
         idx, mid = req.kv.req_pool_idx, req.kv.mamba_pool_idx
         pages = self.allocator.alloc(stops[-1])
         a.req_table[idx, : stops[-1]] = pages.int()
-        req.prefix_indices = pages
+        req.pages = pages
         req.kv.kv_allocated_len = req.kv.kv_committed_len = stops[-1]
         state = a._acquire_request(idx, req.rid)
         ring = slice(idx * 4, (idx + 1) * 4)
@@ -223,7 +252,7 @@ class Host:
     def release(self, req):
         a = self.a
         lease = a.release(req.kv.req_pool_idx, req.rid)
-        self.allocator.free(req.prefix_indices)
+        self.allocator.free(req.pages)
         a.req_pool.free_mamba_cache(req)
         a.req_pool.free(req)
         req.kv.mark_kv_released()
@@ -242,12 +271,19 @@ class Host:
         a.req_pool.ngram_pool.context.fill_(-4)
 
     def restore(self, req):
-        """alloc_for_extend's prefix steps (M01 order) for a matched request."""
-        self.a.req_pool.alloc([req])
+        """Admission's load-back and alloc_for_extend's prefix steps (M01 order)
+        for a matched request."""
+        loaded, req.last_node = self.cache.init_load_back(
+            InitLoadBackParams(req.best_match_node, req.host_hit_length, req=req)
+        )
+        req.host_loaded_length = loaded
+        req.prefix_len += loaded
         self.cache.prepare_prefix_for_extend([req])
-        length = len(req.prefix_indices)
-        self.a.req_table[req.kv.req_pool_idx, :length] = req.prefix_indices.int()
-        self.cache.restore_prefix_for_extend([req])
+        req.pages = self.cache.prefix_device_indices(req)
+        self.a.req_pool.alloc([req])
+        self.a.req_table[req.kv.req_pool_idx, : req.prefix_len] = req.pages.int()
+        req.kv.kv_allocated_len = req.kv.kv_committed_len = req.prefix_len
+        self.cache.maybe_hand_to_session(req)
         return self.a.requests[req.kv.req_pool_idx].lease
 
 
@@ -258,9 +294,16 @@ def host(monkeypatch):
     monkeypatch.setattr(
         "sglang.srt.mem_cache.memory_pool.current_platform.synchronize", Mock()
     )
-    host = Host()
-    monkeypatch.setattr(qwen4_exp, "get_req_to_token_pool", lambda: host.a.req_pool)
-    return host
+    # The cache's mamba component reads the mamba cache chunk size, which loads
+    # the model's HF config unless seeded (as upstream's unit tests do).
+    override = get_context().override_server_args(_mamba_cache_chunk_size=64)
+    override.install()
+    try:
+        host = Host()
+        monkeypatch.setattr(qwen4_exp, "get_req_to_token_pool", lambda: host.a.req_pool)
+        yield host
+    finally:
+        override.restore()
 
 
 def test_namespace_admits_supported_images_and_keeps_every_bypass(host, identities):
@@ -307,10 +350,10 @@ def test_checkpoint_limit_splits_image_requests_at_their_last_page(
     assert host.cache.prefill_checkpoint_limit(req) is None  # Unsupported.
     identities["limit"] = identity_of(prompt)
     assert host.cache.prefill_checkpoint_limit(req) == boundary
-    req.prefix_indices = torch.empty(boundary, dtype=torch.int64)
+    req.prefix_len = boundary  # Prefill progress (#42824).
     assert host.cache.prefill_checkpoint_limit(req) is None
     identities["limit"] = BYPASS
-    req.prefix_indices = torch.empty(0, dtype=torch.int64)
+    req.prefix_len = 0
     assert host.cache.prefill_checkpoint_limit(req) is None
     aligned = image_prompt(192, STANDARD[:2])  # Complete final prefill instead.
     identities["aligned"] = identity_of(aligned)
@@ -424,7 +467,7 @@ def test_image_hit_leaves_the_logits_tail_and_keeps_logprob_limits(host, identit
         req = real_req(host, f"logprobs-{start}", prompt, logprob_start_len=start)
         identities[req.rid] = identity_of(prompt)
         req.init_next_round_input(host.cache)
-        assert len(req.prefix_indices) == expected, start
+        assert (req.prefix_len, req.host_hit_length) == (0, expected), start
         assert host.cache.pending_prefix_tokens(req) == expected
         host.cache.release_aborted_request(req.cache_request_handle)
     assert host.a.prefix_cache.stats()["prefix_cache_readers"] == 0

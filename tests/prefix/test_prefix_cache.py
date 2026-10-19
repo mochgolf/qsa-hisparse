@@ -2,6 +2,15 @@
 
 Reference bytes are constructed from position/layer arithmetic independently
 of QSA packing and indexing helpers. Actual paged/row/Mamba allocators execute.
+
+v0.5.22 (P6): ``QSAHostPrefixCache`` is a disabled ``UnifiedRadixCache``
+subclass (M05). A hit is a ``host_hit_length`` at the root that admission
+accepts through ``init_load_back`` (``prefix_len`` becomes L); allocation runs
+under W2's hooks (M01: per-request record, rollback), takes the fresh pages
+from ``prefix_device_indices`` and restores in ``maybe_hand_to_session``.
+``match`` and ``accept`` below write a match and its acceptance back onto a
+request as ``match_kv_cache`` and ``PrefillAdder.add_one_req`` do; admission
+itself runs through S06's ``QSAPrefillAdder``.
 """
 
 import unittest
@@ -18,24 +27,26 @@ import pytest
 import torch
 
 from sglang.srt.environ import envs
-from sglang.srt.managers.schedule_batch import Req, ReqKvInfo
-from sglang.srt.managers.schedule_policy import AddReqResult, PrefillAdder
+from sglang.srt.managers.schedule_batch import Req, ReqKvInfo, ScheduleBatch
+from sglang.srt.managers.schedule_policy import AddReqResult
+from sglang.srt.mem_cache import common
 from sglang.srt.mem_cache.allocation import alloc_for_extend
 from sglang.srt.mem_cache.allocator.mamba import MambaSlotAllocator
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.base_prefix_cache import (
     CacheRequestHandle,
     CacheRequestOutcome,
+    InitLoadBackParams,
     MatchPrefixParams,
 )
 from sglang.srt.mem_cache.cache_init_params import CacheInitParams
-from sglang.srt.mem_cache.chunk_cache import ChunkCache
 from sglang.srt.mem_cache.memory_pool import (
     HybridReqToTokenPool,
     MambaPool,
     ReqToTokenPool,
 )
 from sglang.srt.mem_cache.ple_state_pool import NGramPool, ShortConvPool
+from sglang.srt.mem_cache.unified_cache.components import ComponentType
 from sglang_qsa_hisparse.hisparse.prefix import (
     HostPrefixCache,
     PrefixSegment,
@@ -45,7 +56,19 @@ from sglang_qsa_hisparse.hisparse.prefix import (
 from sglang_qsa_hisparse.hisparse.prefix_cache import QSAHostPrefixCache
 from sglang_qsa_hisparse.hisparse.runtime import QSAHiSparseRuntime
 from sglang_qsa_hisparse.hisparse.slots import QSAHiSparseSlots
+from sglang_qsa_hisparse.patches.hisparse.scheduler import QSAPrefillAdder
 from sglang.srt.mem_cache.radix_cache import RadixKey
+
+pytestmark = pytest.mark.usefixtures("w2_patches")
+
+
+class FixtureReq(SimpleNamespace):
+    """A request record with the ``Req`` members admission and allocation read."""
+
+    extend_len = Req.extend_len
+    needs_host_load_back = Req.needs_host_load_back
+    materialized_host_hit_len = Req.materialized_host_hit_len
+    fulfilled_storage_hit_len = Req.fulfilled_storage_hit_len
 
 
 class Event:
@@ -99,7 +122,8 @@ def footprint(s):
 
 
 class TestHostPrefixOwnership(unittest.TestCase):
-    @pytest.mark.integration
+    # Was an integration test of M04; v0.5.22's clear keeps req_generation
+    # itself (#43439), so pinned SGLang now carries what it checks.
     def test_pool_flush_preserves_new_leases_and_rejects_stale_generations(self):
         for prefix_enabled in (False, True):
             with self.subTest(prefix_enabled=prefix_enabled):
@@ -276,13 +300,18 @@ class TestHostPrefixOwnership(unittest.TestCase):
         self.assertEqual(cache.used_bytes, 0)
 
 
+
 class TestRuntimeHostPrefixes(unittest.TestCase):
     def setUp(self):
         from sglang.srt.runtime_context import get_context
 
         self.patches = ExitStack()
         self.addCleanup(self.patches.close)
-        self.patches.enter_context(get_context().override_server_args())
+        # The cache's mamba component reads the mamba cache chunk size, which
+        # loads the model's HF config unless seeded (as upstream's tests do).
+        self.patches.enter_context(
+            get_context().override_server_args(_mamba_cache_chunk_size=64)
+        )
         self.patches.enter_context(patch.object(torch.cuda, "Event", Event))
         self.patches.enter_context(
             patch.object(torch.cuda, "current_stream", return_value=Mock())
@@ -325,6 +354,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         rp = a.req_pool = HybridReqToTokenPool.__new__(HybridReqToTokenPool)
         ReqToTokenPool.__init__(rp, 2, a.capacity, "cpu", False)
         rp.enable_mamba_extra_buffer = False
+        rp.mamba_initial_tracking_slots = 0  # v0.5.22 ensure_mamba_capacity reads it.
         rp.req_index_to_mamba_index_mapping = torch.zeros(3, dtype=torch.int32)
         rp.mamba_allocator = MambaSlotAllocator(2, "cpu")
         mamba = rp.mamba_pool = MambaPool.__new__(MambaPool)
@@ -352,8 +382,16 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         a.record = Mock()
         a.prefix_cache = HostPrefixCache(4_000_000)
         a.prefix_namespace = ("fixture-model", "normal-text-position=0", "TP2")
-        params = CacheInitParams(True, rp, a.runner.token_to_kv_pool_allocator, 64)
-        self.cache = QSAHostPrefixCache(ChunkCache(params), a, None)
+        # M05 builds it with create_unified_radix_cache(ctx, cache_class=...),
+        # whose hybrid-SSM tree components are these.
+        params = CacheInitParams(
+            True,
+            rp,
+            a.runner.token_to_kv_pool_allocator,
+            64,
+            tree_components=(ComponentType.FULL, ComponentType.MAMBA),
+        )
+        self.cache = QSAHostPrefixCache(params)
 
     def test_finished_request_releases_owned_pages(self):
         req = self.req("finished", range(64))
@@ -365,32 +403,41 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         available_before = allocator.available_size()
 
         self.cache.free_kv_row(req.kv, [(req.kv.cache_protected_len, 64)])
-        self.cache.on_release(req, inserted=False)
+        self.cache.on_release(req, checkpointed=False)
 
         self.assertEqual(allocator.available_size(), available_before + 64)
+        # Not checkpointed: the disabled tree gives the mamba slot back.
+        self.assertFalse(req.kv.holds_mamba)
+        self.assertEqual(self.a.req_pool.mamba_allocator.available_size(), 2)
 
     def req(self, name, tokens):
-        return SimpleNamespace(
+        return FixtureReq(
             rid=name,
             kv=ReqKvInfo(),
             cache_request_handle=CacheRequestHandle(name, 1),
             full_untruncated_fill_ids=array("q", tokens),
-            prefix_indices=torch.empty(0, dtype=torch.int64),
+            prefix_len=0,
+            extend_end=len(tokens),
             extra_key=None,
             cache_salt=None,
             lora_id=None,
+            session=None,
             last_node=None,
-            extend_range=SimpleNamespace(start=0, end=len(tokens), length=len(tokens)),
+            best_match_node=None,
+            host_hit_length=0,
+            host_loaded_length=0,
+            lock=None,
+            finished=lambda: False,
         )
 
     def source(self, length=128):
         req = self.req("source", range(length))
         self.a.req_pool.alloc([req])
-        req.prefix_indices = self.a.runner.token_to_kv_pool_allocator.alloc(length)
+        pages = self.a.runner.token_to_kv_pool_allocator.alloc(length)
         # Reverse full page order: compressed keys follow logical physical pages,
         # while raw staging follows token positions. The oracle does neither gather.
-        req.prefix_indices = req.prefix_indices.reshape(-1, 64).flip(0).flatten()
-        self.a.req_table[req.kv.req_pool_idx, :length] = req.prefix_indices.int()
+        pages = pages.reshape(-1, 64).flip(0).flatten()
+        self.a.req_table[req.kv.req_pool_idx, :length] = pages.int()
         req.kv.kv_allocated_len = req.kv.kv_committed_len = length
         state = self.a._acquire_request(req.kv.req_pool_idx, req.rid)
         state.seq_len = length
@@ -411,9 +458,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             index = (
                 torch.arange(length // 4 * 16).reshape(length // 4, 1, 16) + li * 61
             ).to(torch.bfloat16)
-            self.a.pool.qsa_compressed_k_buffer_pool[li][
-                req.prefix_indices[::4] // 4
-            ] = index
+            self.a.pool.qsa_compressed_k_buffer_pool[li][pages[::4] // 4] = index
             self.expected_raw.append((k, v))
             self.expected_index.append(index)
         mid = req.kv.mamba_pool_idx
@@ -433,7 +478,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         ] = torch.arange(12).reshape(4, 3) + 1000
         self.cache._capture(req)
         lease = self.a.release(req.kv.req_pool_idx, req.rid)
-        self.a.runner.token_to_kv_pool_allocator.free(req.prefix_indices)
+        self.a.runner.token_to_kv_pool_allocator.free(pages)
         self.a.req_pool.free_mamba_cache(req)
         self.a.req_pool.free(req)
         req.kv.mark_kv_released()
@@ -441,6 +486,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         return req, state.lease
 
     def match(self, req, limit=None):
+        """The matched length, written back as match_kv_cache does."""
         result = self.cache.match_prefix(
             MatchPrefixParams(
                 RadixKey(
@@ -452,26 +498,46 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
                 req=req,
             )
         )
-        req.prefix_indices = result.device_indices
-        req.kv.cache_protected_len = result.cache_protected_len or 0
-        return len(req.prefix_indices)
-
-    def batch(self, req, prefix):
-        req.extend_range = SimpleNamespace(
-            start=prefix,
-            end=len(req.full_untruncated_fill_ids),
-            length=len(req.full_untruncated_fill_ids) - prefix,
+        req.prefix_len = result.device_prefix_len
+        req.last_node, req.best_match_node = (
+            result.last_device_node,
+            result.best_match_node,
         )
+        req.host_hit_length = result.host_hit_length
+        req.kv.cache_protected_len = (
+            req.prefix_len
+            if result.cache_protected_len is None
+            else result.cache_protected_len
+        )
+        return result.device_prefix_len + result.host_hit_length
+
+    def accept(self, req):
+        """Admission's load-back step (PrefillAdder.add_one_req) for a host hit."""
+        loaded, req.last_node = self.cache.init_load_back(
+            InitLoadBackParams(req.best_match_node, req.host_hit_length, req=req)
+        )
+        req.host_loaded_length = loaded
+        req.prefix_len += loaded
+        if self.cache.load_back_is_cache_owned():
+            req.kv.cache_protected_len = req.prefix_len
+
+    def batch(self, req, prefix, end=None):
+        """The admitted prefill of ``[prefix, end)``; a pending hit is accepted."""
+        if not req.kv.holds_kv and req.prefix_len < self.cache.pending_prefix_tokens(req):
+            self.accept(req)
+        req.prefix_len = prefix
+        req.extend_end = len(req.full_untruncated_fill_ids) if end is None else end
         return SimpleNamespace(
             tree_cache=self.cache,
             req_to_token_pool=self.a.req_pool,
+            hisparse_coordinator=None,
             reqs=[req],
             device="cpu",
             prefix_lens=[prefix],
-            extend_lens=[req.extend_range.length],
-            extend_num_tokens=req.extend_range.length,
-            seq_lens_cpu=torch.tensor([req.extend_range.end]),
-            seq_lens=torch.tensor([req.extend_range.end]),
+            extend_lens=[req.extend_len],
+            extend_num_tokens=req.extend_len,
+            seq_lens_cpu=torch.tensor([req.extend_end]),
+            seq_lens=torch.tensor([req.extend_end]),
             maybe_evict_swa=Mock(),
             is_dllm=lambda: False,
         )
@@ -483,22 +549,14 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         req.output_ids = []
         req.retracted_stain = False
         req.storage_hit_length = 0
-        req.host_hit_length = req.host_loaded_length = req.swa_host_hit_length = 0
+        req.swa_host_hit_length = req.mamba_host_hit_length = 0
         req.storage_hit_start = None
         req.host_hit_is_storage = False
         req.cache_salt = salt
-        req.needs_host_load_back = lambda: False
-        req.materialized_host_hit_len = lambda: 0
-        req.fulfilled_storage_hit_len = lambda prefix: 0
-
-        def set_range(start, end):
-            req.extend_range = SimpleNamespace(start=start, end=end, length=end - start)
-
-        req.set_extend_range = set_range
         return req
 
     def adder(self, chunk=4096):
-        return PrefillAdder(
+        return QSAPrefillAdder(
             64,
             self.cache,
             self.a.runner.token_to_kv_pool_allocator,
@@ -508,7 +566,6 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             chunk,
         )
 
-    @pytest.mark.integration
     def test_final_checkpoint_page_boundaries_for_normal_and_ignore_eos_controls(self):
         for ignore_eos in (False, True):
             for length, first_end in (
@@ -529,9 +586,9 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
                     adder = self.adder()
                     adder.add_one_req(req, False, None)
                     self.assertEqual(adder.can_run_list, [req])
-                    self.assertEqual(req.extend_range.end, first_end)
+                    self.assertEqual(req.extend_end, first_end)
                     self.assertEqual(adder.new_chunked_req is req, first_end < length)
-                    ranges.append((req.extend_range.start, req.extend_range.end))
+                    ranges.append((req.prefix_len, req.extend_end))
                     charges.append(
                         (
                             adder.memory_budget.total_offset,
@@ -553,40 +610,51 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             req = self.req("large-boundary", range(length))
             self.assertEqual(self.cache.prefill_checkpoint_limit(req), boundary)
             if boundary is not None:
-                req.prefix_indices = torch.empty(boundary, dtype=torch.int64)
+                req.prefix_len = boundary  # Prefill progress (#42824).
                 self.assertIsNone(self.cache.prefill_checkpoint_limit(req))
         req = self.req("unsupported-boundary", range(4097))
         req.multimodal_inputs = object()
         self.assertIsNone(self.cache.prefill_checkpoint_limit(req))
 
-    @pytest.mark.integration
+    def test_checkpoint_limit_counts_a_pending_host_prefix_once(self):
+        # Before admission the hit is a host_hit_length (prefix_len 0); after
+        # init_load_back it is the prefix itself. Either way the next chunk
+        # ends on the last page boundary, also inside a supported image.
+        self.source(64)
+        req = self.admission_req("pending", range(201))
+        self.assertEqual(self.match(req), 64)
+        self.assertEqual((req.prefix_len, req.host_hit_length), (0, 64))
+        self.assertEqual(self.cache.prefill_checkpoint_limit(req), 128)
+        self.accept(req)
+        self.assertEqual(req.prefix_len, 64)
+        self.assertEqual(self.cache.prefill_checkpoint_limit(req), 128)
+        with patch.object(self.cache, "_namespace", return_value=("image-ns",)):
+            image = self.req("inside-image", range(201))
+            image.multimodal_inputs = object()  # A supported image (namespace set).
+            self.assertEqual(self.cache.prefill_checkpoint_limit(image), 192)
+        self.cache.release_aborted_request(req.cache_request_handle)
+
     def test_chunk_continuation_captures_aligned_boundary_before_logits_tail(self):
         req = self.admission_req("continued", range(201), ignore_eos=True)
-        req.prefix_indices = torch.arange(64)
+        req.prefix_len = 64
         adder = self.adder()
         self.assertIs(adder.add_chunked_req(req), req)
-        self.assertEqual((req.extend_range.start, req.extend_range.end), (64, 192))
-        req.prefix_indices = torch.arange(192)
+        self.assertEqual((req.prefix_len, req.extend_end), (64, 192))
+        req.prefix_len = 192
         adder = self.adder()
         self.assertIsNone(adder.add_chunked_req(req))
-        self.assertEqual((req.extend_range.start, req.extend_range.end), (192, 201))
+        self.assertEqual((req.prefix_len, req.extend_end), (192, 201))
 
-    @pytest.mark.integration
     def test_ordinary_short_prompt_publishes_and_reuses_actual_checkpoint(self):
         req = self.admission_req("short-cold", range(73))
         self.match(req)
         adder = self.adder()
         adder.add_one_req(req, False, None)
-        self.assertEqual((req.extend_range.start, req.extend_range.end), (0, 64))
-        batch = self.batch(req, 0)
-        batch.seq_lens = batch.seq_lens_cpu = torch.tensor([64])
-        batch.extend_lens = [64]
-        batch.extend_num_tokens = 64
-        req.extend_range = SimpleNamespace(start=0, end=64, length=64)
-        alloc_for_extend(batch)
+        self.assertEqual((req.prefix_len, req.extend_end), (0, 64))
+        alloc_for_extend(self.batch(req, 0, end=64))
         state = self.a._acquire_request(req.kv.req_pool_idx, req.rid)
         state.seq_len = 64
-        self.cache.checkpoint(req, up_to=req.extend_range.end)
+        self.cache.checkpoint(req, up_to=req.extend_end)
         warm = self.req("short-warm", range(73))
         self.assertEqual(self.match(warm), 64)
         self.assertEqual(self.cache.pending_prefix_tokens(warm), 64)
@@ -630,7 +698,6 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         finally:
             reader.close()
 
-    @pytest.mark.integration
     def test_active_request_shares_only_its_restored_and_published_segments(self):
         self.source(64)
         req = self.req("incremental", range(193))
@@ -667,7 +734,6 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         finally:
             reader.close()
 
-    @pytest.mark.integration
     def test_evicted_active_basis_falls_back_to_copying_all_current_bytes(self):
         self.source(64)
         req = self.req("evicted-basis", range(129))
@@ -693,7 +759,6 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         finally:
             reader.close()
 
-    @pytest.mark.integration
     def test_restore_recycled_slot_exact_raw_index_pending_and_ple(self):
         _, old_lease = self.source()
         req = self.req("branch", list(range(128)) + [9000])
@@ -713,7 +778,9 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         self.assertGreater(new_lease.generation, old_lease.generation)
         with self.assertRaisesRegex(RuntimeError, "stale QSA lease"):
             self.a.slots.require(old_lease)
-        self.assertTrue(bool((req.prefix_indices >= 64).all()))
+        # The restored prefix is fresh, request-owned logical pages in the row.
+        prefix_row = self.a.req_table[req.kv.req_pool_idx, :128]
+        self.assertTrue(bool((prefix_row >= 64).all()))
         self.assertEqual(req.kv.cache_protected_len, 0)
         self.assertEqual(out.numel(), 1)
         for li, (k, v) in enumerate(self.expected_raw):
@@ -771,7 +838,125 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         )
         reader.close()
 
-    @pytest.mark.integration
+    def test_host_hit_admits_allocates_and_restores_once(self):
+        # Design section 5 item 2 through the real admission and allocation:
+        # init_load_back makes the hit the prefix, prefix_device_indices
+        # supplies the pages written to row[0:L], maybe_hand_to_session
+        # restores once, and TP ranks converge at match, allocation and capture.
+        self.source(64)
+        req = self.admission_req("hit", range(201))
+        votes = []
+        converge = self.cache._converge
+        with patch.object(
+            self.cache, "_converge", side_effect=lambda v: (votes.append(v), converge(v))
+        ):
+            self.assertEqual(self.match(req), 64)
+            adder = self.adder()
+            # The chunk is capped at the checkpoint and spends the capped budget.
+            self.assertEqual(adder.add_one_req(req, False, None), AddReqResult.OTHER)
+            self.assertEqual(adder.can_run_list, [req])
+            self.assertEqual((req.prefix_len, req.extend_end), (64, 192))
+            self.assertEqual((req.host_hit_length, req.host_loaded_length), (64, 64))
+            self.assertEqual(req.kv.cache_protected_len, 0)
+            pages = []
+            prefix_pages = self.cache.prefix_device_indices
+            with (
+                patch.object(
+                    self.cache,
+                    "prefix_device_indices",
+                    side_effect=lambda r: pages.append(prefix_pages(r)) or pages[-1],
+                ),
+                patch.object(
+                    self.a, "restore_prefix", wraps=self.a.restore_prefix
+                ) as restore,
+            ):
+                alloc_for_extend(self.batch(req, 64, end=192))
+            restore.assert_called_once()
+            (prefix,) = pages
+            self.assertEqual(prefix.dtype, torch.int64)
+            self.assertTrue(
+                torch.equal(self.a.req_table[req.kv.req_pool_idx, :64].long(), prefix)
+            )
+            self.assertFalse(req.kv.mamba_needs_clear)
+            self.assertNotIn(req.cache_request_handle, self.cache.matches)
+            self.assertNotIn(req.cache_request_handle, self.cache.restoring)
+            state = self.a.requests[req.kv.req_pool_idx]
+            state.seq_len = 192
+            self.cache.checkpoint(req, up_to=req.extend_end)
+        handle = req.cache_request_handle
+        self.assertEqual(votes[0][:2], (handle, self.cache._namespace(req)))
+        self.assertEqual(votes[1][0], handle)  # prepare_prefix_for_extend
+        self.assertEqual(votes[1][1], votes[0][2])  # the matched snapshot
+        self.assertEqual(votes[2][1], 192)  # capture at the chunk end
+        self.assertEqual(len(votes), 3)
+
+    def scheduled_req(self, name, tokens):
+        """A real ``Req`` with the fields a prefill and its release read."""
+        req = Req.__new__(Req)
+        req.__dict__.update(self.admission_req(name, tokens).__dict__)
+        req.origin_input_ids, req.output_ids = array("q", tokens), array("q")
+        req.dllm_config = req.finished_len = None
+        req.return_logprob, req.logprob_start_len = False, -1
+        req.session = req.positional_embed_overrides = req.multimodal_inputs = None
+        req.input_embeds = None
+        req.is_retracted = req.skip_radix_cache_insert = False
+        req.extend_batch_idx = req.already_computed = req.cached_tokens = 0
+        req.cached_tokens_device = req.cached_tokens_host = 0
+        req.cached_tokens_storage = 0
+        req._cache_breakdown_computed = False
+        return req
+
+    def prefill(self, req):
+        """ScheduleBatch.prepare_for_extend, which allocates and counts the hit."""
+        batch = ScheduleBatch(
+            reqs=[req],
+            req_to_token_pool=self.a.req_pool,
+            token_to_kv_pool_allocator=self.a.runner.token_to_kv_pool_allocator,
+            tree_cache=self.cache,
+            model_config=SimpleNamespace(vocab_size=1 << 16, is_encoder_decoder=False),
+            device="cpu",
+        )
+        with patch(
+            "sglang.srt.managers.schedule_batch.SamplingBatchInfo.from_schedule_batch"
+        ):
+            batch.prepare_for_extend()
+
+    def test_reported_cached_tokens_equal_production_for_hit_miss_and_chunked_hit(self):
+        # Production (897286b12a): prepare_for_extend counts pre_len =
+        # len(prefix_indices) = L on the first chunk, after the restore inside
+        # alloc_for_extend set host_hit_length = host_loaded_length = L, and
+        # nothing on later chunks: cached_tokens L in tiers (0, L, 0).
+        self.source(64)
+        miss = [9000] + list(range(1, 129))
+        for name, tokens, chunk, cached in (
+            ("hit", list(range(129)), 4096, 64),
+            ("miss", miss, 4096, 0),
+            ("chunked-hit", list(range(201)), 64, 64),
+        ):
+            with self.subTest(name):
+                req = self.scheduled_req(name, tokens)
+                req.init_next_round_input(self.cache)
+                adder = self.adder(chunk)
+                adder.add_one_req(req, False, None)
+                self.assertEqual(adder.can_run_list, [req])
+                self.prefill(req)
+                while req.extend_end < len(tokens):  # Chunked prefill continues.
+                    common.checkpoint_kv_cache(req, self.cache)
+                    req.init_next_round_input()
+                    self.adder(chunk).add_chunked_req(req)
+                    self.prefill(req)
+                self.assertEqual(req.cached_tokens, cached)
+                self.assertEqual(
+                    (
+                        req.cached_tokens_device,
+                        req.cached_tokens_host,
+                        req.cached_tokens_storage,
+                    ),
+                    (0, cached, 0),
+                )
+                common.release_kv_cache(req, self.cache, checkpoint=False)
+                self.assertEqual(self.a.req_pool.available_size(), 2)
+
     def test_first_restore_failure_releases_pages_rows_and_snapshot_pin(self):
         self.source()
         req = self.req("failure", list(range(128)) + [9000])
@@ -818,21 +1003,14 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         self.assertEqual(self.a.prefix_cache.used_bytes, 0)
         self.assertEqual(self.a.req_pool.available_size(), 2)
 
-    @pytest.mark.integration
     def test_later_chunk_failure_preserves_previous_lease_and_frees_new_pages(self):
         self.source(64)
         req = self.req("later", range(129))
         self.match(req)
-        batch = self.batch(req, 64)
-        batch.seq_lens = batch.seq_lens_cpu = torch.tensor([128])
-        batch.extend_lens = [64]
-        batch.extend_num_tokens = 64
-        req.extend_range = SimpleNamespace(start=64, end=128, length=64)
-        alloc_for_extend(batch)
+        alloc_for_extend(self.batch(req, 64, end=128))
         self.a.requests[req.kv.req_pool_idx].seq_len = 128
         previous_lease = self.a.requests[req.kv.req_pool_idx].lease
         previous_indices = self.a.req_table[req.kv.req_pool_idx, :128].clone()
-        req.prefix_indices = previous_indices.long()
         before = self.a.runner.token_to_kv_pool_allocator.available_size()
         self.a.req_pool.alloc_aux_to_lengths = Mock(
             side_effect=RuntimeError("later aux failed")
@@ -852,27 +1030,11 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         )
         self.assertEqual(self.a.prefix_cache.stats()["prefix_cache_readers"], 0)
 
-    @pytest.mark.integration
     def test_pending_host_hit_ignore_eos_can_continue_in_chunks(self):
         self.source(64)
-        req = self.req("long-suffix", range(201))
+        req = self.admission_req("long-suffix", range(201), ignore_eos=True)
         self.match(req)
-        req.sampling_params = SimpleNamespace(ignore_eos=True, max_new_tokens=8)
-        req.output_ids = []
-        req.retracted_stain = False
-        req.storage_hit_length = 0
-        req.host_hit_length = req.host_loaded_length = req.swa_host_hit_length = 0
-        req.storage_hit_start = None
-        req.host_hit_is_storage = False
-        req.needs_host_load_back = lambda: False
-        req.materialized_host_hit_len = lambda: 0
-        req.fulfilled_storage_hit_len = lambda prefix: 0
-
-        def set_range(start, end):
-            req.extend_range = SimpleNamespace(start=start, end=end, length=end - start)
-
-        req.set_extend_range = set_range
-        adder = PrefillAdder(
+        adder = QSAPrefillAdder(
             64,
             self.cache,
             self.a.runner.token_to_kv_pool_allocator,
@@ -884,9 +1046,9 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         adder.add_one_req(req, False, None)
         self.assertEqual(adder.can_run_list, [req])
         self.assertIs(adder.new_chunked_req, req)
-        self.assertEqual((req.extend_range.start, req.extend_range.end), (64, 128))
+        self.assertEqual((req.prefix_len, req.extend_end), (64, 128))
+        self.assertTrue(req.sampling_params.ignore_eos)  # Restored after admission.
 
-    @pytest.mark.integration
     def test_weight_load_attempt_invalidates_even_without_regular_flush(self):
         from sglang.srt.managers.scheduler_components.weight_updater import (
             SchedulerWeightUpdaterManager,
@@ -928,7 +1090,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         ):
             with self.assertRaisesRegex(RuntimeError, "TP ranks disagree"):
                 self.match(req)
-        self.assertEqual(req.prefix_indices.numel(), 0)
+        self.assertEqual((req.prefix_len, req.host_hit_length), (0, 0))
         self.assertEqual(self.a.prefix_cache.stats()["prefix_cache_readers"], 0)
 
     def test_real_request_prefix_limit_preserves_requested_prompt_logprobs(self):
@@ -952,7 +1114,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             req.session = req.positional_embed_overrides = req.multimodal_inputs = None
             req.is_retracted = False
             req.init_next_round_input(self.cache)
-            self.assertEqual(len(req.prefix_indices), expected)
+            self.assertEqual((req.prefix_len, req.host_hit_length), (0, expected))
             self.cache.release_aborted_request(req.cache_request_handle)
 
     def test_old_abort_handle_cannot_release_new_attempt_reader(self):
@@ -979,7 +1141,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         req.session = req.positional_embed_overrides = req.multimodal_inputs = None
         req.is_retracted = False
         req.init_next_round_input(self.cache)
-        self.assertEqual(len(req.prefix_indices), 64)
+        self.assertEqual((req.prefix_len, req.host_hit_length), (0, 64))
         self.assertEqual(self.a.prefix_cache.stats()["prefix_cache_readers"], 1)
         with (
             patch.object(envs.SGLANG_RADIX_FORCE_MISS, "get", return_value=True),
@@ -991,7 +1153,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             ) as converge,
         ):
             req.init_next_round_input(self.cache)
-            self.assertEqual(len(req.prefix_indices), 0)
+            self.assertEqual((req.prefix_len, req.host_hit_length), (0, 0))
             self.assertEqual(self.a.prefix_cache.stats()["prefix_cache_readers"], 0)
             acquire.assert_not_called()
             self.assertEqual(
@@ -1001,15 +1163,12 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             self.assertEqual(self.cache.prefill_checkpoint_limit(req), 64)
         # The knob suppresses reads while leaving normal cold publication on.
         self.a.prefix_cache.reset()
-        batch = self.batch(req, 0)
-        req.extend_range = SimpleNamespace(start=0, end=64, length=64)
-        batch.extend_lens, batch.extend_num_tokens = [64], 64
-        batch.seq_lens = batch.seq_lens_cpu = torch.tensor([64])
+        batch = self.batch(req, 0, end=64)
         with patch.object(envs.SGLANG_RADIX_FORCE_MISS, "get", return_value=True):
             alloc_for_extend(batch)
             state = self.a._acquire_request(req.kv.req_pool_idx, req.rid)
             state.seq_len = 64
-            self.cache.checkpoint(req, up_to=req.extend_range.end)
+            self.cache.checkpoint(req, up_to=req.extend_end)
         self.assertEqual(len(self.a.prefix_cache.entries), 1)
         probe = self.req("probe", range(65))
         self.assertEqual(self.match(probe), 64)
@@ -1038,7 +1197,6 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         self.assertEqual(len(self.a.prefix_cache.entries), 1)
         self.a.slots.require(state.lease, "prefill")
 
-    @pytest.mark.integration
     def test_failed_restore_drain_retains_ownership_until_explicit_cleanup(self):
         self.source(64)
         req = self.req("failed-dma", range(65))
@@ -1094,7 +1252,6 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         self.assertEqual(self.a.prefix_cache.stats()["prefix_cache_readers"], 0)
         self.assertNotIn(req.cache_request_handle, self.cache.restoring)
 
-    @pytest.mark.integration
     def test_old_active_request_cannot_publish_after_model_invalidation(self):
         self.source(64)
         req = self.req("old-model", range(65))
@@ -1116,11 +1273,15 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
                 self.match(req)
                 allocator = self.a.runner.token_to_kv_pool_allocator
                 before = allocator.available_size()
-                self.a.req_pool.alloc([req])
+                # alloc_for_extend's steps up to the restore (M01 order).
+                self.accept(req)
                 self.cache.prepare_prefix_for_extend([req])
+                prefix = self.cache.prefix_device_indices(req)
+                self.a.req_pool.alloc([req])
                 suffix = allocator.alloc(64)[:1]
-                req.extend_range = SimpleNamespace(start=64, end=65, length=1)
-                self.cache.note_extend_allocation([req], suffix)
+                row = req.kv.req_pool_idx
+                self.a.req_table[row, :64] = prefix.int()
+                self.a.req_table[row, 64:65] = suffix.int()
                 req.kv.kv_allocated_len = req.kv.kv_committed_len = 65
                 state = self.a._acquire_request(req.kv.req_pool_idx, req.rid)
                 lease = state.lease
@@ -1168,7 +1329,6 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
                 self.assertEqual(self.a.prefix_cache.stats()["prefix_cache_readers"], 0)
                 self.assertNotIn(req.cache_request_handle, self.cache.restoring)
 
-    @pytest.mark.integration
     def test_missing_recurrent_or_pending_state_fails_closed(self):
         self.source(64)
         req = self.req("missing", range(65))
@@ -1180,32 +1340,43 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         self.assertEqual(self.a.req_pool.available_size(), 2)
         self.assertEqual(self.a.prefix_cache.stats()["prefix_cache_readers"], 0)
 
-    @pytest.mark.integration
     def test_host_prefix_charge_changes_admission_and_rejection_refund(self):
-        req = self.req("budget", range(129))
-        adder = PrefillAdder.__new__(PrefillAdder)
-        adder.tree_cache = SimpleNamespace(pending_prefix_tokens=lambda r: 128)
-        adder.memory_budget = SimpleNamespace(total_offset=7, current_offset=3)
-        adder.rem_chunk_tokens = None
-        adder.can_run_list = []
-
-        def reject(*args):
-            self.assertEqual(adder.memory_budget.total_offset, 135)
-            self.assertEqual(adder.memory_budget.current_offset, 131)
-            return AddReqResult.NO_TOKEN
-
-        adder._add_one_req = reject
-        self.assertEqual(adder.add_one_req(req, False, None), AddReqResult.NO_TOKEN)
-        self.assertEqual(adder.memory_budget.total_offset, 7)
-        self.assertEqual(adder.memory_budget.current_offset, 3)
-
-        def admit(*args):
-            adder.can_run_list.append(req)
-            return AddReqResult.CONTINUE
-
-        adder._add_one_req = admit
-        adder.add_one_req(req, False, None)
-        self.assertEqual(adder.memory_budget.total_offset, 135)
+        # Production charged the L restored pages to both offsets before its
+        # admission checks and refunded them on rejection. A host hit now
+        # counts L in total_tokens (prefix_len is 0 until init_load_back), so
+        # the boundary is the same, and an admitted hit keeps L in the offsets.
+        self.source(128)
+        allocator = self.a.runner.token_to_kv_pool_allocator
+        tokens = 129 + 8 + 64  # Prompt, max_new_tokens and one page overhead.
+        for slack, admitted in ((0, False), (1, True)):
+            with self.subTest(admitted=admitted):
+                req = self.admission_req("budget", range(129))
+                self.assertEqual(self.match(req), 128)
+                adder = self.adder()
+                budget = adder.memory_budget
+                offset = allocator.available_size() - tokens - slack
+                budget.total_offset = budget.current_offset = offset
+                # Production's test: (F - L + X) < avail - (offset + L).
+                self.assertEqual(
+                    (129 - 128 + 8 + 64)
+                    < allocator.available_size() - (offset + 128),
+                    admitted,
+                )
+                result = adder.add_one_req(req, False, None)
+                self.assertEqual(adder.can_run_list == [req], admitted)
+                if not admitted:
+                    self.assertEqual(result, AddReqResult.NO_TOKEN)
+                    self.assertEqual(
+                        (budget.total_offset, budget.current_offset), (offset, offset)
+                    )
+                    self.cache.release_aborted_request(req.cache_request_handle)
+                    continue
+                # One page of extension and decode headroom, plus the charge.
+                reserved = 64 + 64
+                self.assertEqual(budget.total_offset, offset + reserved + 8 + 128)
+                self.assertEqual(budget.current_offset, offset + reserved + 128)
+                self.assertEqual(result, adder.budget_state())
+                self.cache.release_aborted_request(req.cache_request_handle)
 
 
 if __name__ == "__main__":

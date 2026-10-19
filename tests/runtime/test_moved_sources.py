@@ -4,11 +4,12 @@ The reference is production ``REFERENCE_FORK_COMMIT`` (Phase 5), built on the
 pinned SGLang commit, so no pin edits apply. Each moved module must equal its
 reference file after exactly the import rewrites of PLAN.md ("Import
 mapping") and the edits that ``PIN_EDITS`` records for SGLang interfaces
-changed at the pin (none at present), except the Track I divergences (PLAN.md
+changed at the pin, except the Track I divergences (PLAN.md
 Phase 3), which must equal that reference plus exactly the diff recorded in
 ``track_i.diff`` (rerecord with ``python <this file>`` after an intended Track
-I change). ``depends.py`` and the Track I identity modules are the only
-plugin-owned modules in the package. The ported reference tests in this
+I change). ``depends.py``, the Track I identity modules and ``prefix_cache.py``
+(replacing the fork's file at v0.5.22) are the only plugin-owned modules in
+the package. The ported reference tests in this
 directory may differ only by the same rewrites and pin edits plus an added
 ``pytest`` import and ``integration`` marks. The reference is read with ``git
 show`` from ``$QSA_FORK_ROOT`` (default ``../qsa-hisparse`` next to this
@@ -47,14 +48,16 @@ MOVED = {  # plugin module -> fork file
             "runtime",
             "single_request",
             "slots",  # N01
-            "prefix",
-            "prefix_cache",  # N02
+            "prefix",  # N02
         )
     },
     "graph.py": "python/sglang/srt/layers/attention/qsa/hisparse_graph.py",  # N03
 }
-PLUGIN_OWNED = {"depends.py", "image_identity.py", "image_request.py"}
-DIVERGED = ("prefix.py", "prefix_cache.py", "runtime.py")  # Track I (I-A)
+# The fork's prefix_cache.py (N02) is replaced by a plugin-owned
+# UnifiedRadixCache subclass at v0.5.22 (P6-A; docs/phase6-prefix-design.md).
+REPLACED = {"prefix_cache.py"}
+PLUGIN_OWNED = {"depends.py", "image_identity.py", "image_request.py"} | REPLACED
+DIVERGED = ("prefix.py", "runtime.py")  # Track I (I-A)
 TRACK_I_DIFF = Path(__file__).with_name("track_i.diff")
 PORTED = (
     "test_gather.py",
@@ -75,7 +78,20 @@ ADDED_TEST_LINE = re.compile(
 # occurs exactly once in its file. Production is built on the pin and already
 # carries its adaptations (the TP rank from the published parallel bundle, the
 # checkpoint/claim_kv_row/on_release prefix-cache protocol), so none remain.
-PIN_EDITS: dict[str, tuple[tuple[bytes, bytes], ...]] = {}
+PIN_EDITS: dict[str, tuple[tuple[bytes, bytes], ...]] = {
+    # v0.5.22 alloc_for_extend calls allocate_spec_scratch on every prefill
+    # batch's HiSparse coordinator (#37771); QSA P2 runs without speculation.
+    "coordinator.py": (
+        (
+            b"    def wait_for_pending_backup(self):\n",
+            b"    def allocate_spec_scratch(self, req_pool_indices):\n"
+            b"        # Speculative-decoding scratch (#37771); QSA P2 runs without speculation.\n"
+            b"        return\n"
+            b"\n"
+            b"    def wait_for_pending_backup(self):\n",
+        ),
+    ),
+}
 
 
 def git(*args: str) -> bytes:
@@ -125,7 +141,9 @@ def reference_fork():
 def test_package_holds_exactly_the_moved_modules():
     assert {p.name for p in PACKAGE.glob("*.py")} == set(MOVED) | PLUGIN_OWNED
     listed = git("ls-tree", "--name-only", REFERENCE_FORK_COMMIT, f"{FORK_PACKAGE}/")
-    assert {Path(p).name for p in listed.decode().split()} == set(MOVED) - {"graph.py"}
+    assert {Path(p).name for p in listed.decode().split()} == (
+        set(MOVED) | REPLACED
+    ) - {"graph.py"}
 
 
 @pytest.mark.parametrize("module", sorted(set(MOVED) - set(DIVERGED)))

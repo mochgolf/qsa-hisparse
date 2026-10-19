@@ -9,425 +9,362 @@
     "sha256": "86af30704643dc1465ca74752e30df3a2bd1d008c91933313a33b37023a58e08"
   },
   "sglang.srt.managers.schedule_batch.NextBatchPlan": {
-    "def_line": 4001,
+    "def_line": 3969,
     "file": "sglang/srt/managers/schedule_batch.py",
-    "first_line": 4001,
+    "first_line": 3969,
     "kind": "class",
-    "module_sha256": "9041283b11d1b7eac18b0167657d8a5a060cf9c54a838453e2a2421cdeff4003",
+    "module_sha256": "c382bf0066d70e19b4b9e38c92ff0029d39996238f8f0685f4c1dadbfa4e8a96",
     "qualname": "NextBatchPlan",
     "sha256": "8697610fc85da96262b985ec3573bb48e717aa7280117645f948fb8e786e54a6"
   },
   "sglang.srt.managers.schedule_batch.ScheduleBatch": {
-    "def_line": 2360,
+    "def_line": 2338,
     "file": "sglang/srt/managers/schedule_batch.py",
-    "first_line": 2359,
+    "first_line": 2337,
     "kind": "class",
-    "module_sha256": "9041283b11d1b7eac18b0167657d8a5a060cf9c54a838453e2a2421cdeff4003",
+    "module_sha256": "c382bf0066d70e19b4b9e38c92ff0029d39996238f8f0685f4c1dadbfa4e8a96",
     "qualname": "ScheduleBatch",
-    "sha256": "0c4e3ebd131855c4e25b3d30a90e44308fa0a204507e40ff236c765d4b0699ea"
+    "sha256": "6a11ac3b9467859a587f727ec5f6fd11f56020c56026a4a4e3d24a171fd2bd3b"
   },
   "sglang.srt.managers.schedule_policy.PrefillAdder.__init__": {
-    "def_line": 632,
+    "def_line": 582,
     "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 632,
+    "first_line": 582,
     "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
+    "module_sha256": "03ba021fdd225cc4e7d0d5eb822a725fe6e3907e40157ec6461390f23b7f2cb9",
     "qualname": "PrefillAdder.__init__",
     "sha256": "c59be2a5e2f3bad46fb94dd3931cc63c9e37729c8b098d8c3957fe85cd00c595"
   },
   "sglang.srt.managers.schedule_policy.PrefillAdder._commit_prefill_admission": {
-    "def_line": 1608,
+    "def_line": 1586,
     "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 1608,
+    "first_line": 1586,
     "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
+    "module_sha256": "03ba021fdd225cc4e7d0d5eb822a725fe6e3907e40157ec6461390f23b7f2cb9",
     "qualname": "PrefillAdder._commit_prefill_admission",
-    "sha256": "135d1c9f92684487c74821ebeae936214c8918310b1543598c0b7f330c259318"
-  },
-  "sglang.srt.managers.schedule_policy.PrefillAdder._kv_shard_reserve_scratch": {
-    "def_line": 1045,
-    "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 1045,
-    "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
-    "qualname": "PrefillAdder._kv_shard_reserve_scratch",
-    "sha256": "134f57341a66296d44cd1164e770221f50165512c91f9731b0903c1820dedd8f"
-  },
-  "sglang.srt.managers.schedule_policy.PrefillAdder._lock_node": {
-    "def_line": 1201,
-    "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 1200,
-    "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
-    "qualname": "PrefillAdder._lock_node",
-    "sha256": "32162a3a6bf55dc34eef3222e54cc3393ea1ee6fca505d8cd0c31c8444bf3968"
-  },
-  "sglang.srt.managers.schedule_policy.PrefillAdder._mamba_gap_budget_for_req": {
-    "def_line": 848,
-    "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 848,
-    "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
-    "qualname": "PrefillAdder._mamba_gap_budget_for_req",
-    "sha256": "85c0c3359e13677aa62ada133661f89e0f5c658d2d6ce1714ee7aac3f81189e0"
+    "sha256": "e010108adba70d4102dddc8e09e2e211234769cfa8e71590b601934de5da63fc"
   },
   "sglang.srt.managers.schedule_policy.PrefillAdder._select_prefill_admission": {
-    "def_line": 1525,
+    "def_line": 1503,
     "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 1525,
+    "first_line": 1503,
     "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
+    "module_sha256": "03ba021fdd225cc4e7d0d5eb822a725fe6e3907e40157ec6461390f23b7f2cb9",
     "qualname": "PrefillAdder._select_prefill_admission",
-    "sha256": "7b48d12d0241e5176361eb0cde5de027061cfa7fb489ff19121ba1490e35fe94"
+    "sha256": "24ca6c72a260f287bf6c9ea88d0f3d5730cd78297feb1316f6d73f2f92d7d094"
+  },
+  "sglang.srt.managers.schedule_policy.PrefillAdder._update_prefill_budget": {
+    "def_line": 851,
+    "file": "sglang/srt/managers/schedule_policy.py",
+    "first_line": 851,
+    "kind": "function",
+    "module_sha256": "03ba021fdd225cc4e7d0d5eb822a725fe6e3907e40157ec6461390f23b7f2cb9",
+    "qualname": "PrefillAdder._update_prefill_budget",
+    "sha256": "9a864c3a5b81a88178ac15186076c4d73926e8ef1ef5aab32b1c8c239ede9151"
   },
   "sglang.srt.managers.schedule_policy.PrefillAdder.add_chunked_req": {
-    "def_line": 1130,
+    "def_line": 1092,
     "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 1130,
+    "first_line": 1092,
     "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
+    "module_sha256": "03ba021fdd225cc4e7d0d5eb822a725fe6e3907e40157ec6461390f23b7f2cb9",
     "qualname": "PrefillAdder.add_chunked_req",
-    "sha256": "e6be9dfb81b1c60c0d3b5cc3a7d90b114bf76ce672248ef936a266b0cc8da2e9"
+    "sha256": "d49c78005ef4cc09f5b2f5b8c384de4f4a2589d3d44ae3b78a334930794eddba"
   },
   "sglang.srt.managers.schedule_policy.PrefillAdder.add_one_req": {
-    "def_line": 1366,
+    "def_line": 1336,
     "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 1366,
+    "first_line": 1336,
     "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
+    "module_sha256": "03ba021fdd225cc4e7d0d5eb822a725fe6e3907e40157ec6461390f23b7f2cb9",
     "qualname": "PrefillAdder.add_one_req",
-    "sha256": "a28bb09ae6f30ef31bd945bfe913893dbad50acaacaeb577cef832640023218a"
+    "sha256": "86c34bbddd943532fbd5f5a8fb721a11d05b369a0813fcc1e1d7b79397deab60"
   },
   "sglang.srt.managers.schedule_policy.PrefillAdder.add_one_req_ignore_eos": {
-    "def_line": 1219,
+    "def_line": 1192,
     "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 1219,
+    "first_line": 1192,
     "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
+    "module_sha256": "03ba021fdd225cc4e7d0d5eb822a725fe6e3907e40157ec6461390f23b7f2cb9",
     "qualname": "PrefillAdder.add_one_req_ignore_eos",
-    "sha256": "4d6e76b6004ce4162c7fe8f2b6c927299fcc2b342d4948e1329c387810dff37f"
+    "sha256": "4d447a9863cd71786a4aa2c7abe84b0c43b90c7fb3f28fa04df04b99219a256b"
   },
   "sglang.srt.managers.schedule_policy.PrefillAdder.budget_state": {
-    "def_line": 866,
+    "def_line": 830,
     "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 866,
+    "first_line": 830,
     "kind": "function",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
+    "module_sha256": "03ba021fdd225cc4e7d0d5eb822a725fe6e3907e40157ec6461390f23b7f2cb9",
     "qualname": "PrefillAdder.budget_state",
     "sha256": "e5cd4b7e1dde70d7b14317be09df959eeb4ea50b8f99a5dd1a36f139a6fe876b"
   },
-  "sglang.srt.managers.schedule_policy._PrefillAdmission": {
-    "def_line": 624,
-    "file": "sglang/srt/managers/schedule_policy.py",
-    "first_line": 623,
-    "kind": "class",
-    "module_sha256": "37b6cdbe85a53476318e97d400588c9396d85726a3fcf639a98eb23ccd60baa6",
-    "qualname": "_PrefillAdmission",
-    "sha256": "54a7444cae4846c64d251fd0f7e989bff264a2fe7e30fe9bedb6e08076eac772"
-  },
-  "sglang.srt.managers.scheduler.Scheduler.__init__": {
-    "def_line": 457,
-    "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 457,
-    "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
-    "qualname": "Scheduler.__init__",
-    "sha256": "1afcad0298ab29b8717578dd2ef9fd9c184934d99e67e0fbf1107e8cb8c2809b"
-  },
-  "sglang.srt.managers.scheduler.Scheduler._add_request_to_queue": {
-    "def_line": 3268,
-    "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3268,
-    "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
-    "qualname": "Scheduler._add_request_to_queue",
-    "sha256": "b104650165ffed5bf13e1f5f0de810762a32fba6e897f9dd62a166ccad251914"
-  },
   "sglang.srt.managers.scheduler.Scheduler._arm_prefill_decode_interval": {
-    "def_line": 1356,
+    "def_line": 1369,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 1356,
+    "first_line": 1369,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler._arm_prefill_decode_interval",
     "sha256": "b947c1c245e32fec08a82b723bda4f6f960134c98771baa19f7ddbe7f0a4d78b"
   },
   "sglang.srt.managers.scheduler.Scheduler._build_hisparse_decode_batch": {
-    "def_line": 3590,
+    "def_line": 3702,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3590,
+    "first_line": 3702,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler._build_hisparse_decode_batch",
-    "sha256": "32463cff490c0b40f013535c451359542971742a050a11c747030724d6f1afd4"
+    "sha256": "9108c86144fbf056aa00aaf4868911d36aa5157ca9a7ed5b9f28ac71c26c6ab6"
   },
   "sglang.srt.managers.scheduler.Scheduler._get_new_batch_prefill_raw": {
-    "def_line": 3839,
+    "def_line": 3954,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3839,
+    "first_line": 3954,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler._get_new_batch_prefill_raw",
-    "sha256": "ffcffc3ef31119f47804f9175893db172717c3259dece0d54eb4e2c9e7c62808"
-  },
-  "sglang.srt.managers.scheduler.Scheduler._prefetch_after_device_hit_loss": {
-    "def_line": 3215,
-    "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3215,
-    "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
-    "qualname": "Scheduler._prefetch_after_device_hit_loss",
-    "sha256": "36e9657925ebb4eca7f23edac7f61de1e0c8b6bc1acf79ad3ddc612d580ac4ab"
+    "sha256": "186e1e84523ffc599cbf4ed9a6ee839adfdbfbc9e12d54b193408bdf5f0385f6"
   },
   "sglang.srt.managers.scheduler.Scheduler._process_hicache_events": {
-    "def_line": 3633,
+    "def_line": 3750,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3633,
+    "first_line": 3750,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler._process_hicache_events",
     "sha256": "27ce9a516529a3a9f85d9d9606a0b5f88a23fdc1625ffdbff091b758155bfbb5"
   },
   "sglang.srt.managers.scheduler.Scheduler._should_defer_prefill": {
-    "def_line": 1349,
+    "def_line": 1362,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 1349,
+    "first_line": 1362,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler._should_defer_prefill",
     "sha256": "340938fc103e05d282b7f1e8bd86febe2530ca78f20a4d534d9242a0f924c8e5"
   },
   "sglang.srt.managers.scheduler.Scheduler.abort_request": {
-    "def_line": 5303,
+    "def_line": 5458,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 5303,
+    "first_line": 5458,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.abort_request",
-    "sha256": "1956dca1634693a3449eafca24f5bea9ba3ff0e8eccf5496702e60e2f405f6c6"
-  },
-  "sglang.srt.managers.scheduler.Scheduler.can_schedule_lora_req": {
-    "def_line": 4171,
-    "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 4171,
-    "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
-    "qualname": "Scheduler.can_schedule_lora_req",
-    "sha256": "9d76199d4b6fb14cefc25ef7f4f245c852d226b99a307c16e5cd0943bbb3b37d"
+    "sha256": "8a904ff5873344d94147421eb7934cfd893047421cb753c4c6881fc880f698da"
   },
   "sglang.srt.managers.scheduler.Scheduler.collect_inflight_reqs": {
-    "def_line": 5285,
+    "def_line": 5440,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 5285,
+    "first_line": 5440,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.collect_inflight_reqs",
     "sha256": "4e2877a205014dcc29a7b6095b78b8d5f7ef8193c443b3492d20dc92fe1ec2e1"
   },
   "sglang.srt.managers.scheduler.Scheduler.get_new_batch_prefill": {
-    "def_line": 3812,
+    "def_line": 3927,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3812,
+    "first_line": 3927,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.get_new_batch_prefill",
     "sha256": "e75c7f169063d083093ef8f5732de6d09f16cff0d1c475e9fa7f0ce421e48d13"
   },
   "sglang.srt.managers.scheduler.Scheduler.get_next_batch_to_run": {
-    "def_line": 3649,
+    "def_line": 3766,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3648,
+    "first_line": 3765,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.get_next_batch_to_run",
-    "sha256": "fd12109782672676b523d076c7c17c484a187a5f2bdc7c66d17ff15347c6e879"
+    "sha256": "b679aebfca34c95659052cb81694286b40a058fa53945c01ed1ffe48cde6feaa"
   },
   "sglang.srt.managers.scheduler.Scheduler.get_num_allocatable_reqs": {
-    "def_line": 3792,
+    "def_line": 3907,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3792,
+    "first_line": 3907,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.get_num_allocatable_reqs",
     "sha256": "26382ca58432c396b19ab0640af73ff4c2b6ca804f5a0e2956cf9703ee173e72"
   },
-  "sglang.srt.managers.scheduler.Scheduler.init_batch_result_processor": {
-    "def_line": 2490,
+  "sglang.srt.managers.scheduler.Scheduler.get_prefill_adder_class": {
+    "def_line": 2362,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 2490,
+    "first_line": 2362,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
-    "qualname": "Scheduler.init_batch_result_processor",
-    "sha256": "ff4c1a6b059bda3653ce2314bbf61f9937cb189abd2f2855f04fba5b04591e4b"
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
+    "qualname": "Scheduler.get_prefill_adder_class",
+    "sha256": "8fe83b67271b97b0b4ccbbc193a0e555a59b379c0f86ec23342f7821c69e8bc7"
   },
   "sglang.srt.managers.scheduler.Scheduler.init_hisparse_coordinator": {
-    "def_line": 1259,
+    "def_line": 1271,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 1259,
+    "first_line": 1271,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.init_hisparse_coordinator",
     "sha256": "bbb070936d1dae8f7a8ba22bb333b1da0b90ddcadfea0b1aa6e07b05d184d575"
   },
   "sglang.srt.managers.scheduler.Scheduler.is_fully_idle": {
-    "def_line": 5017,
+    "def_line": 5168,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 5017,
+    "first_line": 5168,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.is_fully_idle",
-    "sha256": "91f0bbf9fab6030b9ef90b362b5dc540c182004ed4491a9af41aae026526e6a6"
+    "sha256": "cc5adf441d4da17a66c05d2f24c8ab84a21142403bb8e17a6c7499356c6d2913"
   },
   "sglang.srt.managers.scheduler.Scheduler.maybe_send_health_check_signal": {
-    "def_line": 4870,
+    "def_line": 5020,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 4870,
+    "first_line": 5020,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.maybe_send_health_check_signal",
     "sha256": "e525f92d817fafbc8d62bfba0e4501bf5d6a723742af1adcae3fa66351b5e7ed"
   },
   "sglang.srt.managers.scheduler.Scheduler.maybe_sleep_on_idle": {
-    "def_line": 5748,
+    "def_line": 5926,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 5748,
+    "first_line": 5926,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.maybe_sleep_on_idle",
     "sha256": "9c18f56637f50866879a2196a1f94c18bc165f103bb1f1c2ebcf09b45689c6d2"
   },
   "sglang.srt.managers.scheduler.Scheduler.on_idle": {
-    "def_line": 4922,
+    "def_line": 5072,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 4921,
+    "first_line": 5071,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.on_idle",
-    "sha256": "c52bc63841c112d43b7d73b5479fa69eade07d3afaa204f35226fe96cabad0c5"
+    "sha256": "a435f7537f92013e03c90cbfd18744b1c7e7a8315d163c843afd35d0b749ef85"
   },
   "sglang.srt.managers.scheduler.Scheduler.process_pending_chunked_abort": {
-    "def_line": 3543,
+    "def_line": 3650,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3543,
+    "first_line": 3650,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.process_pending_chunked_abort",
-    "sha256": "6452d341ca8fe0f49a39c404f5e6f4bbc892dfbc350ee72ad6d85c6f46c4ed8f"
+    "sha256": "9f466736f6b4319565bddef315c389730a6bce4f95c6abaa9980be251109b9c9"
   },
   "sglang.srt.managers.scheduler.Scheduler.publish_load_snapshot": {
-    "def_line": 843,
+    "def_line": 852,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 843,
+    "first_line": 852,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.publish_load_snapshot",
     "sha256": "c8f5d843d86180dd03470f117110987be3ec37377fcde3eedc26795280aedd2a"
   },
   "sglang.srt.managers.scheduler.Scheduler.record_weight_version_change": {
-    "def_line": 5264,
+    "def_line": 5419,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 5264,
+    "first_line": 5419,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.record_weight_version_change",
     "sha256": "c441c4f79d9c35e538210986ae58ac2d54467fe9e969928692facd1796637e03"
   },
   "sglang.srt.managers.scheduler.Scheduler.stash_chunked_request": {
-    "def_line": 3537,
+    "def_line": 3644,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 3537,
+    "first_line": 3644,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.stash_chunked_request",
     "sha256": "db4fe1ab579dee727e2ea023e9e986de252914b28ec259ea9d3ae3210284475c"
   },
   "sglang.srt.managers.scheduler.Scheduler.update_running_batch": {
-    "def_line": 4199,
+    "def_line": 4335,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 4199,
+    "first_line": 4335,
     "kind": "function",
-    "module_sha256": "71fbb0e6ef7436b751f9b1c1561448c00f628b2870d4aeaacda0ba0018e066b2",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
     "qualname": "Scheduler.update_running_batch",
-    "sha256": "6988f46d46078e243e048a186c9b70ca65c3e938f596abfbe835151dc4033dd6"
+    "sha256": "eee23290197b73774f406c353e9215eb56238ee88e713223286a795feed2bbb9"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._append_prefill_hidden_states": {
-    "def_line": 621,
+    "def_line": 641,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 621,
+    "first_line": 641,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._append_prefill_hidden_states",
     "sha256": "88a52f8cb17a62d19a004570318e9739c9c7ff7763bcc3e96fe7ef16ceb540b7"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._apply_chunked_prefill_logprobs": {
-    "def_line": 713,
+    "def_line": 733,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 713,
+    "first_line": 733,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._apply_chunked_prefill_logprobs",
     "sha256": "c922a70da117c39cd062a8b738b96e000769066de86b228453d0e76bd3137ec0"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._apply_prefill_grammar": {
-    "def_line": 693,
+    "def_line": 713,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 693,
+    "first_line": 713,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._apply_prefill_grammar",
     "sha256": "7b17347ee6fe06e7b3e237348676faf11f34c544d74905839d916aa92e6d71ed"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._apply_prefill_logprobs": {
-    "def_line": 544,
+    "def_line": 564,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 544,
+    "first_line": 564,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._apply_prefill_logprobs",
     "sha256": "e50b2370237f38a0747917f54055446d091131715d6cd13c45adcd2969861754"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._convert_embeddings": {
-    "def_line": 497,
+    "def_line": 517,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 497,
+    "first_line": 517,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._convert_embeddings",
     "sha256": "dd679ee99219f03414cfcc1265e9c4b3658ad98f92fe9ee025abfb696c23cdb1"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._get_prefill_hidden_capture_mode": {
-    "def_line": 684,
+    "def_line": 704,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 683,
+    "first_line": 703,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._get_prefill_hidden_capture_mode",
     "sha256": "9b1d68206c443ae31a35772328b565efb34f6ceb5750a1c10221342cc81eae6b"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._handle_finish_state_updated_req": {
-    "def_line": 1343,
+    "def_line": 1367,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 1343,
+    "first_line": 1367,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._handle_finish_state_updated_req",
-    "sha256": "b74d195448104432b0530cd4303f7a82fcbe276fd14aa73b881962ffa6147417"
+    "sha256": "213cb580178f96afdfd371f16cca7e450b07d42ccf0807fb2cc41407b7450b5d"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._handle_sampling_mask_abort": {
-    "def_line": 1326,
+    "def_line": 1354,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 1326,
+    "first_line": 1354,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._handle_sampling_mask_abort",
-    "sha256": "dc7fbbf1cf0db4b8144dba01dc76c265841435757b2157739b94a8f399dfcbd9"
+    "sha256": "e8b64bb83ac2aabff951f0b3878c710330e44d994da3b795d0446e98e01a0abd"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._mamba_prefix_cache_update": {
-    "def_line": 1461,
+    "def_line": 1481,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 1461,
+    "first_line": 1481,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._mamba_prefix_cache_update",
     "sha256": "381b2704b07a3bdf0015a302c96815e2e04f80d79ead5016fc2b0fd4cf015c9f"
   },
@@ -436,7 +373,7 @@
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
     "first_line": 192,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._maybe_collect_customized_info",
     "sha256": "1fc6dc749dc0053e346137a93a1d29049a42f3dfeb2bb2914c62942cbe8e1814"
   },
@@ -445,7 +382,7 @@
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
     "first_line": 181,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._maybe_collect_indexer_topk",
     "sha256": "81b3a0c52e37eca59a62524b8f7ce89a44adfbd4e2cb271dab057097b5e45e70"
   },
@@ -454,34 +391,43 @@
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
     "first_line": 136,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._maybe_collect_routed_experts",
     "sha256": "8709eb9d19679a79982c3b6512ac372c5f0d95f5e0da54e1183b74746ba0c35d"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._maybe_update_reasoning_tokens": {
-    "def_line": 1438,
+    "def_line": 1458,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 1438,
+    "first_line": 1458,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._maybe_update_reasoning_tokens",
     "sha256": "6eca7116efaf4cc5a1ea13cf35f894e85bed83e3d956418bdf5fc5dd304a5fc0"
   },
-  "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._validate_pp_skip_output_comm": {
-    "def_line": 581,
+  "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._prepare_kv_cache_release": {
+    "def_line": 1346,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 580,
+    "first_line": 1346,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
+    "qualname": "SchedulerBatchResultProcessor._prepare_kv_cache_release",
+    "sha256": "40edc281164e56afe485fadebfeb656aecf6ab60714805fbf2fb025167ee0c8a"
+  },
+  "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._validate_pp_skip_output_comm": {
+    "def_line": 601,
+    "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
+    "first_line": 600,
+    "kind": "function",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor._validate_pp_skip_output_comm",
     "sha256": "8438d41e15d9c04f208778f70acd48cca17817e0bac210ef4c94fc28372eccf3"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor.add_sampling_mask_return_values": {
-    "def_line": 1160,
+    "def_line": 1180,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 1160,
+    "first_line": 1180,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor.add_sampling_mask_return_values",
     "sha256": "5758de165e281d314ee84b9e6d522a4ea5fd683949b4df065b2b2d43405435df"
   },
@@ -490,34 +436,34 @@
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
     "first_line": 249,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor.consume_auxiliary_output",
     "sha256": "881fdcc6ed8db2c96d3c06fa806ff3f0f507737f2f529c410f78817ad4a9678d"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor.get_sampling_mask_finish_reason": {
-    "def_line": 1296,
+    "def_line": 1316,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 1296,
+    "first_line": 1316,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor.get_sampling_mask_finish_reason",
     "sha256": "888dce4d6aac5d90ee82b48b9aba14b8b8a2accbdfeebacc97db2feeb71df94e"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor.materialize_sampling_mask_output": {
-    "def_line": 1229,
+    "def_line": 1249,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 1228,
+    "first_line": 1248,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor.materialize_sampling_mask_output",
     "sha256": "18b95885d7f3f30a1ecc0f1a8b0cdd681dd2266b90c354aefc5f701fd9686463"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor.move_logprobs_to_cpu": {
-    "def_line": 516,
+    "def_line": 536,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 516,
+    "first_line": 536,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor.move_logprobs_to_cpu",
     "sha256": "31c54a576e6c47753e3b9a1f35e0ea39c688b2840453d30a70fbcd3be5edccf0"
   },
@@ -526,99 +472,90 @@
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
     "first_line": 117,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor.process_batch_result_prebuilt",
-    "sha256": "7618425b1e51cc4a42ffddc44a4ffe205f16be2765a7f130c27a67025b9e18fc"
+    "sha256": "f95df4661d748de522e131abdcae78e83aa5cd87856409069fb329b15d781cc4"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor.process_batch_result_prefill": {
     "def_line": 258,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
     "first_line": 258,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor.process_batch_result_prefill",
-    "sha256": "cd5df4324f0984c50703376ce7a32550a8c19d74fd620616c5448591f097b721"
+    "sha256": "b061daa15f8dee2a886af0d2242ccbb475525616b0aec269ce44831cf5ddb4db"
   },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor.snapshot_auxiliary_output_starts": {
     "def_line": 218,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
     "first_line": 217,
     "kind": "function",
-    "module_sha256": "016ea3671b80c2e37a294acf01b75f8153ed0224e02e85d60b32280a50aab5f3",
+    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
     "qualname": "SchedulerBatchResultProcessor.snapshot_auxiliary_output_starts",
     "sha256": "cb31dab5a604245f6bef3ecf02a554ea291890b538c14e05432284e9cc06cd98"
   },
   "sglang.srt.managers.scheduler_components.invariant_checker.SchedulerInvariantChecker": {
-    "def_line": 52,
+    "def_line": 54,
     "file": "sglang/srt/managers/scheduler_components/invariant_checker.py",
-    "first_line": 51,
+    "first_line": 53,
     "kind": "class",
-    "module_sha256": "908ef18f331426054f3e54657281733c5cd09578674ccede78c7eccc3b7bc1bb",
+    "module_sha256": "c6556e0a52001c9d592910d693bb4f4804331ba8e8f503206e10845b79c0ae24",
     "qualname": "SchedulerInvariantChecker",
-    "sha256": "c48c50c28825cba0e3749d5742f70b3e8b8e62a962706fafe2da4f04427df573"
+    "sha256": "f3113fb9801519094bb6a1532629f5c0a3c5d1745078a59943bf4a360b70a4f8"
   },
-  "sglang.srt.mem_cache.base_prefix_cache.InitLoadBackParams": {
-    "def_line": 251,
-    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
-    "first_line": 250,
-    "kind": "class",
-    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
-    "qualname": "InitLoadBackParams",
-    "sha256": "07d059cfaa657582ebc57ffd4fb34df52dd982f1561a9577be3162d016fe4b06"
-  },
-  "sglang.srt.mem_cache.chunk_cache.ChunkCache": {
-    "def_line": 35,
-    "file": "sglang/srt/mem_cache/chunk_cache.py",
-    "first_line": 35,
-    "kind": "class",
-    "module_sha256": "e618646ca1440d8140abe0e7b634d70a1f86b8fd859252997d7e8a1d40cb9d2c",
-    "qualname": "ChunkCache",
-    "sha256": "c5a1bd7e4ea03ec906b28b24f9deb7be964101c658e15429af870a4068e4ef79"
+  "sglang.srt.mem_cache.allocator.base.BaseTokenToKVPoolAllocator.create_prefill_budget": {
+    "def_line": 72,
+    "file": "sglang/srt/mem_cache/allocator/base.py",
+    "first_line": 72,
+    "kind": "function",
+    "module_sha256": "e5eacbff7efa88d3dabd5117dd21950bb75a2176845fecf9ec838454fd281dfc",
+    "qualname": "BaseTokenToKVPoolAllocator.create_prefill_budget",
+    "sha256": "8f3d2e863a9acfd6d88953256e4e68e3141e917738b1d07c6c031b8c99edb73f"
   },
   "sglang.srt.mem_cache.common.checkpoint_kv_cache": {
-    "def_line": 172,
+    "def_line": 253,
     "file": "sglang/srt/mem_cache/common.py",
-    "first_line": 172,
+    "first_line": 253,
     "kind": "function",
-    "module_sha256": "1bf95d24f84b421fc15b27d479c2e662ba305a56303f747b92f1e3bdf1d93cec",
+    "module_sha256": "e8d3ff0a8a0357e04e048bd18bd56f109ac59d6e44b205d366d9c617b8effc7d",
     "qualname": "checkpoint_kv_cache",
-    "sha256": "ce1da2d5082e060a38f5d508e8632b19a0ece501bf5f9193970d9bcef850b568"
+    "sha256": "61d4ff19b3d53de61588d552f1d074fdf7a15ddcac4edd1714f0175c1695db3c"
   },
   "sglang.srt.mem_cache.common.release_kv_cache": {
-    "def_line": 297,
+    "def_line": 378,
     "file": "sglang/srt/mem_cache/common.py",
-    "first_line": 297,
+    "first_line": 378,
     "kind": "function",
-    "module_sha256": "1bf95d24f84b421fc15b27d479c2e662ba305a56303f747b92f1e3bdf1d93cec",
+    "module_sha256": "e8d3ff0a8a0357e04e048bd18bd56f109ac59d6e44b205d366d9c617b8effc7d",
     "qualname": "release_kv_cache",
-    "sha256": "ebadb5bf568ce27faedff589f53ec78dc41c44fb7c01a4b9bda66b51a25aabb2"
+    "sha256": "90e19434d1fa8c220ddc6bf9349fcbf831e46de1310d92156887a113045435f9"
+  },
+  "sglang.srt.mem_cache.prefill_budget.PrefillBudget": {
+    "def_line": 62,
+    "file": "sglang/srt/mem_cache/prefill_budget.py",
+    "first_line": 62,
+    "kind": "class",
+    "module_sha256": "837ac7c099166d061b9a76e24825d0555f3845e1a3bb53e785c5ae8e6f0092a2",
+    "qualname": "PrefillBudget",
+    "sha256": "1852c1831856f5a1d1dc448e8dbcbce0d84f5cdc8a78fe4abf527557b79e4031"
   },
   "sglang.srt.model_executor.model_runner.ModelRunner.maybe_init_hisparse_coordinator": {
-    "def_line": 948,
+    "def_line": 1007,
     "file": "sglang/srt/model_executor/model_runner.py",
-    "first_line": 948,
+    "first_line": 1007,
     "kind": "function",
-    "module_sha256": "f7ba0019c6fc6ed800a81d6c23ebc57f9c73facab523c0bd4d5aed004fa98f95",
+    "module_sha256": "0192531598c05e5fc5316a634ba291b81b6bc1572694fb6b303abc26690a3899",
     "qualname": "ModelRunner.maybe_init_hisparse_coordinator",
-    "sha256": "9eff7263a02e58d6e688974be035f5d44dc97c67231bd014ba34c7be436d4aa1"
+    "sha256": "2299927652002edc77d16b792e864a6195df0bed5a49d356dd9f1e8aa6018689"
   },
   "sglang.srt.observability.req_time_stats.set_schedule_time_batch": {
-    "def_line": 1236,
+    "def_line": 1295,
     "file": "sglang/srt/observability/req_time_stats.py",
-    "first_line": 1236,
+    "first_line": 1295,
     "kind": "function",
-    "module_sha256": "d3d07bfc9c3d1d688e6216f41ede9078b3602aab37a71b63af5032655a78f8d2",
+    "module_sha256": "465df8a3cc97976ae715451fa5e73a53219de0651a423e54d80a7c47bf293669",
     "qualname": "set_schedule_time_batch",
     "sha256": "25c4305770f5b7b5ad726d69361807a389dd0e889223b5f98e1f71e2fd868e43"
-  },
-  "sglang.srt.observability.req_time_stats.set_time_batch": {
-    "def_line": 1255,
-    "file": "sglang/srt/observability/req_time_stats.py",
-    "first_line": 1255,
-    "kind": "function",
-    "module_sha256": "d3d07bfc9c3d1d688e6216f41ede9078b3602aab37a71b63af5032655a78f8d2",
-    "qualname": "set_time_batch",
-    "sha256": "d4b3f1e91fa6451ef643a4ecea9177fa7d776d559c5bce22a26c0427ce14d961"
   },
   "sglang.srt.observability.scheduler_stage_metrics.scheduler_stage_method": {
     "def_line": 166,
@@ -630,47 +567,38 @@
     "sha256": "b10d997b60aea56e7403d2bf95bc429e718cf414ce73aae56d943d2fd6227eaf"
   },
   "sglang.srt.runtime_context.get_disagg": {
-    "def_line": 1318,
+    "def_line": 1334,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1318,
+    "first_line": 1334,
     "kind": "function",
-    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
+    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
     "qualname": "get_disagg",
     "sha256": "243c8aa53544f94cebe52f535535b8703dc4a067203fd72dbdee213d7949a824"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1294,
+    "def_line": 1310,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1294,
+    "first_line": 1310,
     "kind": "function",
-    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
+    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
-  "sglang.srt.runtime_context.get_schedule": {
-    "def_line": 1298,
-    "file": "sglang/srt/runtime_context.py",
-    "first_line": 1298,
-    "kind": "function",
-    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
-    "qualname": "get_schedule",
-    "sha256": "9d366d93f808e81cc5da035ee77021a32ca17f085ee4067829d3515d8180329a"
-  },
   "sglang.srt.runtime_context.get_spec": {
-    "def_line": 1306,
+    "def_line": 1322,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1306,
+    "first_line": 1322,
     "kind": "function",
-    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
+    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
     "qualname": "get_spec",
     "sha256": "35b16c67cc0251bd79124092f06fc2d6a322ed2cf3b5a1120afd724aa41aab2f"
   },
   "sglang.srt.sampling.sampling_params.SamplingParams.verify": {
-    "def_line": 224,
+    "def_line": 229,
     "file": "sglang/srt/sampling/sampling_params.py",
-    "first_line": 224,
+    "first_line": 229,
     "kind": "function",
-    "module_sha256": "443fdeadc67e0a1b6c5a5c6adf6bb3eedfb02dbf353160e829b3667df2d3979a",
+    "module_sha256": "0929211a3fb57315e38a98489185f95e6926c7a23f7d6b946ec103f1a956ffdb",
     "qualname": "SamplingParams.verify",
     "sha256": "2fc0fbbe4f538378cb80e348ea0b14ae4e5d8f0e5b3664329be8427e3495dd38"
   }
