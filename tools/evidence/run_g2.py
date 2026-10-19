@@ -14,9 +14,11 @@ the arm directory. Compare afterwards with
 ``compare.py <fork> <plugin> --require-observer 2``.
 
 Since Phase 5 the fork arm is production's code (``FORK_ROOT``, production
-``897286b12a``, whose ``test/manual`` harnesses equal the fork's), both arms
-use production's interpreter, and the plugin arm runs on the pin
-``35f3c96ff4``.
+``897286b12a``, whose ``test/manual`` harnesses equal the fork's). Since
+Phase 6 the plugin arm runs on the pin v0.5.22 and each arm has its own
+interpreter (``PYTHON``): production's for the fork arm, the Phase 6
+interpreter for the plugin arm; the client harnesses run on production's in
+both arms.
 """
 
 import argparse
@@ -29,13 +31,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from run_compat import preflight, stop, wait_ready  # noqa: E402
+from run_compat import INTERPRETERS, preflight, stop, wait_ready  # noqa: E402
 
 QWEN = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 FORK_ROOT = QWEN / ".worktrees" / "sglang-dsh-production-20261004"  # production
-PIN_ROOT = QWEN / ".worktrees" / "sglang-main-35f3c96ff4"
-PYTHON = QWEN / "results" / "dsh-maintenance-20261004" / "upstream-runtime-env" / "bin" / "python"
+PIN_ROOT = QWEN / ".worktrees" / "sglang-v0.5.22"
+PYTHON = {arm: QWEN / path for arm, path in INTERPRETERS.items()}  # Per arm.
 
 
 def server(arm, base, output):
@@ -56,13 +58,14 @@ def server(arm, base, output):
     )
     if arm == "fork":
         env["PYTHONPATH"] = os.pathsep.join([str(site), str(FORK_ROOT / "python")])
-        return [str(PYTHON), "-m", "sglang.launch_server", *args], env, None
+        return [str(PYTHON["fork"]), "-m", "sglang.launch_server", *args], env, None
     env["SGLANG_QSA_MODEL_COMPAT"] = "1"
     env["PYTHONPATH"] = os.pathsep.join(
         [str(site), str(PLUGIN_ROOT / "src"), str(PIN_ROOT / "python")]
     )
     run_dir = output / "launcher"
-    argv = [str(PYTHON), "-m", "sglang_qsa_hisparse.launch", "--run-dir", str(run_dir), "--", *args]
+    launcher = ["-m", "sglang_qsa_hisparse.launch", "--run-dir", str(run_dir), "--"]
+    argv = [str(PYTHON["plugin"]), *launcher, *args]
     return argv, env, run_dir / "ready.json"
 
 
@@ -95,7 +98,7 @@ def harness(output, url, fixtures, name, *args):
     manual = FORK_ROOT / "test" / "manual"
     with (output / f"{name}.log").open("w") as log:
         return subprocess.run(
-            [str(PYTHON), str(manual / f"qsa_hisparse_prefix_{name}.py"), *args],
+            [str(PYTHON["fork"]), str(manual / f"qsa_hisparse_prefix_{name}.py"), *args],
             cwd=manual,
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
             stdout=log,

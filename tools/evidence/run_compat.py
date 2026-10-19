@@ -16,8 +16,11 @@ then ``compare.py <fork dir> <plugin dir>``. Each run:
    checking the base values the derivation relies on; every SGLANG_QSA_*
    variable and SGLANG_PLUGINS removed, then the arm's variables set; the
    arm's PYTHONPATH (fork: <fork>/python; plugin: <plugin>/src:<pin>/python
-   through the W7 launcher with ``--run-dir <arm dir>/launcher``);
-   PYTHONDONTWRITEBYTECODE=1 and SGLANG_CACHE_DIR inside the arm directory;
+   through the W7 launcher with ``--run-dir <arm dir>/launcher``) and
+   interpreter (``INTERPRETERS``: production's for the fork arm, the Phase 6
+   one for the plugin arm; the harness runs on production's; ``--python``
+   overrides both); PYTHONDONTWRITEBYTECODE=1 and SGLANG_CACHE_DIR inside the
+   arm directory;
 3. refuses to start if the port is production's 8081 or in use, or if
    nvidia-smi lists any compute process;
 4. starts the server in its own session, logging to server.log, waits for the
@@ -46,6 +49,14 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 PROFILE = Path(__file__).resolve().with_name("compat_profile.json")
 HARNESS = Path("test/manual/qsa_hisparse_prefix_acceptance.py")
 PRODUCTION_PORT = 8081
+# Server interpreters per arm, relative to the workspace (the parent of the
+# plugin checkout): production's code runs on production's interpreter, the
+# plugin on the pin (v0.5.22) on the Phase 6 interpreter. Client harnesses use
+# the fork arm's.
+INTERPRETERS = {
+    "fork": "results/dsh-maintenance-20261004/upstream-runtime-env/bin/python",
+    "plugin": "results/phase6-20261018/runtime-env/bin/python",
+}
 
 
 def edited_args(command, profile):
@@ -168,18 +179,14 @@ def parse(argv):
     parser.add_argument("--fixtures", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
-        "--python",
-        default=os.environ.get(
-            "QSA_PYTHON",
-            str(parent / "results/dsh-maintenance-20261004/upstream-runtime-env/bin/python"),
-        ),
+        "--python", help="interpreter of the server and the harness (default: INTERPRETERS)"
     )
     # Since Phase 5 the fork arm is production's code (897286b12a).
     parser.add_argument(
         "--fork-root", type=Path, default=parent / ".worktrees/sglang-dsh-production-20261004"
     )
     parser.add_argument(
-        "--pin-root", type=Path, default=parent / ".worktrees/sglang-main-35f3c96ff4"
+        "--pin-root", type=Path, default=parent / ".worktrees/sglang-v0.5.22"
     )
     parser.add_argument("--plugin-root", type=Path, default=PLUGIN_ROOT)
     parser.add_argument("--profile", type=Path, default=PROFILE)
@@ -189,6 +196,8 @@ def parse(argv):
 
 def main(argv=None):
     args = parse(argv)
+    python = args.python or str(PLUGIN_ROOT.parent / INTERPRETERS[args.arm])
+    harness_python = args.python or str(PLUGIN_ROOT.parent / INTERPRETERS["fork"])
     profile = json.loads(args.profile.read_text())
     base = json.loads(args.base_profile.read_text())
     fixtures = args.fixtures.resolve()
@@ -200,12 +209,12 @@ def main(argv=None):
         "pin": args.pin_root.resolve(),
     }
     server, env, ready_file = server_command(
-        args.arm, base, profile, python=args.python, roots=roots, output=output
+        args.arm, base, profile, python=python, roots=roots, output=output
     )
     host, port = option(server, "--host"), int(option(server, "--port"))
     url = f"http://{host}:{port}"
     harness = [
-        args.python,
+        harness_python,
         str(roots["fork"] / HARNESS),
         "baseline",
         "--url",

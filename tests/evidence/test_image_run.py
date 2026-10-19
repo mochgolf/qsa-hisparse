@@ -77,7 +77,7 @@ def fake(evidence, tmp_path, monkeypatch):
     monkeypatch.setattr(run, "GPU_IDLE_POLL", 0.01)
     monkeypatch.setenv("SGLANG_VLM_CACHE_SIZE_MB", "77")  # Never reaches the cache-on session.
     for name, value in (
-        ("PYTHON", Path(sys.executable)),
+        ("PYTHON", {"fork": Path("/unused"), "plugin": Path(sys.executable)}),
         ("PLUGIN_ROOT", tmp_path / "plugin"),
         ("FORK_ROOT", tmp_path / "fork"),
         ("PIN_ROOT", tmp_path / "pin"),

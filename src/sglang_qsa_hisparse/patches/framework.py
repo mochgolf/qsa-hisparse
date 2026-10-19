@@ -18,8 +18,10 @@ from sglang_qsa_hisparse.patching import FRAMEWORK, patch, verify_final
         "sglang.srt.plugins.hook_registry._propagate_patch",
         "sglang.srt.plugins.load_plugins",
         "sglang.srt.managers.scheduler.run_scheduler_process",
-        # publish() records this process's ranks, which the hook reads.
+        # publish() records this process's ranks, which the hook reads
+        # (since v0.5.22 through _configure_context on the process context).
         "sglang.srt.runtime_context.publish",
+        "sglang.srt.runtime_context._configure_context",
         "sglang.srt.runtime_context.get_parallel",
     ),
     reason=(

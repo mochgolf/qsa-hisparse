@@ -29,7 +29,10 @@ runs, whose ``<node id> SKIPPED`` lines identify the skipped tests.
 without ``-v`` (run2), where skips are reported by file and reason.
 ``--plugin-inventory`` (default: ``--inventory``) gives the plugin arm its own
 frozen inventory, for a ``-v`` plugin run against the run2 fork reference;
-across arms, skips are then compared by file, reason and count.
+across arms, skips are then compared by file, reason and count. Test IDs in
+the plugin inventory but not in the fork inventory (upstream tests the
+plugin's pin added to files it runs unmodified) have no fork counterpart:
+each must pass in the plugin arm and is not compared across arms.
 
 The reference fork arm is Phase 2's (pin 76e06febab). SGLang v0.5.21 moved
 the registered kernel tests to ``test/registered/kernels/ops/attention/qsa/``
@@ -43,6 +46,9 @@ pin's layout (``run_g21.py``), so both arms use
 ``g21_step8_inventory_35f3c96ff4.txt``. At 35f3c96ff4 (and in production)
 the two former known failures build the QSA backend with its constructor
 instead of ``__new__``, so ``--known`` lists only what that fork run fails.
+Since Phase 6 (pin v0.5.22) the plugin arm uses
+``g21_step8_inventory_v0.5.22.txt``: the Phase 5 inventory plus the tests
+v0.5.22 added to ``test_qsa_indexer.py`` (plugin-only).
 """
 
 import argparse
@@ -140,7 +146,7 @@ def main(argv=None):
     parser.add_argument("--known", nargs="*", default=[], help="FILE::TEST=SIGNATURE")
     args = parser.parse_args(argv)
     known = dict(item.rsplit("=", 1) for item in args.known)
-    arms, problems = {}, []
+    arms, problems, inventory_ids = {}, [], {}
     for arm, logs in (("F", args.fork), ("P", args.plugin)):
         tests, skips = {}, Counter()
         for log in logs:
@@ -149,6 +155,7 @@ def main(argv=None):
     for arm, inventory in (("F", args.inventory), ("P", args.plugin_inventory or args.inventory)):
         tests, skips, _ = arms[arm]
         ids, skip_inventory = read_inventory(inventory)
+        inventory_ids[arm] = ids
         if set(tests) != ids:
             problems.append(f"{arm}: IDs differ from inventory: missing {sorted(ids - set(tests))}, "
                             f"extra {sorted(set(tests) - ids)}")
@@ -175,16 +182,20 @@ def main(argv=None):
         return "known failure"
 
     fork, plugin = arms["F"][0], arms["P"][0]
+    plugin_only = inventory_ids["P"] - inventory_ids["F"]
     for key in sorted(set(fork) | set(plugin)):
         f = verdict(key, fork[key]) if key in fork else "missing"
         p = verdict(key, plugin[key]) if key in plugin else "missing"
-        if f != p or f not in ("passed", "known failure"):
+        if key in plugin_only:
+            if p != "passed":
+                problems.append(f"{key}: plugin-only test: P {p}")
+        elif f != p or f not in ("passed", "known failure"):
             problems.append(f"{key}: F {f}; P {p}")
     by_file = [Counter({k: v for k, v in arms[arm][1].items() if k[0] != "id"}) for arm in "FP"]
     if by_file[0] != by_file[1]:
         problems.append(f"skips differ: F {dict(by_file[0])}, P {dict(by_file[1])}")
     print(f"{len(fork)} outcomes + {sum(arms['F'][1].values())} skipped per arm (F); "
-          f"declared known failures: {sorted(known)}")
+          f"{len(plugin_only)} plugin-only tests; declared known failures: {sorted(known)}")
     for problem in problems:
         print("DIFF", problem)
     print("PASS" if not problems else f"FAIL: {len(problems)} problem(s)")

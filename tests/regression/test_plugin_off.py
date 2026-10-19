@@ -5,12 +5,13 @@ A fresh process gets the launcher's environment (private dist-info on
 runs SGLang's plugin loader, and then runs the pinned upstream subset from
 ``docs/baseline.md`` in-process with pytest. The plugin must be loaded, the
 HookRegistry must stay empty, no activation record may appear, and the subset
-must give the pinned results (those of pristine 35f3c96ff4 with no plugin on
-the path, CPU runner, 2026-10-08): the five unit files 82 passed / 3 skipped
-(13 subtests), ``kernels/ops/attention/qsa/test_qsa.py`` (``kernel/qsa/``
-before v0.5.21) 35 passed / 2 skipped with exactly the 13 CUDA-only failures
-("No CUDA GPUs are available"; at v0.5.21: 81 / 3 / 9 subtests and two
-unparametrized CUDA-only failures).
+must give the pinned results (those of pristine v0.5.22 with no plugin on
+the path, CPU runner, Phase 6 interpreter, 2026-10-19): the five unit files
+90 passed / 3 skipped, ``kernels/ops/attention/qsa/test_qsa.py`` 35 passed /
+106 skipped (CUDA-only: 96 ``test_qsa_prefill_kv_packing`` cases of #41933,
+FP8 and SM121 tests) with exactly the 13 CUDA-only failures ("No CUDA GPUs are
+available"), 23 subtests passed. Earlier pins: 35f3c96ff4 82 / 3, 35 / 2 / 13,
+13 subtests; v0.5.21 81 / 3 / 9 subtests and two CUDA-only failures.
 """
 
 import json
@@ -115,7 +116,7 @@ def test_installed_but_off_is_pristine_upstream(tmp_path):
     unit = Counter(v for k, v in outcomes.items() if not k.startswith("registered/kernels/"))
     qsa = Counter(v for k, v in outcomes.items() if k.startswith("registered/kernels/ops/attention/qsa/"))
     failed = {k for k, v in outcomes.items() if v == "failed"}
-    assert unit == {"passed": 82, "skipped": 3}, unit
-    assert qsa == {"passed": 35, "skipped": 2, "failed": 13}, qsa
+    assert unit == {"passed": 90, "skipped": 3}, unit
+    assert qsa == {"passed": 35, "skipped": 106, "failed": 13}, qsa
     assert failed == CUDA_ONLY_FAILURES
-    assert state["subtests"] == {"passed": 13}
+    assert state["subtests"] == {"passed": 23}
