@@ -354,3 +354,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   extension at activation) fixed by keeping only the pure-Python tree-core
   definitions; cleared in round 3. 405 fingerprints; CPU 723 + 4 + 11.
   Next: G6-GPU window (owner approval; production stop/restore).
+- G6-GPU window (2026-10-19 09:29–11:55, production restored and verified;
+  `docs/phase6-results.md`): G2-1, fast_topk, G2-2 (10 items incl. observer
+  byte digests), compat (401), G2-4, I5 and G2-3 all PASS (plugin at v0.5.22
+  equals production's code). Open: warm prefix-hit latency +10–52 ms
+  (+8–18%) in P, growing with prefix length; cold equal. Needs a profile
+  before any cutover (owner).

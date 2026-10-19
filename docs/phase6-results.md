@@ -110,3 +110,37 @@ keys; the Rust tree core (`UnifiedRadixCache`) is compiled on first use into
 user). Evidence tools: fork arm = production code on production's
 interpreter, plugin arm = v0.5.22 on the Phase 6 interpreter
 (`docs/baseline.md` "Phase 6").
+
+## G6-GPU (window 2026-10-19 09:29–11:55)
+
+Owner-approved (manual permission mode). Production was idle (0 running, 0
+queued) and stopped 09:29:32; restored 11:52 with its unchanged profile
+(`service/current.json` sha256 `99752c69…`, the profile it was running),
+ready by 11:55: `/health` 200, same model id, launcher verified 2 scheduler
+activation records, GPU memory 45,358 MiB per GPU (fresh-start value; 47 GB
+before the stop included served long-context caches). Plugin `phase6`
+`a61c64d` clean, pin v0.5.22 `baa9befa38` clean, production `897286b12a`
+clean; F on production's interpreter, P on the Phase 6 interpreter. Raw
+evidence (private): `qwen:results/plugin-g6-20261019/` (`window6.sh`,
+`status.txt`, `provenance.txt`, `compare-*.txt`).
+
+| Gate | Result |
+| --- | --- |
+| G2-1 | **PASS.** Probe comparator F = P on 5 reports (alignment 1, whole-K 1,187, native 1,187, graphs 217, top-k 110); `steps.json` is runner metadata (every step exit 0 in both arms; now in the comparator's `RUN_METADATA`). Step 8: 91 outcomes + 2 skips equal per arm, the 4 v0.5.22-only indexer tests pass in P, no failures |
+| fast_topk (`773f3c2d84`) | **PASS.** 29 passed on each arm |
+| FP8 descale on GPU | Covered by step 8a (production's FP8 descale GPU tests in `tests/qsa/test_qsa.py`, passed) and G2-2 (FP8 KV, deterministic, F = P). The window's extra `descale-plugin` step was invalid: `test_prefill_pack_descale.py`/`test_fp8_descale.py` are Triton-interpreter CPU tests (CPU tensors, faked `q.is_cuda`) and fail on a real GPU without `TRITON_INTERPRET` ("Pointer argument cannot be accessed from Triton"); they pass in the CPU suite |
+| G2-2 | **PASS.** `--require-observer 2`: F = P on all 10 items — concurrency 79, lifecycle 89, qualification 1,181 (token IDs, cached tokens, logprobs to 262,016 tokens, concurrency 8), ledger 30, per-rank events 1,514, per-rank observer byte digests 1,505 (captured and restored prefix bytes), server log 9, server info 4 |
+| G2-2 compat-only | **PASS.** F = P on 401 items, server log and server info |
+| G2-4 | **PASS.** `fixed_bytes` 1,611,399,936, `logical_bytes_per_token` 768, `max_total_num_tokens` 2,097,152, `lease_capacity` 8, `mamba_bytes` 2,374,447,760 on both; measured weight 36.869 GB both (G2-2), 36.867 / 36.869 (compat) |
+| I5 | **PASS** in both ViT-cache sessions (10 image cases: hits at page-64 boundaries incl. inside images, negatives, swapped/different preprocessing; text control equal to this window's F) |
+| G2-3 | **PASS** (production's profile and weights, port 8082): every check passed on both arms, token accounting equal for 31 requests, equal scheduler numactl (`--cpunodebind=2/3 --interleave=all`) |
+
+**Open: warm-hit latency.** G2-3 medians (s), F / P — cold: 8192 7.189 /
+7.221, 65536 9.936 / 9.917, 262016 63.305 / 63.450 (within 0.5%); warm:
+8192 0.125 / 0.138, 65536 0.204 / 0.240, 262016 0.516 / 0.564. Every warm
+sample is slower in P (+10.0/+14.9 ms, +35.5/+36.4 ms, +45.9/+51.6 ms),
+growing with prefix length; F reproduces its Phase 5 warm times (0.1248 vs
+0.1248 s at 8192), and Phase 5's P was within ~2% of F. Outputs, token
+counts and restored bytes are equal, so this is a performance difference in
+the hit path at v0.5.22 (plugin seams or upstream allocation/preparation),
+not a correctness one. Cause not yet identified (needs a GPU profile).

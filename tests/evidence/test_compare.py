@@ -197,6 +197,7 @@ def write_arm(root, digest, *, tag, pointer, latency, log_order=(0, 1), **observ
     (root / "ledger.json").write_text(json.dumps(ledger_report(tag, latency)))
     (root / "marlin-whole-k.json").write_text(json.dumps(marlin_report(tag)))
     (root / "run.json").write_text(json.dumps({"server": [tag]}))
+    (root / "steps.json").write_text(json.dumps([{"argv": [tag], "exit": 0}]))
     (root / "server_info.json").write_text(
         json.dumps(
             {
