@@ -327,3 +327,17 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   `--mm-preprocess-cache-size-mb 2048` (CPU only; startup GPU accounting
   unchanged); repeated image prompts hit 4,800 of 4,863 tokens. Default
   `service/current.json` = `service/profiles/qwen-local-plugin-mm-20261009.json`.
+- Routine maintenance (2026-10-18): upstream main `7c9a78efbe` is 996 commits
+  past the pin; v0.5.22 released (`docs/phase6-survey.md`). Both contain the
+  prefix-cache lifecycle refactor (#42822–#42825, #42923, #43023) and
+  #43201, which deletes `ChunkCache` (base of `QSAHostPrefixCache`). Owner:
+  Phase 6 to **v0.5.22** (same torch 2.14.1 / sglang-kernel 0.4.9;
+  transformers 5.19.0, flashinfer 0.7.1), CPU port and review, then a GPU
+  window. New interpreter `results/phase6-20261018/runtime-env` (production's
+  freeze with the three bumps; production's untouched). Baseline at `main`
+  on the old pin: 685 + 3 + 26 passed. Host prefix design
+  (`docs/phase6-prefix-design.md`): `UnifiedRadixCache` subclass through
+  `create_unified_radix_cache(cache_class=)`, hits as host hits, pages via
+  `prefix_device_indices`, adder subclass via `get_prefill_adder_class`
+  (aims to remove the S06, P02, M01, M03, M06 REPLACE rows). P6.0
+  (`d4f6189`); tasks P6-A..D started.
