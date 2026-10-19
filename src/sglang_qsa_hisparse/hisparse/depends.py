@@ -96,7 +96,6 @@ RUNTIME_DEPENDS = (
     "sglang.srt.arg_groups.fields.serving.Serving",
     "sglang.srt.arg_groups.fields.spec.Spec",
     # prefix_cache.py (row N02 code; its behavior is W6's).
-    "sglang.srt.mem_cache.chunk_cache.ChunkCache",
     "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row",
     "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.on_release",
     "sglang.srt.mem_cache.common.checkpoint_kv_cache",
@@ -104,7 +103,6 @@ RUNTIME_DEPENDS = (
     "sglang.srt.mem_cache.base_prefix_cache.MatchResult",
     "sglang.srt.mem_cache.radix_cache.RadixKey",
     "sglang.srt.environ.Envs",
-    "sglang.srt.utils.common.Range",
     "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free",
     "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache",
     "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.alloc",

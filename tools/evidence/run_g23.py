@@ -13,8 +13,11 @@ sglang.launch_server ...``); the wrapper, arguments and environment are kept,
 except ``--port`` (the arm port; production's 8081 is refused). The fork arm
 runs production's code (run_g2.FORK_ROOT/python); the plugin arm runs
 ``<plugin>/src:<pin>/python`` through the launcher with
-``SGLANG_QSA_MODEL_COMPAT=1``. Both use run_g2.PYTHON, ``PYTHONDONTWRITEBYTECODE=1``
-and ``SGLANG_CACHE_DIR`` inside the arm directory.
+``SGLANG_QSA_MODEL_COMPAT=1``. Each arm's server runs on its interpreter,
+run_g2.PYTHON[arm] (production's for the fork arm, the Phase 6 one for the
+plugin arm on the pin v0.5.22; the harnesses run on production's in both),
+with ``PYTHONDONTWRITEBYTECODE=1`` and ``SGLANG_CACHE_DIR`` inside the arm
+directory.
 
 ``run``: checks that the fixtures' tokenizer hash equals the profile model's
 ``tokenizer.json``; refuses a busy GPU or port (run_compat.preflight); starts
@@ -76,7 +79,7 @@ def server(arm, base, output, port):
         raise SystemExit("base profile must contain --port once")
     args[args.index("--port") + 1] = str(port)
     env.update(PYTHONDONTWRITEBYTECODE="1", SGLANG_CACHE_DIR=str(output / "cache"))
-    python = str(run_g2.PYTHON)
+    python = str(run_g2.PYTHON[arm])
     if arm == "fork":
         env["PYTHONPATH"] = str(run_g2.FORK_ROOT / "python")
         return [*wrapper, python, *SERVER, *args], env, None
@@ -187,7 +190,7 @@ def harness(output, url, fixtures, name):
     manual = run_g2.FORK_ROOT / "test" / "manual"
     with (output / f"{name}.log").open("w") as log:
         return subprocess.run(
-            [str(run_g2.PYTHON), str(manual / f"qsa_hisparse_prefix_{name}.py"), "--url", url,
+            [str(run_g2.PYTHON["fork"]), str(manual / f"qsa_hisparse_prefix_{name}.py"), "--url", url,
              "--fixtures", str(fixtures), "--output", str(output / f"{name}.json")],
             cwd=manual, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
             stdout=log, stderr=subprocess.STDOUT,

@@ -109,6 +109,24 @@ def test_v0_5_21_renamed_hc_mix_file_keeps_its_reference_ids(tmp_path):
     assert run(tmp_path, fork, plugin, "test_hc_mix_triton.py::test_mix\n", []) == 0
 
 
+def test_plugin_only_upstream_tests_must_pass_and_are_not_compared(tmp_path):
+    """Phase 6: tests the pin added to a file the plugin arm runs unmodified
+    have no fork counterpart; listed only in the plugin inventory, they must pass."""
+    new = "PASSED registered/kernels/ops/attention/qsa/test_qsa_indexer.py::test_new[6]\n"
+    plugin = PLUGIN.replace("1 passed,", "2 passed,") + new
+    plugin_inventory = INVENTORY + "test_qsa_indexer.py::test_new[6]\n"
+    assert run(tmp_path, plugin=plugin, plugin_inventory=plugin_inventory) == 0
+    failed = plugin.replace("PASSED registered", "FAILED registered").replace(
+        "2 passed,", "1 passed, 1 failed,"
+    )
+    assert run(tmp_path, plugin=failed, plugin_inventory=plugin_inventory) == 1
+    # Without the plugin inventory entry the test is unexplained.
+    assert run(tmp_path, plugin=plugin) == 1
+    # A fork test may not be dropped from the plugin arm.
+    assert run(tmp_path, plugin=plugin, plugin_inventory=plugin_inventory.replace(
+        "test_qsa.py::test_ok[1]\n", "")) == 1
+
+
 def test_verbose_plugin_run_against_the_run2_reference(tmp_path):
     """G4: run2's fork reference names skips by file; a -v plugin run names
     them by test against its own inventory, and the arms agree by file."""

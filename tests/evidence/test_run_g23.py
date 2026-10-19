@@ -96,7 +96,7 @@ def profile(tmp_path, **changes):
 def g23(evidence, tmp_path, monkeypatch):
     run = evidence("run_g23")
     for name, value in (
-        ("PYTHON", Path(sys.executable)),
+        ("PYTHON", {"fork": Path(sys.executable), "plugin": Path(sys.executable)}),
         ("PLUGIN_ROOT", tmp_path / "plugin"),
         ("FORK_ROOT", tmp_path / "fork"),
         ("PIN_ROOT", tmp_path / "pin"),
@@ -105,18 +105,19 @@ def g23(evidence, tmp_path, monkeypatch):
     return run
 
 
-def test_arm_commands_keep_the_wrapper_and_change_only_port_and_arm(g23, tmp_path):
+def test_arm_commands_keep_the_wrapper_and_change_only_port_and_arm(g23, tmp_path, monkeypatch):
+    monkeypatch.setattr(g23.run_g2, "PYTHON", {"fork": "/fork-env/python", "plugin": "/plugin-env/python"})
     base = profile(tmp_path)
     out = tmp_path / "out"
     argv, env, ready = g23.server("fork", base, out, 8090)
     tail = ["--model-path", str(tmp_path / "model"), "--tp-size", "2", "--port", "8090",
             "--enable-cache-report"]  # fmt: skip
-    assert argv == ["/usr/bin/env", sys.executable, "-m", "sglang.launch_server", *tail]
+    assert argv == ["/usr/bin/env", "/fork-env/python", "-m", "sglang.launch_server", *tail]
     assert ready is None and env["PYTHONPATH"] == str(tmp_path / "fork" / "python")
     assert "SGLANG_PLUGINS" not in env and "SGLANG_QSA_MODEL_COMPAT" not in env
     assert env["SGLANG_NUMA_INTERLEAVE"] == "1" and env["SGLANG_CACHE_DIR"] == str(out / "cache")
     argv, env, ready = g23.server("plugin", base, out, 8090)
-    assert argv == ["/usr/bin/env", sys.executable, "-m", "sglang_qsa_hisparse.launch",
+    assert argv == ["/usr/bin/env", "/plugin-env/python", "-m", "sglang_qsa_hisparse.launch",
                     "--run-dir", str(out / "launcher"), "--", *tail]  # fmt: skip
     assert ready == out / "launcher" / "ready.json"
     assert env["SGLANG_QSA_MODEL_COMPAT"] == "1"
