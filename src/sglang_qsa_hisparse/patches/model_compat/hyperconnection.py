@@ -147,6 +147,8 @@ def _fused_hc_mix(original, *args, **kwargs):
     row="H08",
     depends=(
         f"{_GATED_RESIDUAL}.__init__",
+        f"{_GATED_RESIDUAL}.combine",
+        f"{_GATED_RESIDUAL}.combine_and_normalize",
         "sglang.srt.layers.hyperconnection.GroupedGemmaRMSNorm.forward",
         "sglang.kernels.ops.elementwise.hc_mix.hc_mix",
         "sglang.kernels.ops.elementwise.hc_mix.permute_pad_up_weight",
@@ -158,21 +160,30 @@ def _fused_hc_mix(original, *args, **kwargs):
         "Fork adds keyword stable= to GatedResidual.mix: the stable fused kernel "
         "(H05/H06), falling back to the torch.compile chain. Around: stable "
         "defaults to E01's _stable_hc() when omitted, which reproduces E02 (the "
-        "fork's three mix() calls in qwen4_exp pass stable=_stable_hc(); they are "
-        "the only mix() call sites at the pin). stable false goes to the pinned "
-        "method, identical to the fork's non-stable branches; stable true runs "
-        "the verbatim copy ForkGatedResidual.mix. Mechanical edit (import "
-        "level): the copy's fused_hc_mix_supported is the plugin copy of the "
-        "fork's predicate (H05), the only caller that passes stable=True. "
+        "fork's three mix() calls in qwen4_exp pass stable=_stable_hc(); at "
+        "v0.5.22 the three call sites are _MixStreams.__call__ and the layer "
+        "mixin's _attn_mix/_ffn_mix). stable false goes to the pinned method "
+        "with its arguments, identical to the fork's non-stable branches; "
+        "stable true runs the verbatim copy ForkGatedResidual.mix (the "
+        "reference's definition). Mechanical edit (import level): the copy's "
+        "fused_hc_mix_supported is the plugin copy of the fork's predicate "
+        "(H05), the only caller that passes stable=True. v0.5.22 (#42175) "
+        "widened the residuals to (hyper_input, normed, partials) and added "
+        "normalized_input: the stable path returns partials None, which "
+        "combine and combine_and_normalize treat as the reference's combine "
+        "(their gate-stream partials exist only on SM100 at batch 1), so no "
+        "prepared norm follows a stable mix and the copy normalizes "
+        "hyper_input itself as the reference does. "
         "model_compat: changes Qwen4Exp under deterministic inference. Scope "
         "(rule 9): outside target_model_active() the pinned method always runs."
     ),
 )
-def _gated_residual_mix(original, self, hyper_input, *, stable=None):
+def _gated_residual_mix(original, self, hyper_input, normalized_input=None, *, stable=None):
     if not scope.target_model_active():
-        return original(self, hyper_input)
+        return original(self, hyper_input, normalized_input=normalized_input)
     if stable is None:
         stable = _stable_hc()
     if not stable:
-        return original(self, hyper_input)
-    return ForkGatedResidual.mix(self, hyper_input, stable=True)
+        return original(self, hyper_input, normalized_input=normalized_input)
+    mixed_input, residuals = ForkGatedResidual.mix(self, hyper_input, stable=True)
+    return mixed_input, (*residuals, None)
