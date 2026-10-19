@@ -341,3 +341,10 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   `prefix_device_indices`, adder subclass via `get_prefill_adder_class`
   (aims to remove the S06, P02, M01, M03, M06 REPLACE rows). P6.0
   (`d4f6189`); tasks P6-A..D started.
+- Phase 6 tasks merged into `phase6` (`docs/phase6-results.md`): host prefix
+  cache is a `UnifiedRadixCache` subclass (M05 via `cache_class`), adder
+  subclass via `get_prefill_adder_class`; REPLACE 32 → 26 (S06, P02, M01,
+  M06, B04, B05 gone; M04 dropped by #43439); Q08/T03/M03 hand merges
+  (#41933 FP8 descale applied once; #43463 bound only with `fast_topk`).
+  CPU suite on the Phase 6 interpreter at v0.5.22: 723 + 4 + 11 passed,
+  402 fingerprints, manifest current. Next: G6-CPU review.
