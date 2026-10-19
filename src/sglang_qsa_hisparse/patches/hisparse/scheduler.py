@@ -1,8 +1,9 @@
 """Scheduler, batch-result and prefill-admission integration (inventory W2).
 
-Rows S02, S04-S09 and B02-B05; P01 and P02 are methods of S06's
-``QSAPrefillAdder``. B01 (an unused import) is a drop; S01 is removed at
-v0.5.22 (M05 builds the host prefix cache). REPLACE hooks are v0.5.22's
+Rows S02, S04-S09 and B02-B04; P01 and P02 are methods of S06's
+``QSAPrefillAdder``, and B04's hook on ``_prepare_kv_cache_release`` also
+carries B05. B01 (an unused import) is a drop; S01 is removed at v0.5.22
+(M05 builds the host prefix cache). REPLACE hooks are v0.5.22's
 definitions plus production's change (PLAN.md rules 3 and P1); they run
 with this module's globals, so every name they use is imported below from
 the pinned module that defines the target (inventory 6, G3).
@@ -388,6 +389,11 @@ class QSAPrefillAdder(PrefillAdder):
                 # offsets for the verdict and the rest of the pass.
                 self.memory_budget.total_offset += pending
                 self.memory_budget.current_offset += pending
+                if not req.retracted_stain:
+                    # Production admitted the hit with host_hit_length 0 (only
+                    # the restore set it), booking L as device-tier hits.
+                    self.log_host_hit_tokens -= pending
+                    self.log_device_hit_tokens += pending
                 result = self.budget_state()
             return result
         finally:
@@ -439,7 +445,13 @@ class QSAPrefillAdder(PrefillAdder):
         "(production's predicate), by clearing sampling_params.ignore_eos, "
         "which add_one_req reads only to choose the fast path. The pinned "
         "base PrefillBudget (create_prefill_budget of the paged allocator) "
-        "checks only remaining_total in check_prefill."
+        "checks only remaining_total in check_prefill. Admission books the "
+        "accepted hit as host-tier (materialized_host_hit_len is L, storage "
+        "is 0 without HiCache); production booked it as device-tier, so L "
+        "moves from log_host_hit_tokens to log_device_hit_tokens (skipped, as "
+        "upstream skips booking, for a retracted request). The response's "
+        "cached_tokens tiers are computed in prepare_for_extend and equal "
+        "production's (host L) unchanged."
     ),
 )
 def _qsa_prefill_adder(result, self):
@@ -892,134 +904,45 @@ def process_batch_result_prefill(
         )
 
 
-# v0.5.22 managers/scheduler_components/batch_result_processor.py:1354-1365 with production's change.
+
+
 @patch(
-    f"{PROCESSOR}._handle_sampling_mask_abort",
-    "replace",
+    f"{PROCESSOR}._prepare_kv_cache_release",
+    "before",
     feature=HISPARSE,
     row="B04",
-    depends=(RELEASE_KV_CACHE, GET_DISAGG, f"{PROCESSOR}._prepare_kv_cache_release"),
-    reason=SAME_GATE + "Replace: the predicate is mid-function (B02 argument).",
-)
-def _handle_sampling_mask_abort(self, req: Req) -> None:
-    """Release a request whose sampled token must not be committed."""
-    if req.multimodal_inputs is not None and req.session is None:
-        req.multimodal_inputs.release_features()
-    if get_disagg().disaggregation_decode_enable_offload_kvcache:
-        self.decode_offload_manager.finalize_release_on_finish(req)
-    else:
-        if self.hisparse_coordinator is not None:
-            self.hisparse_coordinator.request_finished(req)
-        self._prepare_kv_cache_release(req)
-        release_kv_cache(req, self.tree_cache, checkpoint=False)
-    req.time_stats.set_completion_time()
-
-
-# v0.5.22 managers/scheduler_components/batch_result_processor.py:1367-1456 with production's change.
-@patch(
-    f"{PROCESSOR}._handle_finish_state_updated_req",
-    "replace",
-    feature=HISPARSE,
-    row="B05",
     depends=(
-        f"{PROCESSOR}._mamba_prefix_cache_update",
-        f"{PROCESSOR}._maybe_collect_customized_info",
-        f"{PROCESSOR}._maybe_collect_indexer_topk",
-        f"{PROCESSOR}._maybe_collect_routed_experts",
-        f"{PROCESSOR}._prepare_kv_cache_release",
+        f"{PROCESSOR}._handle_sampling_mask_abort",
+        f"{PROCESSOR}._handle_finish_state_updated_req",
+        f"{PROCESSOR}.process_batch_result_prefill",
+        "sglang.srt.managers.scheduler.Scheduler._get_new_batch_prefill_raw",
+        "sglang.srt.managers.schedule_batch.ScheduleBatch.convert_decode_to_extend",
+        "sglang.srt.managers.scheduler_components.dp_attn.SchedulerDPAttnAdapter."
+        "maybe_convert_decode_to_extend",
+        "sglang.srt.managers.scheduler_components.dp_attn._local_prefill_cuda_graph_vote",
         RELEASE_KV_CACHE,
-        GET_DISAGG,
-        "sglang.srt.runtime_context.get_exec",
     ),
-    reason=SAME_GATE + "Replace: the predicate is mid-function (B02 argument).",
+    reason=(
+        SAME_GATE
+        + "Before hook (P6: narrowed from the replaces of B04 "
+        "_handle_sampling_mask_abort and B05 _handle_finish_state_updated_req, "
+        "through v0.5.22's _prepare_kv_cache_release, 46498bc8c5). Both call "
+        "it directly after their `get_memory().enable_hisparse` "
+        "request_finished gate and before release_kv_cache, so notifying a "
+        "coordinator that the gate skipped (present while enable_hisparse is "
+        "unset: QSA leases) right before the original equals production's "
+        "flipped gate, in production's order (request_finished, the worker's "
+        "prepare_for_kv_cache_release, release); with enable_hisparse set the "
+        "gate already notified, so the hook does nothing. The third caller, "
+        "process_batch_result_prefill (B03), reaches it only for a request in "
+        "batch.decoding_reqs, which only a mixed-chunk prefill "
+        "(_get_new_batch_prefill_raw) or convert_decode_to_extend sets: the QSA "
+        "P2 runtime that builds the lease coordinator refuses "
+        "enable_mixed_chunk, and the conversion needs the decode batch's "
+        "prefill-graph vote, which is False for models with SSM state (the "
+        "QSA model), so that caller is unreachable while the hook acts."
+    ),
 )
-def _handle_finish_state_updated_req(
-    self,
-    req: Req,
-    batch: ScheduleBatch,
-    result: GenerationBatchResult,
-    i: int,
-    logits_output: LogitsProcessorOutput,
-):
-    lazy = get_exec().mamba.enable_mamba_extra_buffer_lazy
-    known_mamba_boundary = None
-    completed_mamba_boundary = None
-    lookahead = 0
-    if batch.mamba_track_mask_cpu is not None:
-        completed_mamba_boundary = bool(batch.mamba_track_mask_cpu[i])
-        lookahead = req.decode_batch_idx - batch.mamba_decode_batch_idx_cpu[i]
-        assert lookahead in (0, 1), (
-            f"mamba result lookahead={lookahead} for req {req.rid}; "
-            "overlap advanced more than one decode batch"
-        )
-        if lookahead == 0:
-            known_mamba_boundary = bool(batch.mamba_track_mask_cpu[i])
-        else:
-            known_mamba_boundary = bool(batch.mamba_track_mask_next_cpu[i])
-
-        if completed_mamba_boundary and not lazy:
-            req.kv.mamba_last_track_idx = batch.mamba_track_buffer_indices[i]
-            # The slot that stops being the latest still holds its
-            # checkpoint; name it so a short key can fall back to it.
-            req.kv.mamba_prev_track_seqlen = req.kv.mamba_last_track_seqlen
-            req.kv.mamba_last_track_seqlen = req.kv.kv_committed_len - lookahead
-        elif (
-            req.finished()
-            and lazy
-            and lookahead == 1
-            and known_mamba_boundary
-            and req.kv.mamba_next_track_idx == req.kv.mamba_last_track_idx
-        ):
-            req.mamba_lazy_checkpoint = False
-
-    # Called here (after update_finish_state) so req.finished() is valid
-    # for mamba_lazy_post_decode_at_boundary inside.
-    should_update = completed_mamba_boundary if lazy else known_mamba_boundary
-    if should_update is None or should_update:
-        self._mamba_prefix_cache_update(
-            req,
-            batch,
-            result,
-            i,
-            known_boundary=not lazy and known_mamba_boundary is True,
-        )
-
-    if (
-        get_disagg().disaggregation_decode_enable_offload_kvcache
-        and not req.finished()
-    ):
-        self.decode_offload_manager.offload_kv_cache(req)
-
-    if req.finished():
-        # isinstance narrowing: create_worker may also return plain
-        # TpModelWorker-based drafts, which carry no spec-worker hooks.
-        if isinstance(self.draft_worker, BaseSpecWorker):
-            self.draft_worker.note_request_finished(
-                rid=req.rid,
-                natural_stop=isinstance(req.finished_reason, FINISH_MATCHED_TOKEN),
-            )
-
-        # delete feature to save memory
-        if req.multimodal_inputs is not None and req.session is None:
-            req.multimodal_inputs.release_features()
-        self._maybe_collect_routed_experts(req)
-        self._maybe_collect_indexer_topk(req)
-
-        if get_disagg().disaggregation_decode_enable_offload_kvcache:
-            # Asynchronously offload KV cache; release_kv_cache will be called after Device->Host transfer completes
-            if not self.decode_offload_manager.offload_kv_cache(req):
-                self.decode_offload_manager.finalize_release_on_finish(req)
-        else:
-            if self.hisparse_coordinator is not None:
-                self.hisparse_coordinator.request_finished(req)
-            self._prepare_kv_cache_release(req)
-            checkpoint = (
-                req.mamba_lazy_checkpoint
-                if get_exec().mamba.enable_mamba_extra_buffer_lazy
-                else True
-            )
-            release_kv_cache(req, self.tree_cache, checkpoint=checkpoint)
-
-        req.time_stats.set_completion_time()
-
-    self._maybe_collect_customized_info(i, req, logits_output)
+def _notify_finished_qsa_lease(self, req):
+    if self.hisparse_coordinator is not None and not get_memory().enable_hisparse:
+        self.hisparse_coordinator.request_finished(req)

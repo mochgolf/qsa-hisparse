@@ -409,6 +409,58 @@ def test_prefill_results_stage_qsa_leases_without_notifying_finished_ones(
     coordinator.request_finished.assert_not_called()
 
 
+@pytest.mark.parametrize("enable_hisparse", [False, True])
+def test_a_released_request_notifies_the_coordinator_once_before_the_worker(
+    published_context, enable_hisparse
+):
+    # B04 (and B05): QSA leases (enable_hisparse unset) are notified by the
+    # hook on _prepare_kv_cache_release, upstream HiSparse by its own gate;
+    # either way once, before the worker's hook and the release.
+    from sglang.srt.managers.scheduler_components import batch_result_processor
+    from sglang.srt.managers.scheduler_components.batch_result_processor import (
+        SchedulerBatchResultProcessor,
+    )
+
+    events = []
+    processor = SchedulerBatchResultProcessor(
+        is_generation=True,
+        disaggregation_mode=None,
+        enable_overlap=False,
+        enable_overlap_mlx=False,
+        model_config=SimpleNamespace(think_end_ids=None),
+        token_to_kv_pool_allocator=Mock(),
+        tree_cache="tree-cache",
+        hisparse_coordinator=SimpleNamespace(
+            request_finished=lambda req: events.append("request_finished")
+        ),
+        req_to_token_pool=None,
+        decode_offload_manager=None,
+        metrics_collector=None,
+        metrics_reporter=Mock(),
+        draft_worker=None,
+        model_worker=SimpleNamespace(
+            prepare_for_kv_cache_release=lambda req: events.append("prepare")
+        ),
+        logprob_result_processor=None,
+        output_streamer=Mock(),
+        beam_coordinator=Mock(),
+        abort_request=lambda *args, **kwargs: None,
+    )
+    memory = SimpleNamespace(enable_hisparse=enable_hisparse)
+    req = SimpleNamespace(multimodal_inputs=None, session=None, time_stats=Mock())
+    with (
+        patch.object(batch_result_processor, "get_memory", return_value=memory),
+        patch("sglang_qsa_hisparse.patches.hisparse.scheduler.get_memory", return_value=memory),
+        patch.object(
+            batch_result_processor,
+            "release_kv_cache",
+            side_effect=lambda *args, **kwargs: events.append("release"),
+        ),
+    ):
+        processor._handle_sampling_mask_abort(req)
+    assert events == ["request_finished", "prepare", "release"]
+
+
 def test_the_qsa_coordinator_takes_prefill_spec_scratch_as_a_no_op():
     # v0.5.22's alloc_for_extend calls it on every prefill batch's coordinator.
     from sglang_qsa_hisparse.hisparse.coordinator import QSAHiSparseCoordinator

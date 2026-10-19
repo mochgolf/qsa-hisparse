@@ -1,10 +1,12 @@
 """Production's (897286b12a) edit of the pinned upstream test
 test/registered/unit/managers/test_batch_result_processor_hidden_states.py
 (here v0.5.22's), run with W2's hooks active. Production removed the
-batch_result_processor ``get_memory`` patch with the import (B01). B02-B05's
-copies resolve module globals in the plugin module (inventory 6, G3), so
-the mocks of ``checkpoint_kv_cache`` and ``release_kv_cache`` patch the
-plugin module; every assertion is unchanged. The pinned original runs with
+batch_result_processor ``get_memory`` patch with the import (B01). B02 and
+B03's copies resolve module globals in the plugin module (inventory 6, G3),
+so the mocks of ``checkpoint_kv_cache`` and the prefill ``release_kv_cache``
+patch the plugin module; the decode abort runs the pinned
+``_handle_sampling_mask_abort`` (B04 is a hook since v0.5.22) and keeps
+upstream's mock. Every assertion is unchanged. The pinned original runs with
 the plugin off in test_w2_activation.py.
 """
 
@@ -433,7 +435,9 @@ class TestSamplingMaskStatusErrors(CustomTestCase):
             ),
             next_token_ids=torch.tensor([8]),
         )
-        with patch(f"{PATCHES}.release_kv_cache") as release:
+        with patch(
+            "sglang.srt.managers.scheduler_components.batch_result_processor.release_kv_cache"
+        ) as release:
             processor.process_batch_result_decode(batch, result)
 
         self.assertEqual(req.output_ids, [7])

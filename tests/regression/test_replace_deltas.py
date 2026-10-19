@@ -80,8 +80,6 @@ COPIES: dict[str, tuple] = {
     "G02": ("hisparse/graph.py", "load_batch", ()),
     "B02": ("hisparse/scheduler.py", "process_batch_result_prebuilt", ()),
     "B03": ("hisparse/scheduler.py", "process_batch_result_prefill", ()),
-    "B04": ("hisparse/scheduler.py", "_handle_sampling_mask_abort", ()),
-    "B05": ("hisparse/scheduler.py", "_handle_finish_state_updated_req", ()),
     "M03": ("hisparse/lifecycle.py", "release_kv_cache", ()),
     "S04": ("hisparse/scheduler.py", "get_next_batch_to_run", ()),
     "S07": ("hisparse/scheduler.py", "on_idle", ()),

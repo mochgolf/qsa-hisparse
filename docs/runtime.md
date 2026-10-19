@@ -13,10 +13,11 @@ runtime relies on.
 v0.5.22 (33 changed, 2 removed): what the runtime relies on still holds, so
 the N01/N03 modules stay production's files with no pin edit. The removed
 `mem_cache.chunk_cache.ChunkCache` (#43201) and `utils.common.Range` (#42822)
-were read only by `prefix_cache.py`, which P6-A rebuilds on
-`UnifiedRadixCache` (`docs/phase6-prefix-design.md`); they left
-`RUNTIME_DEPENDS`, and that module's own new dependencies and any coordinator
-addition (`allocate_spec_scratch`, #37771) are P6-A's. Changed behavior the
+were read only by `prefix_cache.py`, which P6-A rebuilt as a plugin-owned
+`UnifiedRadixCache` subclass (`docs/prefix-cache.md`,
+`docs/phase6-prefix-design.md`); its dependencies are row M05's `depends`.
+`coordinator.py` gains a no-op `allocate_spec_scratch` (#37771), its one pin
+edit (`PIN_EDITS`). Changed behavior the
 runtime meets at v0.5.22: `ReqToTokenPool.clear` no longer zeroes
 `req_generation` (#43439, what row M04 did); the request fields
 `prefix_indices`/`extend_range` became `prefix_len`/`extend_end` (#42825,
@@ -33,7 +34,8 @@ are not fields at v0.5.22 either, as at 35f3c96ff4); `tc_piecewise` and
 | Plugin module | Reference file | Row |
 | --- | --- | --- |
 | `__init__`, `config`, `coordinator`, `layout`, `runtime`, `single_request`, `slots` | `srt/mem_cache/qsa_hisparse/<same>.py` | N01 |
-| `prefix`, `prefix_cache` (behavior: W6) | `srt/mem_cache/qsa_hisparse/<same>.py` | N02 |
+| `prefix` | `srt/mem_cache/qsa_hisparse/<same>.py` | N02 |
+| `prefix_cache` (plugin-owned since v0.5.22; replaces the reference file) | none | N02 |
 | `graph` | `srt/layers/attention/qsa/hisparse_graph.py` | N03 |
 | none | `srt/mem_cache/qsa_hisparse_{p2,slots,v3}.py` (re-export aliases) | N04, dropped |
 | `depends` | none (plugin-owned, `RUNTIME_DEPENDS`) | |
@@ -46,11 +48,12 @@ asserts:
 - every moved module equals its reference file byte for byte after replacing
   `sglang.srt.mem_cache.qsa_hisparse` → `sglang_qsa_hisparse.hisparse` and
   `sglang.srt.layers.attention.qsa.hisparse_graph` →
-  `sglang_qsa_hisparse.hisparse.graph` and applying `PIN_EDITS` (empty), and
-  nothing else (the Track I modules `prefix`, `prefix_cache`, `runtime`: plus
-  exactly `track_i.diff`, whose content is unchanged since Phase 3);
-- the package holds exactly those modules plus `depends.py` and the Track I
-  identity modules, and the reference package holds exactly the N01/N02 files;
+  `sglang_qsa_hisparse.hisparse.graph` and applying `PIN_EDITS` (v0.5.22:
+  `coordinator.py`'s `allocate_spec_scratch`), and nothing else (the Track I
+  modules `prefix`, `runtime`: plus exactly `track_i.diff`);
+- the package holds exactly those modules plus `depends.py`, the Track I
+  identity modules and `prefix_cache.py`, and the reference package holds
+  exactly the N01/N02 files;
 - no file under the reference's `python/`, `test/` or `scripts/` imports the
   N04 aliases (`qsa_hisparse_{p2,slots,v3}`, `QSAHiSparseP2`, `QSAHiSparseV3`);
 - each ported test differs from its reference file only by the same rewrites
@@ -64,7 +67,7 @@ They replace the v0.5.21 pin edits of Phase 4.
 | Module | Upstream change | Production's code |
 | --- | --- | --- |
 | `config.py`, `runtime.py`, `single_request.py` | `ModelRunner` has no `tp_rank` (35f3c96ff4 reads placement from the published parallel context) | `config.parallel_tp_rank()` returns `get_parallel().tp_rank`; both constructors use it (v0.5.21 edit: `runner.tp_rank`) |
-| `prefix_cache.py` | `ChunkCache` has no `cache_unfinished_req`/`insert_req`; `release_kv_cache` calls `claim_kv_row`, `checkpoint` (when inserting), frees the row, then `on_release`; `checkpoint_kv_cache` calls `checkpoint` for unfinished requests | `claim_kv_row` refuses while a restore record is open (was `before_release`); `checkpoint` captures, then `ChunkCache.checkpoint` (was `cache_unfinished_req` and `before_release`'s capture); `on_release` drops the pending match, then the base (v0.5.21 edit: `on_release` without the base call). The release order is P5-A's M03 copy of production's `release_kv_cache` (docs/prefix-cache.md, site 7) |
+| `prefix_cache.py` | `ChunkCache` has no `cache_unfinished_req`/`insert_req`; `release_kv_cache` calls `claim_kv_row`, `checkpoint` (when inserting), frees the row, then `on_release`; `checkpoint_kv_cache` calls `checkpoint` for unfinished requests | `claim_kv_row` refuses while a restore record is open (was `before_release`); `checkpoint` captures, then `ChunkCache.checkpoint` (was `cache_unfinished_req` and `before_release`'s capture); `on_release` drops the pending match, then the base. Superseded at v0.5.22 by the plugin-owned `UnifiedRadixCache` subclass (docs/prefix-cache.md) |
 
 ## Ported tests
 
@@ -147,7 +150,7 @@ pinned definitions (`def`/`class` line). Module paths drop `sglang.srt.`.
 | `mem_cache.ple_state_pool.ShortConvPool` (38) | `conv_state` `[layers, slots, ...]`, `iter_transfer_state_entries` | prefix checkpoint size, capture/restore |
 | `mem_cache.ple_state_pool.NGramPool` (142) | `context` `[slots, ...]`, `iter_transfer_state_entries` | same |
 | `managers.schedule_batch.ReqKvInfo` (926) | `req_pool_idx`, `mamba_pool_idx`, `mamba_needs_clear`, `mamba_cow_src_index`, `kv_allocated_len`, `kv_committed_len`, `cache_protected_len`, `mark_kv_released` | runtime, coordinator, `prefix_cache` |
-| `managers.schedule_batch.Req.__init__` (1006) | `rid`, `kv`, `beam_group`, `hisparse_staging`, and the `prefix_cache` fields below | coordinator, runtime |
+| `managers.schedule_batch.Req.__init__` (1006) | `rid`, `kv`, `beam_group`, `hisparse_staging` | coordinator, runtime |
 | `managers.schedule_batch.ScheduleBatch._collect_deferred_mamba_cow_and_clear` (3116) | consumes `mamba_needs_clear` / `mamba_cow_src_index`; `restore_prefix` resets both so restored state is not cleared or overwritten | `restore_prefix` |
 
 ### QSA state addressing copied by prefix capture/restore
@@ -225,26 +228,14 @@ pass silently, so their defining classes are pinned.
 | `arg_groups.fields.disagg.Disagg` (21) | `disaggregation_mode` |
 | `arg_groups.fields.lora.Lora` (26) | `enable_lora` |
 
-### `prefix_cache.py` (N02 code; behavior owned by W6)
+### `prefix_cache.py`
 
-The production module's dependencies, as at 35f3c96ff4; P6-A rebuilds the
-module on `UnifiedRadixCache` at v0.5.22 and owns its new dependencies.
-`ChunkCache` (#43201) and `Range` (#42822) no longer exist and left
-`RUNTIME_DEPENDS`.
-
-| Definition | Relied on |
-| --- | --- |
-| `mem_cache.chunk_cache.ChunkCache` (removed at v0.5.22) | base class; instance `__dict__` copied; `match_prefix`, `checkpoint(req, *, up_to)` (sets `prefix_indices`); `page_size`, `token_to_kv_pool_allocator`, `req_to_token_pool` |
-| `mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row` (552) | first call of `release_kv_cache`; the base keeps no row (returns False) |
-| `mem_cache.common.checkpoint_kv_cache` (253) | calls `checkpoint(req, up_to=req.extend_end)` for unfinished requests (chunk boundaries), unless `skip_radix_cache_insert`, then sets `req.prefix_len = req.extend_end` (v0.5.22; was `extend_range.end`) |
-| `mem_cache.base_prefix_cache.BasePrefixCache.on_release` (557) | `release_kv_cache` calls it after freeing the row and dropping the lock; the prefix cache drops a finished request's pending match there, then calls the base (keyword `checkpointed` since v0.5.22, was `inserted`) |
-| `mem_cache.base_prefix_cache.MatchPrefixParams` (65), `.MatchResult` (269) | `params.req`, `params.key`; result fields |
-| `mem_cache.radix_cache.RadixKey` (59) | iterates token ids, `len`, `is_bigram` |
-| `environ.Envs` (251) | `SGLANG_RADIX_FORCE_MISS` |
-| `utils.common.Range` (removed at v0.5.22) | `req.extend_range.length` (now `req.extend_len`) |
-| `mem_cache.memory_pool.ReqToTokenPool.free` (460), `mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache` (1825) | rollback of a failed restore |
-| `mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.alloc` (181), `.free` (328) | prefix pages, rollback |
-| `Req.__init__` (above) | `cache_request_handle`, `full_untruncated_fill_ids`, `prefix_indices`, `extend_range` (v0.5.22: `prefix_len`, `extend_end`), `host_hit_length`, `host_loaded_length`, `skip_radix_cache_insert`, `multimodal_inputs`, `positional_embed_overrides`, `input_embeds`, `session`, `beam_group`, `return_hidden_states`, `extra_key`, `cache_salt`, `lora_id` |
+Plugin-owned since v0.5.22: a `UnifiedRadixCache` subclass built by row M05,
+whose `depends` (`patches/hisparse/lifecycle.py`) list the upstream
+definitions it relies on (the cache class and the methods it overrides, the
+allocation and release call sites, match parameters and result, `RadixKey`,
+`Envs`, and the pools and allocator its rollback frees). They left
+`RUNTIME_DEPENDS`; see `docs/prefix-cache.md`.
 
 ## Findings (not changed; the modules stay verbatim)
 

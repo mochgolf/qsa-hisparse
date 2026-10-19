@@ -278,6 +278,17 @@ def qsa_private_host_prefix_active(params: CacheInitParams) -> bool:
         f"{URC}.release_aborted_request",
         f"{URC}.release_host_resources",
         "sglang.srt.session.streaming_session.StreamingSession.take",
+        # Read by prefix_cache.py (and image_request.py) itself: match
+        # parameters and result, the key, force-miss and Track I env switches,
+        # the rows, slots and pages the rollback frees.
+        "sglang.srt.mem_cache.base_prefix_cache.MatchPrefixParams",
+        "sglang.srt.mem_cache.base_prefix_cache.MatchResult",
+        "sglang.srt.mem_cache.radix_cache.RadixKey",
+        "sglang.srt.environ.Envs",
+        "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free",
+        "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache",
+        "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.alloc",
+        "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free",
     ),
     reason=(
         "hisparse: qsa_private_host_prefix_active is False unless "

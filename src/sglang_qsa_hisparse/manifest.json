@@ -55,18 +55,8 @@
       "feature": "hisparse",
       "patches": [
         {
-          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._handle_sampling_mask_abort",
-          "hook_type": "replace"
-        }
-      ],
-      "attach": []
-    },
-    "B05": {
-      "feature": "hisparse",
-      "patches": [
-        {
-          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._handle_finish_state_updated_req",
-          "hook_type": "replace"
+          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._prepare_kv_cache_release",
+          "hook_type": "before"
         }
       ],
       "attach": []

@@ -1,4 +1,13 @@
 {
+  "sglang.srt.environ.Envs": {
+    "def_line": 251,
+    "file": "sglang/srt/environ.py",
+    "first_line": 251,
+    "kind": "class",
+    "module_sha256": "80017ce7326d2af4d331518f1c3a3d24f1a379c8193f59b2ffabd54017c21441",
+    "qualname": "Envs",
+    "sha256": "79c97ab1664128876f1d1d9a8aa1e537dabd52b1be1bc7d95be1cdd9f954d372"
+  },
   "sglang.srt.managers.schedule_batch.Req.init_next_round_input": {
     "def_line": 1624,
     "file": "sglang/srt/managers/schedule_batch.py",
@@ -143,6 +152,24 @@
     "qualname": "PagedTokenToKVPoolAllocator._release_page_ids",
     "sha256": "630f7e886cfcdbbc4967fcf31eba5f91c013368a782eb0a43ee7beee2d365917"
   },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.alloc": {
+    "def_line": 181,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 181,
+    "kind": "function",
+    "module_sha256": "c72f28d9c5b953a05fcc0a0451307ecdbfbfb756eca3f0073f7be3eb737d38f6",
+    "qualname": "PagedTokenToKVPoolAllocator.alloc",
+    "sha256": "c1ba41afcefac737986fbd6c341395f0028d821017e7c562b66680b5f6e1e2aa"
+  },
+  "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free": {
+    "def_line": 328,
+    "file": "sglang/srt/mem_cache/allocator/paged.py",
+    "first_line": 328,
+    "kind": "function",
+    "module_sha256": "c72f28d9c5b953a05fcc0a0451307ecdbfbfb756eca3f0073f7be3eb737d38f6",
+    "qualname": "PagedTokenToKVPoolAllocator.free",
+    "sha256": "6fe4a0dbcb56955eab07dea95f05f00c9abf6092d76d2b23a3ade71d6f7c3044"
+  },
   "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free_group_end": {
     "def_line": 386,
     "file": "sglang/srt/mem_cache/allocator/paged.py",
@@ -188,6 +215,24 @@
     "qualname": "BasePrefixCache.free_kv_row",
     "sha256": "21b6ea527dcd46612061acd1310f9340a3ae583d2874c17d59e5163a6d742e69"
   },
+  "sglang.srt.mem_cache.base_prefix_cache.MatchPrefixParams": {
+    "def_line": 65,
+    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
+    "first_line": 64,
+    "kind": "class",
+    "module_sha256": "d6b87103eebf39514cd571f6da03eb934e5211512242c2b383c67b128854d1be",
+    "qualname": "MatchPrefixParams",
+    "sha256": "e17dad718eeecef52478a54234756325e7bb94a3a08d407f662beae67e867029"
+  },
+  "sglang.srt.mem_cache.base_prefix_cache.MatchResult": {
+    "def_line": 269,
+    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
+    "first_line": 269,
+    "kind": "class",
+    "module_sha256": "d6b87103eebf39514cd571f6da03eb934e5211512242c2b383c67b128854d1be",
+    "qualname": "MatchResult",
+    "sha256": "f51c168de930950fcafafa9d2ee2fa6a2694f7b02eee92c8e1e02ac9ee94e7ac"
+  },
   "sglang.srt.mem_cache.common._release_overallocated_kv_indices": {
     "def_line": 425,
     "file": "sglang/srt/mem_cache/common.py",
@@ -224,6 +269,15 @@
     "qualname": "release_kv_cache",
     "sha256": "90e19434d1fa8c220ddc6bf9349fcbf831e46de1310d92156887a113045435f9"
   },
+  "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache": {
+    "def_line": 1825,
+    "file": "sglang/srt/mem_cache/memory_pool.py",
+    "first_line": 1825,
+    "kind": "function",
+    "module_sha256": "8251fab74646427510d9dc2a358668816c26c35d928c6817bf31fd6d7c8ed92c",
+    "qualname": "HybridReqToTokenPool.free_mamba_cache",
+    "sha256": "f034a4b1976e5c0019331738f1f03baecc558e673d1f25f7b0314780d366d7b4"
+  },
   "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free": {
     "def_line": 460,
     "file": "sglang/srt/mem_cache/memory_pool.py",
@@ -241,6 +295,15 @@
     "module_sha256": "a1e85901bb7d4cc8722ba305953b5f35025514ba46db14b59e809c8c4697aeab",
     "qualname": "QSATokenToKVPool",
     "sha256": "cf26e10b05e8a95732894bb79fdc3d3eaeeca5984dae1405fc5dc87e11948732"
+  },
+  "sglang.srt.mem_cache.radix_cache.RadixKey": {
+    "def_line": 59,
+    "file": "sglang/srt/mem_cache/radix_cache.py",
+    "first_line": 59,
+    "kind": "class",
+    "module_sha256": "67fa9a88955b9d6071d233a8a5dc2e5c91683714ba7bc9c834c2e666d41bc090",
+    "qualname": "RadixKey",
+    "sha256": "b991e513c98472c7f8702fc0ba26e80062c1ad1e8affcf64a3806f876a859c2c"
   },
   "sglang.srt.mem_cache.registry.create_tree_cache": {
     "def_line": 229,

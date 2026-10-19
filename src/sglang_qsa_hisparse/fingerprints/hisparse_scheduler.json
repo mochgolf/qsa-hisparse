@@ -26,6 +26,15 @@
     "qualname": "ScheduleBatch",
     "sha256": "6a11ac3b9467859a587f727ec5f6fd11f56020c56026a4a4e3d24a171fd2bd3b"
   },
+  "sglang.srt.managers.schedule_batch.ScheduleBatch.convert_decode_to_extend": {
+    "def_line": 3218,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 3218,
+    "kind": "function",
+    "module_sha256": "c382bf0066d70e19b4b9e38c92ff0029d39996238f8f0685f4c1dadbfa4e8a96",
+    "qualname": "ScheduleBatch.convert_decode_to_extend",
+    "sha256": "6a0b411dfb0cffa948a14203b73081188917031dbf1bd49f9de06698d0d99e40"
+  },
   "sglang.srt.managers.schedule_policy.PrefillAdder.__init__": {
     "def_line": 582,
     "file": "sglang/srt/managers/schedule_policy.py",
@@ -359,15 +368,6 @@
     "qualname": "SchedulerBatchResultProcessor._handle_sampling_mask_abort",
     "sha256": "e8b64bb83ac2aabff951f0b3878c710330e44d994da3b795d0446e98e01a0abd"
   },
-  "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._mamba_prefix_cache_update": {
-    "def_line": 1481,
-    "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
-    "first_line": 1481,
-    "kind": "function",
-    "module_sha256": "bf45be863809db610712b68679a69ba9f9c011e63753f4f2244e3ca824ab1432",
-    "qualname": "SchedulerBatchResultProcessor._mamba_prefix_cache_update",
-    "sha256": "381b2704b07a3bdf0015a302c96815e2e04f80d79ead5016fc2b0fd4cf015c9f"
-  },
   "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._maybe_collect_customized_info": {
     "def_line": 192,
     "file": "sglang/srt/managers/scheduler_components/batch_result_processor.py",
@@ -494,6 +494,24 @@
     "qualname": "SchedulerBatchResultProcessor.snapshot_auxiliary_output_starts",
     "sha256": "cb31dab5a604245f6bef3ecf02a554ea291890b538c14e05432284e9cc06cd98"
   },
+  "sglang.srt.managers.scheduler_components.dp_attn.SchedulerDPAttnAdapter.maybe_convert_decode_to_extend": {
+    "def_line": 729,
+    "file": "sglang/srt/managers/scheduler_components/dp_attn.py",
+    "first_line": 729,
+    "kind": "function",
+    "module_sha256": "1c2eea2c9d47162da364c29af37ef6f80bb6f09fcf09a7b1d8c451bb65440e52",
+    "qualname": "SchedulerDPAttnAdapter.maybe_convert_decode_to_extend",
+    "sha256": "2e075bf8fdfbf27e8bfa2f4063ddd066e196ec6ad378a9658592dce515f53af6"
+  },
+  "sglang.srt.managers.scheduler_components.dp_attn._local_prefill_cuda_graph_vote": {
+    "def_line": 354,
+    "file": "sglang/srt/managers/scheduler_components/dp_attn.py",
+    "first_line": 354,
+    "kind": "function",
+    "module_sha256": "1c2eea2c9d47162da364c29af37ef6f80bb6f09fcf09a7b1d8c451bb65440e52",
+    "qualname": "_local_prefill_cuda_graph_vote",
+    "sha256": "6a20486f28e40a08dcadf8901bc87220db0be0ff5f62e97b10739c3789193144"
+  },
   "sglang.srt.managers.scheduler_components.invariant_checker.SchedulerInvariantChecker": {
     "def_line": 54,
     "file": "sglang/srt/managers/scheduler_components/invariant_checker.py",
@@ -574,15 +592,6 @@
     "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
     "qualname": "get_disagg",
     "sha256": "243c8aa53544f94cebe52f535535b8703dc4a067203fd72dbdee213d7949a824"
-  },
-  "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1310,
-    "file": "sglang/srt/runtime_context.py",
-    "first_line": 1310,
-    "kind": "function",
-    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
-    "qualname": "get_exec",
-    "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
   "sglang.srt.runtime_context.get_spec": {
     "def_line": 1322,

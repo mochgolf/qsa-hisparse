@@ -921,11 +921,20 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         ):
             batch.prepare_for_extend()
 
-    def test_reported_cached_tokens_equal_production_for_hit_miss_and_chunked_hit(self):
-        # Production (897286b12a): prepare_for_extend counts pre_len =
-        # len(prefix_indices) = L on the first chunk, after the restore inside
-        # alloc_for_extend set host_hit_length = host_loaded_length = L, and
-        # nothing on later chunks: cached_tokens L in tiers (0, L, 0).
+    def test_admission_tiers_and_cached_tokens_equal_production_for_hit_miss_and_chunked_hit(
+        self,
+    ):
+        # Production (897286b12a) admitted a hit with host_hit_length 0 (only
+        # the restore set it): the adder booked L as device-tier hits, which
+        # PrefillStats carries to the Prometheus tier counters. prepare_for_extend
+        # then counted pre_len = len(prefix_indices) = L on the first chunk,
+        # after the restore inside alloc_for_extend set host_hit_length =
+        # host_loaded_length = L, and nothing on later chunks: cached_tokens L
+        # in response tiers (device 0, host L, storage 0).
+        from sglang.srt.managers.scheduler_components.metrics_reporter import (
+            PrefillStats,
+        )
+
         self.source(64)
         miss = [9000] + list(range(1, 129))
         for name, tokens, chunk, cached in (
@@ -939,6 +948,16 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
                 adder = self.adder(chunk)
                 adder.add_one_req(req, False, None)
                 self.assertEqual(adder.can_run_list, [req])
+                stats = PrefillStats.from_adder(adder, [])
+                self.assertEqual(
+                    (
+                        stats.log_hit_tokens,
+                        stats.log_device_hit_tokens,
+                        stats.log_host_hit_tokens,
+                        stats.log_storage_hit_tokens,
+                    ),
+                    (cached, cached, 0, 0),
+                )
                 self.prefill(req)
                 while req.extend_end < len(tokens):  # Chunked prefill continues.
                     common.checkpoint_kv_cache(req, self.cache)

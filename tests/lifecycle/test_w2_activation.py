@@ -127,7 +127,12 @@ def test_copied_bodies_resolve_every_global_name(w2):
             if name in fn.__globals__:
                 value = fn.__globals__[name]
                 if inspect.isfunction(value) and value.__module__ == fn.__module__:
-                    pending.append(value)  # Plugin-local helpers (_add_one_req).
+                    pending.append(value)  # Plugin-local helpers.
+                elif inspect.isclass(value) and value.__module__ == fn.__module__:
+                    # Plugin-local classes a hook returns (S06's QSAPrefillAdder).
+                    pending.extend(
+                        f for f in vars(value).values() if inspect.isfunction(f)
+                    )
             elif not hasattr(builtins, name):
                 missing.append(f"{fn.__module__}.{fn.__name__}: {name}")
     assert len(seen) > len(w2.rows) and not missing
