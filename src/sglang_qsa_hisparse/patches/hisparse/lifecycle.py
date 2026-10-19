@@ -278,10 +278,12 @@ def qsa_private_host_prefix_active(params: CacheInitParams) -> bool:
         f"{URC}.release_aborted_request",
         f"{URC}.release_host_resources",
         # The tree core behind the disabled cache's empty root match (G6-CPU).
+        # Not the Rust adapter: importing it loads the optional native
+        # extension, which upstream may replace by the Python core; native
+        # code is covered by tests and the GPU gate, like the .cuh headers.
         "sglang.srt.mem_cache.unified_cache.tree_core_registry.create_tree_core",
         "sglang.srt.mem_cache.unified_cache.tree_core_registry.select_tree_core_backend",
         "sglang.srt.mem_cache.unified_cache.unified_tree_core.UnifiedTreeCore",
-        "sglang.srt.mem_cache.rust_tree_core.adapter.RustUnifiedTreeCore",
         "sglang.srt.session.streaming_session.StreamingSession.take",
         # Read by prefix_cache.py (and image_request.py) itself: match
         # parameters and result, the key, force-miss and Track I env switches,

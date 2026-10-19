@@ -332,15 +332,6 @@
     "qualname": "default_radix_cache_factory",
     "sha256": "8ba18fde63a5f7556897c1dcd391277436d6ce00d6e2e19a6418ff54ff6bb560"
   },
-  "sglang.srt.mem_cache.rust_tree_core.adapter.RustUnifiedTreeCore": {
-    "def_line": 324,
-    "file": "sglang/srt/mem_cache/rust_tree_core/adapter.py",
-    "first_line": 324,
-    "kind": "class",
-    "module_sha256": "128ef9559a7398c0631b4837571ed0477d104b5c014856a07d8c6f1ce605fc0c",
-    "qualname": "RustUnifiedTreeCore",
-    "sha256": "071b6187d304c6779b2fa4fad1edf74626a6711d6274ad1e217870c9be5ef262"
-  },
   "sglang.srt.mem_cache.unified_cache.components.mamba.MambaComponent.cleanup_after_caching_req": {
     "def_line": 644,
     "file": "sglang/srt/mem_cache/unified_cache/components/mamba.py",
