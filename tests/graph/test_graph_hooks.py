@@ -154,7 +154,9 @@ def _graph_runner(events, coordinator, backend):
     runner.deepep_adapter = SimpleNamespace(
         capture=events.call("deepep.capture"), replay=events.call("deepep.replay")
     )
-    runner.buffers = SimpleNamespace()
+    # v0.5.22's load_batch writes the DP real-token count into this buffer;
+    # None (no expert parallelism) skips it.
+    runner.buffers = SimpleNamespace(num_token_non_padded=None)
     runner.buffer_registry = SimpleNamespace(fill_from=events.call("buffer_registry.fill_from"))
     runner.attn_backend = SimpleNamespace(
         init_forward_metadata_out_graph=events.call("attn.init_forward_metadata_out_graph"),

@@ -268,7 +268,15 @@ def capture_one_shape(
                 and "input_embeds" in inspect.signature(forward).parameters
                 and not hasattr(self.model_runner.model, "forward_embed")
             ):
-                kwargs["input_embeds"] = self.buffers.input_embeds[:num_tokens]
+                if self.dllm_input_preparation is None:
+                    kwargs["input_embeds"] = self.buffers.input_embeds[:num_tokens]
+                else:
+                    state = self.buffer_registry.get_slot(
+                        "dllm_input_preparation_state"
+                    ).buffer[:num_tokens]
+                    kwargs["input_embeds"] = self.dllm_input_preparation(
+                        self.model_runner.model, forward_batch.input_ids, state
+                    )
 
             out = forward(
                 forward_batch.input_ids,
@@ -286,9 +294,6 @@ def capture_one_shape(
             if (c := self.model_runner.canary_manager) is not None
             else contextlib.nullcontext()
         )
-        # Full-physical write loc lives in the attention metadata (the backend's
-        # `out_cache_loc_full_physical` -> KVWriteLoc.full_loc), so the runner
-        # wires no buffer here. (SWA write loc rides the `swa_out_cache_loc` rail.)
 
         with canary_ctx:
             # Adaptive runners may own a different backend than model_runner.
@@ -333,6 +338,7 @@ def capture_one_shape(
         f"{_GRAPH}._replay_attn_backend",
         f"{_GRAPH}._resolve_attention_variant",
         f"{_GRAPH}._resolve_lora_variant",
+        f"{_GRAPH}._set_dp_real_num_tokens",
         f"{_GRAPH}._stage_ragged_verify_layout",
         f"{_GRAPH}._validate_capture_hidden_mode",
         f"{_GRAPH_MODULE}.build_replay_fb_view",
@@ -355,7 +361,11 @@ def load_batch(
     forward_batch: ForwardBatch,
     pp_proxy_tensors: Optional[PPProxyTensors] = None,
 ):
-    if self.dllm_uses_input_embeds and forward_batch.input_embeds is None:
+    if (
+        self.dllm_uses_input_embeds
+        and self.dllm_input_preparation is None
+        and forward_batch.input_embeds is None
+    ):
         raise ValueError(
             "Diffusion graph replay requires prepared input embeddings"
         )
@@ -374,6 +384,13 @@ def load_batch(
         raise RuntimeError("QSA graph replay does not support external preplanning")
 
     if not forward_batch.needs_forward_metadata_init():
+        if self.dllm_input_preparation is not None:
+            slot = self.buffer_registry.get_slot("dllm_input_preparation_state")
+            source = forward_batch.dllm_input_preparation_state
+            padded_tokens = self.bs * self.captured_req_width
+            slot.buffer[: self.raw_num_token].copy_(source)
+            slot.reset_padding(self.raw_num_token, padded_tokens)
+            self.buffers.input_ids[self.raw_num_token : padded_tokens].zero_()
         # Pre-planned (plan-stream load_batch already ran).
         # In speculative decoding, these two fields are still needed.
         graph_size_key = (
@@ -389,6 +406,7 @@ def load_batch(
                 f"{ragged_layout.graph_num_tokens}"
             )
             self._stage_ragged_verify_layout(ragged_layout, graph_size_key)
+        self._set_dp_real_num_tokens(self.raw_num_token)
         self.buffers.input_ids[: self.raw_num_token].copy_(forward_batch.input_ids)
         self.buffers.positions[: self.raw_num_token].copy_(forward_batch.positions)
         if (
@@ -419,7 +437,7 @@ def load_batch(
                 forward_batch.input_embeds
             )
         variant_label = self._resolve_lora_variant(forward_batch)
-        attention_variant = self._resolve_attention_variant(forward_batch)
+        attention_variant = self._resolve_attention_variant(forward_batch, self.bs)
         stream_idx = get_current_stream_idx() if self.enable_pdmux else None
         self._replay_graph_key = self._make_graph_key(
             graph_size_key, stream_idx, variant_label, attention_variant
@@ -483,6 +501,7 @@ def load_batch(
         buffers.input_embeds[:raw_num_token].copy_(forward_batch.input_embeds)
     # Padded tokens aren't read, so skip zeroing. Ragged input_ids arrive
     # from the planner already padded to the tier, invalid slots zeroed.
+    self._set_dp_real_num_tokens(raw_num_token)
     if self.enable_two_batch_overlap:
         self.tbo_plugin.replay_prepare(
             forward_mode=self.capture_forward_mode,
@@ -555,7 +574,7 @@ def load_batch(
         self.model_runner.hisparse_coordinator.num_real_reqs.fill_(raw_bs)
 
     variant_label = self._resolve_lora_variant(forward_batch)
-    attention_variant = self._resolve_attention_variant(forward_batch)
+    attention_variant = self._resolve_attention_variant(forward_batch, bs)
     stream_idx = get_current_stream_idx() if self.enable_pdmux else None
     self._replay_graph_key = self._make_graph_key(
         graph_size_key, stream_idx, variant_label, attention_variant

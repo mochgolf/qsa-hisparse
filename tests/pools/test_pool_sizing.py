@@ -20,6 +20,7 @@ from sglang.srt.mem_cache import kv_cache_configurator, qsa_kv_pool
 from sglang.srt.mem_cache.kv_cache_configurator import KVCacheConfigurator
 from sglang.srt.mem_cache.memory_pool import MHATokenToKVPool
 from sglang.srt.mem_cache.qsa_kv_pool import QSATokenToKVPool
+from sglang.srt.model_executor import pool_configurator
 from sglang.srt.model_executor.pool_configurator import DefaultPoolConfigurator
 from sglang.srt.runtime_context import get_context, get_parallel
 from sglang_qsa_hisparse.patches.hisparse import pools
@@ -136,6 +137,24 @@ def test_configurator_prices_fixed_staging(case, requests):
         plain = DefaultPoolConfigurator(kvc)  # SGLANG_QSA_HISPARSE_V3 unset
     assert plain._bias == 0
     assert plain._cell_size == RAW_BYTES_PER_TOKEN + LOGICAL_BYTES_PER_TOKEN
+
+
+def test_bias_and_page_shard_scratch_are_each_charged_once(case):
+    """v0.5.22 subtracts its own fixed reservation (the logical-page KV
+    sharding scratch) in the statement C02 feeds; both are charged once."""
+    requests, scratch = 4, 3 * PAGE * LOGICAL_BYTES_PER_TOKEN + 5
+    kvc = _pool_configurator_input(case, requests)
+    logical = requests * CONTEXT
+    env, server_args, parallel = _p2_offload(requests)
+    with (
+        env, server_args, parallel, activated("C01", "C02"),
+        mock.patch.object(pool_configurator, "compute_page_shard_scratch_bytes", lambda kvc: scratch),
+    ):
+        cfg = DefaultPoolConfigurator(kvc)
+        assert (cfg._bias, cfg._fixed_overhead_bytes) == (fixed_bytes(requests), scratch)
+        required = fixed_bytes(requests) + scratch + LOGICAL_BYTES_PER_TOKEN * logical
+        assert cfg.calculate_pool_sizes(required, PAGE).max_total_num_tokens == logical
+        assert cfg.calculate_pool_sizes(required - 1, PAGE).max_total_num_tokens == logical - PAGE
 
 
 @pytest.mark.parametrize(
@@ -277,7 +296,8 @@ def test_adapter_requires_the_enclosing_pool_build():
     kvc = KVCacheConfigurator.__new__(KVCacheConfigurator)
     with activated("K01", "K02"), pytest.raises(LookupError):
         kvc._build_hybrid_linear_kv_pool(
-            max_total_num_tokens=CONTEXT, req_to_token_pool=None, mha_pool_class=object
+            max_total_num_tokens=CONTEXT, req_to_token_pool=None, mha_pool_class=object,
+            mla_pool_class=object, dsa_pool_class=object,
         )
 
 
