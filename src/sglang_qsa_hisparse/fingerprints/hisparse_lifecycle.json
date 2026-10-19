@@ -332,6 +332,15 @@
     "qualname": "default_radix_cache_factory",
     "sha256": "8ba18fde63a5f7556897c1dcd391277436d6ce00d6e2e19a6418ff54ff6bb560"
   },
+  "sglang.srt.mem_cache.rust_tree_core.adapter.RustUnifiedTreeCore": {
+    "def_line": 324,
+    "file": "sglang/srt/mem_cache/rust_tree_core/adapter.py",
+    "first_line": 324,
+    "kind": "class",
+    "module_sha256": "128ef9559a7398c0631b4837571ed0477d104b5c014856a07d8c6f1ce605fc0c",
+    "qualname": "RustUnifiedTreeCore",
+    "sha256": "071b6187d304c6779b2fa4fad1edf74626a6711d6274ad1e217870c9be5ef262"
+  },
   "sglang.srt.mem_cache.unified_cache.components.mamba.MambaComponent.cleanup_after_caching_req": {
     "def_line": 644,
     "file": "sglang/srt/mem_cache/unified_cache/components/mamba.py",
@@ -340,6 +349,33 @@
     "module_sha256": "0a6c1bc7cdcf0f4ec3d83c94ba292afe75183fdae2e2dc5e605ad8f775a58528",
     "qualname": "MambaComponent.cleanup_after_caching_req",
     "sha256": "00855403d62d0706d1c0c74e1350845d45d1495bb8a8cb1e6f9c42047098c92b"
+  },
+  "sglang.srt.mem_cache.unified_cache.tree_core_registry.create_tree_core": {
+    "def_line": 175,
+    "file": "sglang/srt/mem_cache/unified_cache/tree_core_registry.py",
+    "first_line": 175,
+    "kind": "function",
+    "module_sha256": "ab08c6584ab8d0b354a1ec616c81dd5745933a5c585a4c4b9a6c8b8f1c124118",
+    "qualname": "create_tree_core",
+    "sha256": "4e66281016415f4904fbb0af52b71e354e67b035c275d4cf3b8f154fe8bda5a1"
+  },
+  "sglang.srt.mem_cache.unified_cache.tree_core_registry.select_tree_core_backend": {
+    "def_line": 124,
+    "file": "sglang/srt/mem_cache/unified_cache/tree_core_registry.py",
+    "first_line": 124,
+    "kind": "function",
+    "module_sha256": "ab08c6584ab8d0b354a1ec616c81dd5745933a5c585a4c4b9a6c8b8f1c124118",
+    "qualname": "select_tree_core_backend",
+    "sha256": "4fc3968b6ee1e51a82b76390b066a60dce0cc5524460216f72abbd575b91677c"
+  },
+  "sglang.srt.mem_cache.unified_cache.unified_tree_core.UnifiedTreeCore": {
+    "def_line": 416,
+    "file": "sglang/srt/mem_cache/unified_cache/unified_tree_core.py",
+    "first_line": 416,
+    "kind": "class",
+    "module_sha256": "7787488940385ad87ebcd80b43cff23d958bc2966223ba19d4497b77462f4512",
+    "qualname": "UnifiedTreeCore",
+    "sha256": "422bf048f536f0b75a2a18db183e5f19fba5bdd45a173709c8bef30499901a90"
   },
   "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache": {
     "def_line": 175,
