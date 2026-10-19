@@ -1,226 +1,235 @@
 {
-  "sglang.srt.hardware_backend.npu.dsv4.dsv4_common_hooks.maybe_write_dsv4_extend": {
-    "def_line": 35,
-    "file": "sglang/srt/hardware_backend/npu/dsv4/dsv4_common_hooks.py",
-    "first_line": 35,
+  "sglang.srt.managers.schedule_batch.Req.init_next_round_input": {
+    "def_line": 1624,
+    "file": "sglang/srt/managers/schedule_batch.py",
+    "first_line": 1624,
     "kind": "function",
-    "module_sha256": "fa72b1a8a4bb26580e1cbabbdf5d1c43f7bb0acac3fb754a14f67955735e971d",
-    "qualname": "maybe_write_dsv4_extend",
-    "sha256": "a8faabde550cdfc1e800398d6009ec62cab95562739f4a66f77356d6cadaf744"
+    "module_sha256": "c382bf0066d70e19b4b9e38c92ff0029d39996238f8f0685f4c1dadbfa4e8a96",
+    "qualname": "Req.init_next_round_input",
+    "sha256": "7e8aa4dd6775532a5b07928b17a6a1f12dd6530f92fc7c4fb8056754363889b2"
+  },
+  "sglang.srt.managers.scheduler.Scheduler.__init__": {
+    "def_line": 460,
+    "file": "sglang/srt/managers/scheduler.py",
+    "first_line": 460,
+    "kind": "function",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
+    "qualname": "Scheduler.__init__",
+    "sha256": "467f8f0f28fe2aaeb28b8f638b9e5e7a49bcfa987724a85fc64a139b7da9fd96"
+  },
+  "sglang.srt.managers.scheduler.Scheduler.init_all_attention_backends": {
+    "def_line": 1083,
+    "file": "sglang/srt/managers/scheduler.py",
+    "first_line": 1083,
+    "kind": "function",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
+    "qualname": "Scheduler.init_all_attention_backends",
+    "sha256": "8684eec89f30c22c3110d17cf1f2c82e92334bd34b801bb420f07a86b5dfe87e"
+  },
+  "sglang.srt.managers.scheduler.Scheduler.init_model_worker": {
+    "def_line": 1098,
+    "file": "sglang/srt/managers/scheduler.py",
+    "first_line": 1098,
+    "kind": "function",
+    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
+    "qualname": "Scheduler.init_model_worker",
+    "sha256": "755c7fd1600d92dfc7e165868285400f43b40864dc49d418bfac414bfbe4f15e"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager._observe_weight_load": {
     "def_line": 106,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
     "first_line": 105,
     "kind": "function",
-    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
+    "module_sha256": "7e2f08d8c1ca67965261208f51bab17d0ab0bfd5b87a009d9dbd97fc381542e4",
     "qualname": "SchedulerWeightUpdaterManager._observe_weight_load",
     "sha256": "c755051040bf51c3e0454cf1059cb2ebee16f322e7d89a141b04f9b9346cb861"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_disk": {
-    "def_line": 130,
+    "def_line": 138,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 130,
+    "first_line": 138,
     "kind": "function",
-    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
+    "module_sha256": "7e2f08d8c1ca67965261208f51bab17d0ab0bfd5b87a009d9dbd97fc381542e4",
     "qualname": "SchedulerWeightUpdaterManager.update_weights_from_disk",
-    "sha256": "e1930b7bb73cadb49a66a7d58f0f792027015da8a7272850f0e206d9be5e2b93"
+    "sha256": "0b59818cfec4eed39d4e08dac1d7c26065dab3a220a6da15cb82db6cc7e661a4"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_distributed": {
-    "def_line": 177,
+    "def_line": 187,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 177,
+    "first_line": 187,
     "kind": "function",
-    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
+    "module_sha256": "7e2f08d8c1ca67965261208f51bab17d0ab0bfd5b87a009d9dbd97fc381542e4",
     "qualname": "SchedulerWeightUpdaterManager.update_weights_from_distributed",
-    "sha256": "f409a3a27cfa2977caa8d48a24daf63ff6cd4aef4cd2062f7ce7a73be2197b0b"
+    "sha256": "6d22273a0d667d5d7bb4de654789e9dbc5e94a4720f580456115a7ed39369d26"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_ipc": {
-    "def_line": 251,
+    "def_line": 265,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 251,
+    "first_line": 265,
     "kind": "function",
-    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
+    "module_sha256": "7e2f08d8c1ca67965261208f51bab17d0ab0bfd5b87a009d9dbd97fc381542e4",
     "qualname": "SchedulerWeightUpdaterManager.update_weights_from_ipc",
-    "sha256": "5c9970d7347aa028b6c259404ff84d41a6d4e19f21dc27f877b7a0ec265bf311"
+    "sha256": "4a0c4f90807a4731905ccdf4190b4932717d16ec450a77cc0f6c4631065b2aa2"
   },
   "sglang.srt.managers.scheduler_components.weight_updater.SchedulerWeightUpdaterManager.update_weights_from_tensor": {
-    "def_line": 220,
+    "def_line": 232,
     "file": "sglang/srt/managers/scheduler_components/weight_updater.py",
-    "first_line": 220,
+    "first_line": 232,
     "kind": "function",
-    "module_sha256": "db16977eacb7d0f8533420a057fe4aca09f770c720463dc76f2448d631a29c28",
+    "module_sha256": "7e2f08d8c1ca67965261208f51bab17d0ab0bfd5b87a009d9dbd97fc381542e4",
     "qualname": "SchedulerWeightUpdaterManager.update_weights_from_tensor",
-    "sha256": "05d40cf2902def572b7d0e70d3ab62de4203ab4a153b33f0ff1a269315157210"
+    "sha256": "7226df163cabcd9fa6a281e378eff0755a7862455da4169616ae9a7efb2bdf93"
   },
-  "sglang.srt.mem_cache.allocation._alloc_extend_loc_with_kv_reuse": {
-    "def_line": 454,
+  "sglang.srt.mem_cache.allocation._prefix_kv_indices": {
+    "def_line": 356,
     "file": "sglang/srt/mem_cache/allocation.py",
-    "first_line": 454,
+    "first_line": 356,
     "kind": "function",
-    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
-    "qualname": "_alloc_extend_loc_with_kv_reuse",
-    "sha256": "51cbf49d359b1c83a8cfd15a480530768b1e77167741dc312cdf87fc755459e8"
-  },
-  "sglang.srt.mem_cache.allocation._alloc_page_size": {
-    "def_line": 333,
-    "file": "sglang/srt/mem_cache/allocation.py",
-    "first_line": 333,
-    "kind": "function",
-    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
-    "qualname": "_alloc_page_size",
-    "sha256": "8d64014215e85ca6237c05f743498f9a70deede0042e3b4961c29f2a86df22e9"
+    "module_sha256": "30d216491c49001fe8a94983009467f99095da42c13af323b63dc910eaf1dcad",
+    "qualname": "_prefix_kv_indices",
+    "sha256": "53239ce78ed9dc4f3e2ddbb2eede88033befa291ee6eb97115720f32d0110d4b"
   },
   "sglang.srt.mem_cache.allocation.alloc_for_extend": {
-    "def_line": 344,
+    "def_line": 367,
     "file": "sglang/srt/mem_cache/allocation.py",
-    "first_line": 344,
+    "first_line": 367,
     "kind": "function",
-    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
+    "module_sha256": "30d216491c49001fe8a94983009467f99095da42c13af323b63dc910eaf1dcad",
     "qualname": "alloc_for_extend",
-    "sha256": "f24860c5cb1ab61d67368d3b4ab7dda1e29ebd1691c81f9f4fc0edfd4c0d0566"
+    "sha256": "79929fe4dbc6fcec6b21939c16d13bca32575f02c0db6bc986fbd2f2bd47f6e2"
   },
   "sglang.srt.mem_cache.allocation.alloc_paged_token_slots_extend": {
-    "def_line": 174,
+    "def_line": 175,
     "file": "sglang/srt/mem_cache/allocation.py",
-    "first_line": 174,
+    "first_line": 175,
     "kind": "function",
-    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
+    "module_sha256": "30d216491c49001fe8a94983009467f99095da42c13af323b63dc910eaf1dcad",
     "qualname": "alloc_paged_token_slots_extend",
     "sha256": "2f861f9c03caccc234695442a998f9dea5173c3bf93e038fe4ba97da4665bbf3"
   },
   "sglang.srt.mem_cache.allocation.alloc_req_slots": {
-    "def_line": 289,
+    "def_line": 320,
     "file": "sglang/srt/mem_cache/allocation.py",
-    "first_line": 289,
+    "first_line": 320,
     "kind": "function",
-    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
+    "module_sha256": "30d216491c49001fe8a94983009467f99095da42c13af323b63dc910eaf1dcad",
     "qualname": "alloc_req_slots",
-    "sha256": "292bcdf8115b1d9777daa64ddb63439ced802bc0a67ec2865ba0672f42eba384"
-  },
-  "sglang.srt.mem_cache.allocation.alloc_token_slots": {
-    "def_line": 151,
-    "file": "sglang/srt/mem_cache/allocation.py",
-    "first_line": 151,
-    "kind": "function",
-    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
-    "qualname": "alloc_token_slots",
-    "sha256": "480fab57f51b7b0e9b44360096a0d055c774052ba35e766254c2118573b94488"
+    "sha256": "27683807e500be0d371e186572c1612ba260e3c0a19bc6a0bf928185bd7336a3"
   },
   "sglang.srt.mem_cache.allocation.write_cache_indices": {
-    "def_line": 55,
+    "def_line": 56,
     "file": "sglang/srt/mem_cache/allocation.py",
-    "first_line": 55,
+    "first_line": 56,
     "kind": "function",
-    "module_sha256": "67e5ec3c7aedfaa20af7c20dfad2a043326a5ea51793b6bc9e0e704d20d52152",
+    "module_sha256": "30d216491c49001fe8a94983009467f99095da42c13af323b63dc910eaf1dcad",
     "qualname": "write_cache_indices",
     "sha256": "8ffefc8b52e60fa112a9a16c98507fe90669d3adaa8b48771e4b5da0a505ba8e"
   },
   "sglang.srt.mem_cache.allocator.base.BaseTokenToKVPoolAllocator.free_group_end": {
-    "def_line": 197,
+    "def_line": 206,
     "file": "sglang/srt/mem_cache/allocator/base.py",
-    "first_line": 197,
+    "first_line": 206,
     "kind": "function",
-    "module_sha256": "52ec022545c0d5d794d3504c6ef514bee286a1fa09a92fc5fa7139b75b7c480e",
+    "module_sha256": "e5eacbff7efa88d3dabd5117dd21950bb75a2176845fecf9ec838454fd281dfc",
     "qualname": "BaseTokenToKVPoolAllocator.free_group_end",
     "sha256": "42fe3de1613e05a1d094a56fae277c482d429a7209639ece0e3c21411d2edf76"
   },
   "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator._release_page_ids": {
-    "def_line": 317,
+    "def_line": 375,
     "file": "sglang/srt/mem_cache/allocator/paged.py",
-    "first_line": 317,
+    "first_line": 375,
     "kind": "function",
-    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "module_sha256": "c72f28d9c5b953a05fcc0a0451307ecdbfbfb756eca3f0073f7be3eb737d38f6",
     "qualname": "PagedTokenToKVPoolAllocator._release_page_ids",
     "sha256": "630f7e886cfcdbbc4967fcf31eba5f91c013368a782eb0a43ee7beee2d365917"
   },
   "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free_group_end": {
-    "def_line": 328,
+    "def_line": 386,
     "file": "sglang/srt/mem_cache/allocator/paged.py",
-    "first_line": 328,
+    "first_line": 386,
     "kind": "function",
-    "module_sha256": "2b3d08d1b99717a26b6ca83f67a8578faf0445fbd9d9c3115b835a804e684cdc",
+    "module_sha256": "c72f28d9c5b953a05fcc0a0451307ecdbfbfb756eca3f0073f7be3eb737d38f6",
     "qualname": "PagedTokenToKVPoolAllocator.free_group_end",
     "sha256": "7839656afbb4fa52df2a9ff5514d908899a8272cc89c9736cb66202e9976567b"
   },
   "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.checkpoint": {
-    "def_line": 462,
+    "def_line": 477,
     "file": "sglang/srt/mem_cache/base_prefix_cache.py",
-    "first_line": 461,
+    "first_line": 476,
     "kind": "function",
-    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
+    "module_sha256": "d6b87103eebf39514cd571f6da03eb934e5211512242c2b383c67b128854d1be",
     "qualname": "BasePrefixCache.checkpoint",
     "sha256": "93dadff1914672552f581e0993565e0c7419c90330c910099984cedd49c3947c"
   },
   "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row": {
-    "def_line": 519,
+    "def_line": 552,
     "file": "sglang/srt/mem_cache/base_prefix_cache.py",
-    "first_line": 519,
+    "first_line": 552,
     "kind": "function",
-    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
+    "module_sha256": "d6b87103eebf39514cd571f6da03eb934e5211512242c2b383c67b128854d1be",
     "qualname": "BasePrefixCache.claim_kv_row",
     "sha256": "2c67d0e8328a21be48709b1157186c58947707ebbb65e336b61d171565c9d4e9"
   },
-  "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.free_kv_row": {
-    "def_line": 472,
+  "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.finish": {
+    "def_line": 426,
     "file": "sglang/srt/mem_cache/base_prefix_cache.py",
-    "first_line": 472,
+    "first_line": 426,
     "kind": "function",
-    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
+    "module_sha256": "d6b87103eebf39514cd571f6da03eb934e5211512242c2b383c67b128854d1be",
+    "qualname": "BasePrefixCache.finish",
+    "sha256": "f1a630bde5c8ec19844ab634eaf642a44ee4577c2a9f9f63046d23c0fe7149fe"
+  },
+  "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.free_kv_row": {
+    "def_line": 487,
+    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
+    "first_line": 487,
+    "kind": "function",
+    "module_sha256": "d6b87103eebf39514cd571f6da03eb934e5211512242c2b383c67b128854d1be",
     "qualname": "BasePrefixCache.free_kv_row",
     "sha256": "21b6ea527dcd46612061acd1310f9340a3ae583d2874c17d59e5163a6d742e69"
   },
-  "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.supports_mamba": {
-    "def_line": 645,
-    "file": "sglang/srt/mem_cache/base_prefix_cache.py",
-    "first_line": 645,
-    "kind": "function",
-    "module_sha256": "9ab23122fdee494aa0ea3d0ed56fede9ba2ed6ffe8ce85cdd8c55e6bf0460515",
-    "qualname": "BasePrefixCache.supports_mamba",
-    "sha256": "5771bc4a4cad8d6e533ab79e43486f562e02422293918a80ee29631eb068ca62"
-  },
-  "sglang.srt.mem_cache.chunk_cache.ChunkCache": {
-    "def_line": 35,
-    "file": "sglang/srt/mem_cache/chunk_cache.py",
-    "first_line": 35,
-    "kind": "class",
-    "module_sha256": "e618646ca1440d8140abe0e7b634d70a1f86b8fd859252997d7e8a1d40cb9d2c",
-    "qualname": "ChunkCache",
-    "sha256": "c5a1bd7e4ea03ec906b28b24f9deb7be964101c658e15429af870a4068e4ef79"
-  },
   "sglang.srt.mem_cache.common._release_overallocated_kv_indices": {
-    "def_line": 343,
+    "def_line": 425,
     "file": "sglang/srt/mem_cache/common.py",
-    "first_line": 343,
+    "first_line": 425,
     "kind": "function",
-    "module_sha256": "1bf95d24f84b421fc15b27d479c2e662ba305a56303f747b92f1e3bdf1d93cec",
+    "module_sha256": "e8d3ff0a8a0357e04e048bd18bd56f109ac59d6e44b205d366d9c617b8effc7d",
     "qualname": "_release_overallocated_kv_indices",
     "sha256": "588a854e58112e7ddfe73cca2f2e25b58b193c7d72935198e7a1a91a35d89b77"
   },
-  "sglang.srt.mem_cache.common.release_kv_cache": {
-    "def_line": 297,
+  "sglang.srt.mem_cache.common.checkpoint_kv_cache": {
+    "def_line": 253,
     "file": "sglang/srt/mem_cache/common.py",
-    "first_line": 297,
+    "first_line": 253,
     "kind": "function",
-    "module_sha256": "1bf95d24f84b421fc15b27d479c2e662ba305a56303f747b92f1e3bdf1d93cec",
-    "qualname": "release_kv_cache",
-    "sha256": "ebadb5bf568ce27faedff589f53ec78dc41c44fb7c01a4b9bda66b51a25aabb2"
+    "module_sha256": "e8d3ff0a8a0357e04e048bd18bd56f109ac59d6e44b205d366d9c617b8effc7d",
+    "qualname": "checkpoint_kv_cache",
+    "sha256": "61d4ff19b3d53de61588d552f1d074fdf7a15ddcac4edd1714f0175c1695db3c"
   },
-  "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache": {
-    "def_line": 1693,
-    "file": "sglang/srt/mem_cache/memory_pool.py",
-    "first_line": 1693,
+  "sglang.srt.mem_cache.common.match_kv_cache": {
+    "def_line": 203,
+    "file": "sglang/srt/mem_cache/common.py",
+    "first_line": 203,
     "kind": "function",
-    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
-    "qualname": "HybridReqToTokenPool.free_mamba_cache",
-    "sha256": "f034a4b1976e5c0019331738f1f03baecc558e673d1f25f7b0314780d366d7b4"
+    "module_sha256": "e8d3ff0a8a0357e04e048bd18bd56f109ac59d6e44b205d366d9c617b8effc7d",
+    "qualname": "match_kv_cache",
+    "sha256": "1f3b0e2c895cf0ad687d3f98329b74d0aab90e85babc2d105806fe176b7de009"
+  },
+  "sglang.srt.mem_cache.common.release_kv_cache": {
+    "def_line": 378,
+    "file": "sglang/srt/mem_cache/common.py",
+    "first_line": 378,
+    "kind": "function",
+    "module_sha256": "e8d3ff0a8a0357e04e048bd18bd56f109ac59d6e44b205d366d9c617b8effc7d",
+    "qualname": "release_kv_cache",
+    "sha256": "90e19434d1fa8c220ddc6bf9349fcbf831e46de1310d92156887a113045435f9"
   },
   "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free": {
-    "def_line": 360,
+    "def_line": 460,
     "file": "sglang/srt/mem_cache/memory_pool.py",
-    "first_line": 360,
+    "first_line": 460,
     "kind": "function",
-    "module_sha256": "a3357a49c15a8df71d450b6373a9618451c451a8a7fe5ebae015a149a0a22255",
+    "module_sha256": "8251fab74646427510d9dc2a358668816c26c35d928c6817bf31fd6d7c8ed92c",
     "qualname": "ReqToTokenPool.free",
     "sha256": "bcb3e8b66ac0946229f33adb31fae30006e9aaf6ecd35653ccb3cdc6c8b27176"
   },
@@ -234,48 +243,165 @@
     "sha256": "cf26e10b05e8a95732894bb79fdc3d3eaeeca5984dae1405fc5dc87e11948732"
   },
   "sglang.srt.mem_cache.registry.create_tree_cache": {
-    "def_line": 237,
+    "def_line": 229,
     "file": "sglang/srt/mem_cache/registry.py",
-    "first_line": 237,
+    "first_line": 229,
     "kind": "function",
-    "module_sha256": "2bfb5eb2a8b1022f439dcef25462dba22703d134d78462b4574a7e8819ec1a1e",
+    "module_sha256": "d68cb12e9f795665d2c3b434b45e97a27e7ca353e9df5ea1969bb0cd0b54e625",
     "qualname": "create_tree_cache",
     "sha256": "e797893ad42c211330b6d7df6af6ae8ef46126402f77a7a5d06c1ce50e9526b1"
   },
+  "sglang.srt.mem_cache.registry.create_unified_radix_cache": {
+    "def_line": 149,
+    "file": "sglang/srt/mem_cache/registry.py",
+    "first_line": 149,
+    "kind": "function",
+    "module_sha256": "d68cb12e9f795665d2c3b434b45e97a27e7ca353e9df5ea1969bb0cd0b54e625",
+    "qualname": "create_unified_radix_cache",
+    "sha256": "b8c69eb5f05cb81a6690f4b062561bd2d420a4057e69d081bb17de5be9c6ee1d"
+  },
   "sglang.srt.mem_cache.registry.default_radix_cache_factory": {
-    "def_line": 80,
+    "def_line": 83,
     "file": "sglang/srt/mem_cache/registry.py",
-    "first_line": 80,
+    "first_line": 83,
     "kind": "function",
-    "module_sha256": "2bfb5eb2a8b1022f439dcef25462dba22703d134d78462b4574a7e8819ec1a1e",
+    "module_sha256": "d68cb12e9f795665d2c3b434b45e97a27e7ca353e9df5ea1969bb0cd0b54e625",
     "qualname": "default_radix_cache_factory",
-    "sha256": "96bda56c45fdc591cbca56fff857304ded8c95dd624f3e6f8679bda034f224fa"
+    "sha256": "8ba18fde63a5f7556897c1dcd391277436d6ce00d6e2e19a6418ff54ff6bb560"
   },
-  "sglang.srt.mem_cache.registry.get_radix_cache_factory": {
-    "def_line": 72,
-    "file": "sglang/srt/mem_cache/registry.py",
-    "first_line": 72,
+  "sglang.srt.mem_cache.unified_cache.components.mamba.MambaComponent.cleanup_after_caching_req": {
+    "def_line": 644,
+    "file": "sglang/srt/mem_cache/unified_cache/components/mamba.py",
+    "first_line": 644,
     "kind": "function",
-    "module_sha256": "2bfb5eb2a8b1022f439dcef25462dba22703d134d78462b4574a7e8819ec1a1e",
-    "qualname": "get_radix_cache_factory",
-    "sha256": "ddb48f6e221e7eb19906f86bfacb2a8bb66b33860c27014486683d5b544932a5"
+    "module_sha256": "0a6c1bc7cdcf0f4ec3d83c94ba292afe75183fdae2e2dc5e605ad8f775a58528",
+    "qualname": "MambaComponent.cleanup_after_caching_req",
+    "sha256": "00855403d62d0706d1c0c74e1350845d45d1495bb8a8cb1e6f9c42047098c92b"
   },
-  "sglang.srt.mem_cache.registry.registered_radix_cache_backends": {
-    "def_line": 76,
-    "file": "sglang/srt/mem_cache/registry.py",
-    "first_line": 76,
-    "kind": "function",
-    "module_sha256": "2bfb5eb2a8b1022f439dcef25462dba22703d134d78462b4574a7e8819ec1a1e",
-    "qualname": "registered_radix_cache_backends",
-    "sha256": "f1b16567b646e1ba588226aa970ddaa8e6ac6fa9b9136b684eb3bc26bab6dbed"
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache": {
+    "def_line": 175,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 175,
+    "kind": "class",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache",
+    "sha256": "476023a8264e928e9cc159721e02e3c8ee41e8e57496935d5fe040af717175c6"
   },
-  "sglang.srt.utils.common.is_pin_memory_available": {
-    "def_line": 560,
-    "file": "sglang/srt/utils/common.py",
-    "first_line": 560,
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.__init__": {
+    "def_line": 176,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 176,
     "kind": "function",
-    "module_sha256": "cb4590357b253b06323a2bcb0533c3c535fa0684e79040cc97f846bc179e4d41",
-    "qualname": "is_pin_memory_available",
-    "sha256": "336ea04caca89125dfe031b33ab47df8f467b8be7f894c9f7bb695a32b777e5b"
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.__init__",
+    "sha256": "a6eceb0cfcc01553736bf9874d8eadb27846ccb6295a8524d6a11b8bfc38b518"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.checkpoint": {
+    "def_line": 1075,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 1074,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.checkpoint",
+    "sha256": "d24995840db878b147b0549e69927988e7c5d939f752fbe6783530689a8c3442"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.checkpoint_into_tree": {
+    "def_line": 1080,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 1080,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.checkpoint_into_tree",
+    "sha256": "09c41e282bd81ddcb733457307e95449ed6d084dcfadec3efd7529ac1685c2ce"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.claim_kv_row": {
+    "def_line": 1057,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 1057,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.claim_kv_row",
+    "sha256": "4577d27e7b15fbd52c67eace07fd86116572948d6c9d01fb4d58e42d1200a855"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.init_load_back": {
+    "def_line": 3442,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 3441,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.init_load_back",
+    "sha256": "43da05f78f9b3698e95b61db32a25796a5f4b3891a5aa66bec21305a42ce28aa"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.match_prefix": {
+    "def_line": 580,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 576,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.match_prefix",
+    "sha256": "b2ab0df88e8a22e94394b4b1983447d24cb8a888c6c51e0e81f582ef9484ba03"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.maybe_hand_to_session": {
+    "def_line": 1054,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 1054,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.maybe_hand_to_session",
+    "sha256": "79a7a2441ea87ad28d6a91582afd3f951335a803393b2d71cc5a0612f384ab7c"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.on_release": {
+    "def_line": 1068,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 1067,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.on_release",
+    "sha256": "7038cb19c523c1be77a41f449caedfe9350448ebf370193bcd540d3d41a555e7"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.prefix_device_indices": {
+    "def_line": 3816,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 3816,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.prefix_device_indices",
+    "sha256": "5925264af1fda86f92af59afec10ce3f452d4385be9d823777b6b6c7fccb855f"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.release_aborted_request": {
+    "def_line": 2625,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 2624,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.release_aborted_request",
+    "sha256": "ab38b52b8a4fa8ae6b921f439407a8ff62851a6eb1df1e9bbe07c3f81205e908"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.release_host_resources": {
+    "def_line": 570,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 570,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.release_host_resources",
+    "sha256": "7571116f0a48b4bf2f527cfcc97617c767cef159bcc6e68464a8329923701846"
+  },
+  "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache.reset": {
+    "def_line": 388,
+    "file": "sglang/srt/mem_cache/unified_radix_cache.py",
+    "first_line": 388,
+    "kind": "function",
+    "module_sha256": "8c82b00e0e14e5f301938dd04ac0323d4de19daa9ed6c2d52ecca80d1290b853",
+    "qualname": "UnifiedRadixCache.reset",
+    "sha256": "1840a5b198923810321386d01c3f536d44163ebda8b57d94ca9fcdf0f2aa9c48"
+  },
+  "sglang.srt.session.streaming_session.StreamingSession.take": {
+    "def_line": 200,
+    "file": "sglang/srt/session/streaming_session.py",
+    "first_line": 200,
+    "kind": "function",
+    "module_sha256": "8b822489550272d9caee8302ba4f89e1b082782d60c0474f0f847416465510be",
+    "qualname": "StreamingSession.take",
+    "sha256": "f691f1f09dbfa03c1b7a624298ba31934a50289cab6320c54003ee28fb522030"
   }
 }

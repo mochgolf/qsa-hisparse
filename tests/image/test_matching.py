@@ -232,7 +232,7 @@ class TestImageCheckpoints(unittest.TestCase):
     def rows(self, req, length):
         self.a.req_pool.alloc([req])
         pages = self.a.runner.token_to_kv_pool_allocator.alloc(length)
-        req.prefix_indices = pages
+        req.pages = pages
         self.a.req_table[req.kv.req_pool_idx, :length] = pages.int()
         req.kv.kv_allocated_len = req.kv.kv_committed_len = length
 
@@ -243,7 +243,7 @@ class TestImageCheckpoints(unittest.TestCase):
 
     def release(self, req):
         lease = self.a.release(req.kv.req_pool_idx, req.rid)
-        self.a.runner.token_to_kv_pool_allocator.free(req.prefix_indices)
+        self.a.runner.token_to_kv_pool_allocator.free(req.pages)
         self.a.req_pool.free_mamba_cache(req)
         self.a.req_pool.free(req)
         req.kv.mark_kv_released()
@@ -326,7 +326,7 @@ class TestImageCheckpoints(unittest.TestCase):
         """Every request-scoped tensor a checkpoint covers, as writable views."""
         row, slot = req.kv.req_pool_idx, req.kv.mamba_pool_idx
         physical = self.a.slots.staging_slice(lease, 0, 128)
-        logical = req.prefix_indices[::4].long() // 4
+        logical = req.pages[::4].long() // 4
         mamba = self.a.req_pool.mamba_pool
         short, ngram = mamba._slot_siblings
         ring = slice(row * 4, row * 4 + 4)
