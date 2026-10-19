@@ -4,10 +4,11 @@ FP8 K/V descales on store, extraction, prefill and reference reads, the
 SM86/SM89 flash-attention fallback, the eager decode score width,
 deterministic stable top-k, the FP8-aware sparse GQA kernels and the
 fast_topk overflow fix. Rule 2: this feature owns every QSA backend REPLACE;
-each copy equals the reference's definition (production ``897286b12a``,
-whose upstream base is the pin; PLAN.md Phase 5 rule Q1), including its
-``qsa_hisparse`` branches, which stay inert unless
-``patches/hisparse/qsa_backend.py`` attaches a runtime.
+each copy is the pinned (v0.5.22) definition plus the reference's change
+(production ``897286b12a`` over ``35f3c96ff4``; PLAN.md rule P1; Q08 and T03
+are hand merges listed in ``RESOLVED``), including its ``qsa_hisparse``
+branches, which stay inert unless ``patches/hisparse/qsa_backend.py``
+attaches a runtime.
 
 Copies run with this module's globals (inventory section 6, G3). Mechanical
 edits, all at the import level: the kernel launchers, the packed decode
@@ -50,6 +51,7 @@ from sglang.srt.layers.attention.qsa.kernel import (
 from sglang.srt.layers.attention.qsa.metadata import compressed_decode_view
 from sglang.srt.layers.attention.qsa.mqa import qsa_mqa_decode
 from sglang.srt.layers.attention.qsa.sparse_attn import (
+    pack_qsa_prefill_kv,
     qwen_sparse_fa2_cu_seqlens_triton,
     qwen_sparse_valid_counts_triton,
 )
@@ -59,9 +61,6 @@ from sglang.srt.layers.attention.qwen_sparse_attn_backend import (
     logger,
 )
 from sglang.srt.layers.cp.utils import is_cp_active
-from sglang.srt.model_executor.runner_backend_utils.breakable_cuda_graph import (
-    is_in_breakable_cuda_graph,
-)
 from sglang.srt.runtime_context import get_context, get_exec
 from sglang.srt.utils import is_hip
 from sglang.srt.utils.nvtx_utils import operations_nvtx_range
@@ -464,38 +463,43 @@ def forward_extend(
         )
         return self._pad_extend_output(output, num_output_rows)
 
-    # The validated chunk-prefill kernel consumes tightly packed full-context
-    # K/V. Current-chunk K/V has already been committed to the cache above.
+    # Current-chunk K/V has already been committed to the cache above.
     pool = self.token_to_kv_pool
     k_buffer = pool.get_key_buffer(layer.layer_id)
     v_buffer = pool.get_value_buffer(layer.layer_id)
-    req_to_token = self.req_to_token_pool.req_to_token
-    if is_in_breakable_cuda_graph():
-        # Reuse the prepared slot table to avoid a D2H sync per layer on replay.
-        req_to_token = self._resolve_metadata(forward_batch).token_slot_table
-        req_indices = range(len(sequence_lens))
-    else:
-        req_indices = forward_batch.req_pool_indices.tolist()
-    raw_slots = [
-        self.qsa_hisparse.prefill_slots(req_indices[i], sequence_lens[i])
-        if self.qsa_hisparse is not None
-        else req_to_token[req_indices[i], : sequence_lens[i]].long()
-        for i in range(len(sequence_lens))
-    ]
-    k_parts = [
-        k_buffer.index_select(0, raw_slots[i]) for i in range(len(sequence_lens))
-    ]
-    v_parts = [
-        v_buffer.index_select(0, raw_slots[i]) for i in range(len(sequence_lens))
-    ]
     sequence_lens_tensor = torch.tensor(
         sequence_lens, dtype=torch.int32, device=q.device
     )
     cu_seqlens_k = F.pad(sequence_lens_tensor.cumsum(0), (1, 0)).contiguous()
+    if self.qsa_hisparse is not None:
+        req_indices = forward_batch.req_pool_indices.tolist()
+        raw_slots = [
+            self.qsa_hisparse.prefill_slots(req_indices[i], sequence_lens[i])
+            for i in range(len(sequence_lens))
+        ]
+        k_parts = [
+            k_buffer.index_select(0, raw_slots[i]) for i in range(len(sequence_lens))
+        ]
+        v_parts = [
+            v_buffer.index_select(0, raw_slots[i]) for i in range(len(sequence_lens))
+        ]
+        packed_k, packed_v = torch.cat(k_parts), torch.cat(v_parts)
+    else:
+        # No output_dtype: FP8 K/V reach the kernel raw, which applies the
+        # layer descales once (a cast here would drop them).
+        packed_k, packed_v = pack_qsa_prefill_kv(
+            k=k_buffer,
+            v=v_buffer,
+            req_to_token=self.req_to_token_pool.req_to_token,
+            req_indices=forward_batch.req_pool_indices,
+            cu_k=cu_seqlens_k,
+            total_k=sum(sequence_lens),
+            max_k=max(sequence_lens, default=1),
+        )
     output = sparse_gqa_fwd_interface_triton_ck(
         q.contiguous(),
-        torch.cat(k_parts),
-        torch.cat(v_parts),
+        packed_k,
+        packed_v,
         topk_indices,
         cu_seqlens_q,
         cu_seqlens_k,
@@ -518,18 +522,26 @@ patch(
         f"{_BACKEND}._pad_extend_output",
         f"{_BACKEND}._resolve_metadata",
         f"{_BACKEND}._try_fused_kv_attention",
+        f"{_SPARSE_ATTN}.pack_qsa_prefill_kv",
         "sglang.srt.layers.cp.utils.is_cp_active",
-        "sglang.srt.model_executor.runner_backend_utils.breakable_cuda_graph."
-        "context.is_in_breakable_cuda_graph",
     ),
     reason=(
         "model_compat (both features; rule 2 copies the inert qsa_hisparse "
         "branch): stores through _store_kv, gathers chunk-prefill raw slots via "
         "qsa_hisparse.prefill_slots, and passes the FP8 descales to the "
         "reference and chunk-prefill reads (production bdb935d70f). replace "
-        "(120): mid-function call changes. The sparse GQA launchers (A03/A05) "
-        "and the torch reference (A12) are the plugin copies. "
-        + _BACKEND_METHOD_SCOPE
+        "(125): mid-function call changes. The sparse GQA launchers (A03/A05) "
+        "and the torch reference (A12) are the plugin copies. Hand merge with "
+        "v0.5.22's fused prefill K/V packing (#41933, RESOLVED): without a "
+        "runtime the copy packs with pack_qsa_prefill_kv but without "
+        "output_dtype, so FP8 pools reach the FP8-aware chunk kernel (A05) "
+        "raw and their descales are applied exactly once, there, as on "
+        "production's index_select gather (identical packed bytes); #41933's "
+        "cast to q.dtype would hand A05 unscaled BF16, whose non-FP8 path "
+        "ignores the descales. With a runtime the copy keeps production's "
+        "prefill_slots gather (the runtime requires the prefill CUDA graph "
+        "disabled, so the breakable-graph slot table it replaced never "
+        "applies there). " + _BACKEND_METHOD_SCOPE
     ),
 )(_scoped_method("forward_extend", forward_extend))
 
@@ -744,6 +756,8 @@ def _forward_trtllm_sparse(
                 if compress_ratio > 1
                 else None
             ),
+            # trtllm_decode reads each row only up to valid_counts.
+            visible_page_size=page,
         )
     else:
         qwen_sparse_valid_counts_triton(
@@ -826,8 +840,10 @@ patch(
     reason=(
         "model_compat: FP8 KV descales for compact extraction (the gather "
         "branch; the pin's fused #40972 branch is reached only with unit "
-        "descales, Q13). replace (135): extra arguments in a mid-function call; "
-        "the launcher is the plugin copy (A09). " + _BACKEND_METHOD_SCOPE
+        "descales, Q13). replace (137): extra arguments in a mid-function call; "
+        "the launcher is the plugin copy (A09). Copy: v0.5.22's definition "
+        "(its fused branch passes visible_page_size, #41933) plus the "
+        "reference's change. " + _BACKEND_METHOD_SCOPE
     ),
 )(_scoped_method("_forward_trtllm_sparse", _forward_trtllm_sparse))
 
@@ -1190,18 +1206,22 @@ def select_decode_tokens(
     sequence_lengths: torch.Tensor,
     defer_expansion: bool = False,
 ) -> torch.Tensor:
+    deterministic = (
+        get_context().is_config_namespace_published("exec")
+        and get_exec().deterministic.enable_deterministic_inference
+    )
+    # fast_topk (k = 512) writes 0..length-1 for rows that fit k without reading
+    # their scores, and never reads past a row's length.
+    use_fast_topk = q.is_cuda and self.block_topk == 512 and not deterministic
     logits = qsa_mqa_decode(
         q,
         compressed_cache,
         compressed_page_table,
         compressed_lengths,
         max_model_len,
+        min_scored_len=self.block_topk if use_fast_topk else 0,
     )
-    deterministic = (
-        get_context().is_config_namespace_published("exec")
-        and get_exec().deterministic.enable_deterministic_inference
-    )
-    if logits.is_cuda and self.block_topk == 512 and not deterministic:
+    if use_fast_topk:
         # Decode rows start at zero, so compressed lengths double as row lengths;
         # skip the generic zero-fill + subtract.
         from sglang.kernels.ops.attention.fast_topk import fast_topk
@@ -1247,9 +1267,15 @@ patch(
     reason=(
         "model_compat: deterministic decode skips the JIT fast_topk and passes "
         "the flag to qsa_fast_topk (rebound to the T02 hook at activation). "
-        "replace (51): mid-function branch predicate. Copy: the reference's "
-        "definition (the pin's defer_expansion plus the fork's change); its "
-        "inline fast_topk import reads the module attribute, the T05 hook. "
+        "replace (55): mid-function branch predicate. Hand merge with v0.5.22's "
+        "context-length bound (#43463, RESOLVED): the flag is read before the "
+        "MQA call and folded into use_fast_topk, so min_scored_len (unscored "
+        "short rows, unset logits past each row's length) is requested only "
+        "when fast_topk selects; deterministic decode scores every row as in "
+        "the reference, since the stable top-k reads the logits. The inline "
+        "fast_topk import reads the module attribute, the T05 hook, whose "
+        "kernel (the reference's) also writes 0..length-1 for rows that fit k "
+        "and reads nothing past a row's length. "
         "Per-layer indexer code without a backend reference: "
         + _FUNCTION_SCOPE
     ),
@@ -1282,7 +1308,10 @@ patch(
         "scope every call goes to the plugin wrapper, so the in-tree module is "
         "never built or loaded there; out of scope the original runs. Callers "
         "(the T03 copy and the pinned qsa_fast_topk) import the module "
-        "attribute at call time. " + _FUNCTION_SCOPE
+        "attribute at call time. v0.5.22's decode indexer (#43463) leaves short "
+        "rows unscored and logits past a row's length unset when fast_topk "
+        "selects; the fix keeps the pinned length <= k path and bounds every "
+        "rescan by the row length, so that contract holds. " + _FUNCTION_SCOPE
     ),
 )
 def _fast_topk_keeps_overflow_candidates(original, *args, **kwargs):

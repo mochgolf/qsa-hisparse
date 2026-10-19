@@ -63,38 +63,56 @@
     "sha256": "36ab68033f1f5d2cee5576581dc74690ffaa0f9793f830c8f67204f4aa74b482"
   },
   "sglang.srt.layers.hyperconnection.GatedResidual.__init__": {
-    "def_line": 116,
+    "def_line": 122,
     "file": "sglang/srt/layers/hyperconnection.py",
-    "first_line": 116,
+    "first_line": 122,
     "kind": "function",
-    "module_sha256": "ad72ac9807baccbf39155e5f46cbc1ab1275bc5eabd12202a73b2dfa9bf03d63",
+    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
     "qualname": "GatedResidual.__init__",
-    "sha256": "54106c81ca918198cc4d33ae95108310d456f79040c64b5fc356b5a3d6d2a8cb"
+    "sha256": "50dfdf501e0273325a98819fe762ea944591d1130c5a107837f3303780579cc3"
+  },
+  "sglang.srt.layers.hyperconnection.GatedResidual.combine": {
+    "def_line": 353,
+    "file": "sglang/srt/layers/hyperconnection.py",
+    "first_line": 353,
+    "kind": "function",
+    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
+    "qualname": "GatedResidual.combine",
+    "sha256": "45dab4075e9743b1b58ccfb5b1584bd985a0870c615cba90d94cc1043926081d"
+  },
+  "sglang.srt.layers.hyperconnection.GatedResidual.combine_and_normalize": {
+    "def_line": 318,
+    "file": "sglang/srt/layers/hyperconnection.py",
+    "first_line": 318,
+    "kind": "function",
+    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
+    "qualname": "GatedResidual.combine_and_normalize",
+    "sha256": "faf48ef5b5486f9e2dbc263136da594d64cf1df072947961c63895dc5430917e"
   },
   "sglang.srt.layers.hyperconnection.GatedResidual.mix": {
-    "def_line": 222,
+    "def_line": 236,
     "file": "sglang/srt/layers/hyperconnection.py",
-    "first_line": 222,
+    "first_line": 236,
     "kind": "function",
-    "module_sha256": "ad72ac9807baccbf39155e5f46cbc1ab1275bc5eabd12202a73b2dfa9bf03d63",
+    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
     "qualname": "GatedResidual.mix",
-    "sha256": "44c01967c28cd4f5e6fd4579884093979ee7c1ffdbf902fa07ec9707419f6816"
+    "sha256": "ec3a9b153daaf5dd105184c095773867cd848ff2c7c301037e4c7244ca634524"
   },
   "sglang.srt.layers.hyperconnection.GroupedGemmaRMSNorm.forward": {
-    "def_line": 45,
+    "def_line": 51,
     "file": "sglang/srt/layers/hyperconnection.py",
-    "first_line": 45,
+    "first_line": 51,
     "kind": "function",
-    "module_sha256": "ad72ac9807baccbf39155e5f46cbc1ab1275bc5eabd12202a73b2dfa9bf03d63",
+    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
     "qualname": "GroupedGemmaRMSNorm.forward",
     "sha256": "26a5de55e7d1a922c5ade4c88b9c1f99da8aa494f3829173ffdf6774acb04516"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1294,
+    "def_line": 1310,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1294,
+    "first_line": 1310,
     "kind": "function",
-    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
+    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   }

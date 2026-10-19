@@ -208,6 +208,8 @@ def _gated_residual():
     layer.input_mix_weight_up = SimpleNamespace(weight=torch.randn(8, 3, generator=gen))
     layer._jit_mix_ok = False
     layer._mix_compute = _mix_reference
+    # v0.5.22's constructor state (#42175): no decode gate stream (SM100 only).
+    layer._gate_stream = None
     return layer
 
 
@@ -240,14 +242,53 @@ def test_gated_residual_mix_routes_stable_calls_to_the_fork_copy(
     layer = _gated_residual()
     x = torch.randn(3, 8, generator=torch.Generator().manual_seed(1))
     kwargs = {} if stable is None else {"stable": stable}
-    mixed, (residual, normed) = layer.mix(x, **kwargs)
+    # v0.5.22 (#42175) residuals: (hyper_input, normed, gate partials).
+    mixed, (residual, normed, partials) = layer.mix(x, **kwargs)
 
     assert [(name, kw) for name, _, kw in calls] == [
         ("fork", {"stable": True}) if fork_path else ("pinned", {})
     ]
-    assert residual is x and torch.equal(normed, 2 * x)
+    assert residual is x and torch.equal(normed, 2 * x) and partials is None
     w_down, w_up = layer.input_mix_weight_down.weight, layer.input_mix_weight_up.weight
     assert torch.equal(mixed, _mix_reference(2 * x, w_down, w_up, 2, 4))
+
+
+def _combine_reference(block_output, hyper_input, normed, weight, hc, hs):
+    # Stand-in for GatedResidual._combine_compute: records what combine reads.
+    return block_output.repeat(1, hc) + hyper_input + normed + weight.sum()
+
+
+@pytest.mark.parametrize("stable", [True, False])
+def test_gated_residual_mix_keeps_the_v0522_residual_interface(compat, target, stable):
+    """H08 at v0.5.22 (#42175): mix takes normalized_input and returns
+    (hyper_input, normed, partials). The pinned path receives
+    normalized_input; the stable copy returns partials None, so the pinned
+    combine and combine_and_normalize run the reference's combine on its
+    residuals and hand no prepared norm to the next mix."""
+    layer = _gated_residual()
+    layer._jit_combine_ok = False
+    layer._combine_compute = _combine_reference
+    layer.block_inject_weight = SimpleNamespace(weight=torch.ones(2, 8))
+    x = torch.randn(3, 8, generator=torch.Generator().manual_seed(2))
+    block_output = torch.randn(3, 4, generator=torch.Generator().manual_seed(3))
+
+    if stable:
+        mixed, residuals = layer.mix(x, stable=True)
+        normed = 2 * x
+    else:
+        normed = 5 * x
+        mixed, residuals = layer.mix(x, normalized_input=normed, stable=False)
+    assert residuals[0] is x and torch.equal(residuals[1], normed)
+    assert residuals[2] is None
+    w_down, w_up = layer.input_mix_weight_down.weight, layer.input_mix_weight_up.weight
+    assert torch.equal(mixed, _mix_reference(normed, w_down, w_up, 2, 4))
+
+    expected = _combine_reference(block_output, x, normed, torch.ones(2, 8), 2, 4)
+    assert torch.equal(layer.combine(block_output, residuals), expected)
+    combined, next_input = layer.combine_and_normalize(
+        block_output, residuals, layer.hc_norm
+    )
+    assert torch.equal(combined, expected) and next_input is None
 
 
 # E03 -------------------------------------------------------------------------
