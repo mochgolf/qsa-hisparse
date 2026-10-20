@@ -367,3 +367,8 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   (`layers/layer_boundary/`, per eager forward) are the likely explanation;
   no substantial plugin regression in the sampled cache path and hooks.
   Cutover remains an owner decision.
+- G6-GPU review (`reviews/G6GPU*.md`): cleared after one re-check. Fixed:
+  G2-3's cold `prompt_tokens_details` (`null` → `{"cached_tokens": 0}`,
+  upstream #43005) reported and now enforced per arm, latency attribution
+  worded as likely explanation, skip count, profiling labels. Pending owner:
+  D8 addendum (#43005), merge of `phase6` into main, cutover.
