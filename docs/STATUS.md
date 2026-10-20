@@ -360,3 +360,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   equals production's code). Open: warm prefix-hit latency +10–52 ms
   (+8–18%) in P, growing with prefix length; cold equal. Needs a profile
   before any cutover (owner).
+- Warm-hit latency diagnosed (profiling window 2026-10-20 05:54–06:17,
+  production restored and verified): the plugin's hit path costs the same
+  as production's; the gap is upstream v0.5.22 — the `/generate` contract
+  check (O(prompt length), 1–36 ms) and the decoder stage scaffolding
+  (`layers/layer_boundary/`, per eager forward). Nothing to fix in the
+  plugin. Cutover remains an owner decision.

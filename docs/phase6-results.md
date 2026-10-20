@@ -135,7 +135,7 @@ evidence (private): `qwen:results/plugin-g6-20261019/` (`window6.sh`,
 | I5 | **PASS** in both ViT-cache sessions (10 image cases: hits at page-64 boundaries incl. inside images, negatives, swapped/different preprocessing; text control equal to this window's F) |
 | G2-3 | **PASS** (production's profile and weights, port 8082): every check passed on both arms, token accounting equal for 31 requests, equal scheduler numactl (`--cpunodebind=2/3 --interleave=all`) |
 
-**Open: warm-hit latency.** G2-3 medians (s), F / P — cold: 8192 7.189 /
+**Warm-hit latency (diagnosed below).** G2-3 medians (s), F / P — cold: 8192 7.189 /
 7.221, 65536 9.936 / 9.917, 262016 63.305 / 63.450 (within 0.5%); warm:
 8192 0.125 / 0.138, 65536 0.204 / 0.240, 262016 0.516 / 0.564. Every warm
 sample is slower in P (+10.0/+14.9 ms, +35.5/+36.4 ms, +45.9/+51.6 ms),
@@ -144,3 +144,46 @@ growing with prefix length; F reproduces its Phase 5 warm times (0.1248 vs
 counts and restored bytes are equal, so this is a performance difference in
 the hit path at v0.5.22 (plugin seams or upstream allocation/preparation),
 not a correctness one. Cause not yet identified (needs a GPU profile).
+
+### Warm-hit latency diagnosis (profiling window 2026-10-20 05:54–06:17)
+
+Owner-approved second window (production idle, stopped 05:54:52, restored
+06:14–06:17 with the unchanged profile, `/health` 200, launcher verified both
+ranks). `qwen:results/plugin-g6-20261019/profile/` (`profile_warm.py`,
+`analyze.py`, `spans.py`, `inside.py`, `children.py`, traces): both arms with
+production's profile and weights, latency-harness request shape (65,548
+tokens, 65,536 cached), 5 unprofiled warm hits, 2 under the torch profiler
+(CPU + GPU, stacks, shapes), 5 more unprofiled. Unprofiled warm medians:
+F 0.2001 s, P 0.2218 s (+21.7 ms; G2-3 measured +36 ms at this length).
+
+Attribution (TP0 traces, second profiled request unless noted):
+- **Scheduling, match, admission, allocation and restore** (the redesigned
+  host prefix cache): `scheduler.get_next_batch_to_run` 142.8 ms F /
+  140.6 ms P (profiled), and the restore itself 106.7 / 105.1 ms
+  (`restore_prefix_for_extend` / `maybe_hand_to_session`): no cost.
+- **Plugin hooks in the forward**: HC mix +0.1 ms, fused HC +0.8, Marlin MoE
+  +0.1, QSA `forward_extend` +0.7 (profiled) — the wrapper overhead Phase 5
+  already had.
+- **Upstream decoder stages** (`srt/layers/layer_boundary/`: #42478, #42481,
+  #42936, #43460): Python scaffolding per layer in every eager forward
+  (`stage.prepare`, `prepare._run_entry`, `gated.read/update_and_read`,
+  `exit.finish`); the model forward is +12 ms under the profiler for a
+  12-token extend. Constant per forward: invisible in GPU-bound prefill
+  chunks, visible in short extends; decode runs CUDA graphs.
+- **Upstream `/generate` contract check** (`entrypoints/api_contract.py`,
+  `http_server.py:921`): schema validation of the request body, O(prompt
+  length) — measured on CPU 1.2 / 9.1 / 35.7 ms at 8,192 / 65,536 / 262,016
+  tokens (including a `json.loads` of 0.3 / 2.5 / 9.9 ms that Starlette
+  caches in the server). Only `/generate` runs it (the latency harness uses
+  `/generate` with `input_ids`); the OpenAI routes production's clients use
+  do not.
+- A 6.75 ms `aten::repeat` in the first profiled request's
+  `_compute_mrope_positions_extend` (shape [1, 12]; 0.08 ms in the second
+  request, 0.18 ms in F's first) is a first-call stall, not steady state.
+
+Conclusion: the gap comes from upstream v0.5.22 (contract check growing with
+prompt length; per-forward decoder-stage overhead), not from the plugin's
+port; the plugin's own hit path costs the same as production's. Nothing to
+fix in the plugin; the cutover decision weighs these upstream costs
+(production's chat traffic pays only the per-forward stage overhead on short
+extends).
