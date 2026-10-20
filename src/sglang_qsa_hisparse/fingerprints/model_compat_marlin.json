@@ -45,13 +45,13 @@
     "sha256": "fc75355445c2656dacf8cb4e0d17deeb0db0e1818e8a5e2d40bc2759a32c05a6"
   },
   "sglang.kernels.ops.activation.activation.silu_and_mul": {
-    "def_line": 175,
+    "def_line": 228,
     "file": "sglang/kernels/ops/activation/activation.py",
-    "first_line": 175,
+    "first_line": 228,
     "kind": "function",
-    "module_sha256": "416b4d2eb24d2abfbd215277f508b9786ade0c2fc736e470d37621cc3cd605bc",
+    "module_sha256": "b10583b813290eb828205177e54758c5016561ccab2bb13786ad5d8ff8ea22fd",
     "qualname": "silu_and_mul",
-    "sha256": "69f3b9e5242ce24f59f89032742244eee9984394e7a10bb435cbaa13a4dc54f2"
+    "sha256": "03aa6783ec37fe0c8642d4b1f48441cd4ab3c530c2b2c9cfe50580c7382edb43"
   },
   "sglang.kernels.ops.moe.moe_align_single_token.moe_align_single_token": {
     "def_line": 32,
@@ -135,29 +135,29 @@
     "sha256": "93cde228de99616503dd09b1dbf47e7b80065226f42da63bd85224a6a991d7a2"
   },
   "sglang.srt.runtime_context.get_context": {
-    "def_line": 1257,
+    "def_line": 1273,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1257,
+    "first_line": 1273,
     "kind": "function",
-    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
+    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
     "qualname": "get_context",
     "sha256": "e259db7cb2d6e0339aac82725b374a0197b63969dbf34a35bbead7939eb95353"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1294,
+    "def_line": 1310,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1294,
+    "first_line": 1310,
     "kind": "function",
-    "module_sha256": "f33b275ac102a7c04a84e064b64fd6de80b984adf3a653769d9f3e405ea1a6f9",
+    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
   "sglang.srt.utils.common.direct_register_custom_op": {
-    "def_line": 2903,
+    "def_line": 3003,
     "file": "sglang/srt/utils/common.py",
-    "first_line": 2903,
+    "first_line": 3003,
     "kind": "function",
-    "module_sha256": "cb4590357b253b06323a2bcb0533c3c535fa0684e79040cc97f846bc179e4d41",
+    "module_sha256": "5423d1bb153e72852306934ab56ee0b3eccab8b3ec6395dc9da0fea79f7e74da",
     "qualname": "direct_register_custom_op",
     "sha256": "e1e3ba11ac053980936c2f2c528a66dcef44e2d9cb1ec0f42182aa2f1b84ffce"
   },

@@ -1,12 +1,15 @@
 import pytest
 
 from sglang.srt.runtime_context import get_context
-from sglang_qsa_hisparse.hisparse import prefix_cache
 
 
 @pytest.fixture
 def identities(monkeypatch):
     """Stand-in for I-A's ``identity_for``: rid -> what the test assigns."""
+    # Imported here so the suffix-input tests, which need no host prefix
+    # cache, collect on their own.
+    from sglang_qsa_hisparse.hisparse import prefix_cache
+
     table = {}
     monkeypatch.setattr(prefix_cache, "identity_for", lambda req: table.get(req.rid))
     return table

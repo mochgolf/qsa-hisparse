@@ -122,7 +122,7 @@ VOLATILE_KEYS = frozenset(
 )
 SERVER_INFO = ("max_total_num_tokens", "max_req_input_len")
 # Run scripts' own records (command, harness exit codes), not evidence.
-RUN_METADATA = frozenset({"run.json", "harness-status.json"})
+RUN_METADATA = frozenset({"run.json", "harness-status.json", "steps.json"})  # steps.json: run_g21.py
 MEMORY_USAGE = ("kvcache", "token_capacity")
 MEASURED_MEMORY = ("weight", "graph", "startup_available")
 LOG_FIGURES = re.compile(

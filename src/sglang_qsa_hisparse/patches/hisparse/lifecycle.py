@@ -1,52 +1,34 @@
 """KV allocation, release, invalidation and tree-cache selection (inventory W2).
 
-Rows B06, M01, M02, M03, M05 and M06. Release order for a request with a QSA
+Rows B06, M01, M02, M03 and M05. Release order for a request with a QSA
 lease: the tree's ``claim_kv_row`` (a pending host restore must drain through
-rollback first), prefix capture in the tree's ``checkpoint``, runtime release
+rollback first), prefix capture in the tree's ``checkpoint`` (whose disabled
+UnifiedRadixCache then frees a finished request's mamba slot), runtime release
 (drains GPU and copy events), the tree cache's ``free_kv_row`` (logical free,
-deferred inside a free group), ``on_release``, the mamba slot when the tree
-does not manage it, ``req_to_token_pool.free``, ``mark_kv_released``,
-``after_release(lease)``, then the allocator's ``free_group_end`` and
-``after_logical_flush``, after which the physical slot can be reused. M05 and
-M06 keep the ChunkCache that ``QSAHostPrefixCache`` wraps (S01) on hybrid-SSM
-models under ``--disable-radix-cache``. REPLACE hooks are production's
-definitions (PLAN.md rules 3, P1 and Q1) and run with this module's globals,
-which are imported from the pinned module that defines each target
-(inventory 6, G3).
+deferred inside a free group), ``on_release`` (frees the mamba slot when the
+request was not checkpointed), ``req_to_token_pool.free``,
+``mark_kv_released``, ``after_release(lease)``, then the allocator's
+``free_group_end`` and ``after_logical_flush``, after which the physical slot
+can be reused. M05 builds ``QSAHostPrefixCache`` (a UnifiedRadixCache) under
+``--disable-radix-cache``; M01 records and rolls back its allocations. The
+REPLACE hook is v0.5.22's definition plus production's change (PLAN.md rules
+3 and P1) and runs with this module's globals, which are imported from the
+pinned module that defines the target (inventory 6, G3).
 """
 
 from __future__ import annotations
 
 import os
 
-import torch
-
-from sglang.srt.mem_cache.allocation import (
-    _alloc_extend_loc_with_kv_reuse,
-    _alloc_page_size,
-    _is_npu,
-    alloc_paged_token_slots_extend,
-    alloc_req_slots,
-    alloc_token_slots,
-    is_pin_memory_available,
-    maybe_write_dsv4_extend,
-    write_cache_indices,
-)
 from sglang.srt.mem_cache.common import _release_overallocated_kv_indices
-from sglang.srt.mem_cache.memory_pool import HybridReqToTokenPool
-from sglang.srt.mem_cache.registry import (
-    default_radix_cache_factory,
-    get_memory,
-    get_radix_cache_factory,
-    get_serving,
-    logger,
-    registered_radix_cache_backends,
-)
+from sglang.srt.mem_cache.registry import create_unified_radix_cache
 from sglang_qsa_hisparse.features import HISPARSE
+from sglang_qsa_hisparse.hisparse.prefix_cache import QSAHostPrefixCache
 from sglang_qsa_hisparse.patching import patch
 
 ALLOCATION = "sglang.srt.mem_cache.allocation"
 REGISTRY = "sglang.srt.mem_cache.registry"
+URC = "sglang.srt.mem_cache.unified_radix_cache.UnifiedRadixCache"
 WEIGHT_UPDATER = (
     "sglang.srt.managers.scheduler_components.weight_updater."
     "SchedulerWeightUpdaterManager"
@@ -106,170 +88,50 @@ def _notify_logical_flush(result, self):
         adapter.after_release(adapter.pending_release)
 
 
-# Production mem_cache/allocation.py:344-357, verbatim.
 @patch(
-    "sglang.srt.mem_cache.allocation.alloc_for_extend",
-    "replace",
+    f"{ALLOCATION}.alloc_for_extend",
+    "around",
     feature=HISPARSE,
     row="M01",
     depends=(
+        f"{ALLOCATION}._prefix_kv_indices",
         f"{ALLOCATION}.alloc_req_slots",
         f"{ALLOCATION}.write_cache_indices",
         f"{ALLOCATION}.alloc_paged_token_slots_extend",
-        f"{ALLOCATION}.alloc_token_slots",
-        f"{ALLOCATION}._alloc_extend_loc_with_kv_reuse",
-        f"{ALLOCATION}._alloc_page_size",
-        "sglang.srt.hardware_backend.npu.dsv4.dsv4_common_hooks.maybe_write_dsv4_extend",
-        "sglang.srt.utils.common.is_pin_memory_available",
+        f"{URC}.prefix_device_indices",
+        f"{URC}.maybe_hand_to_session",
     ),
     reason=(
-        "hisparse: every new call is a getattr on the tree cache, and only "
-        "QSAHostPrefixCache defines them; reading prefix_tensors after "
-        "prepare_prefix_for_extend is pure because alloc_req_slots never "
-        "reassigns req.prefix_indices. Replace: insertions at four mid-function "
-        "points. The fork's rollback wrapper and its renamed body "
-        "_alloc_for_extend are both copied as module functions."
+        "hisparse: acts only for QSAHostPrefixCache. Around hook (v0.5.22 "
+        "seams; was a replace with a rollback wrapper): production's "
+        "prefix steps are cache methods upstream now calls itself "
+        "(prefix_device_indices before alloc_req_slots for a request without a "
+        "row and prefix_len > 0, maybe_hand_to_session per request after the "
+        "row write and the kv_allocated_len update), so the hook only records "
+        "each request first (prepare_prefix_for_extend, production's per-request "
+        "TP convergence) and, on any exception, rolls back (production's "
+        "wrapper). The rollback reads a request's new suffix from its row once "
+        "kv_allocated_len moved; before that upstream either allocated no "
+        "suffix or freed out_cache_loc itself (alloc_aux_to_lengths, which has "
+        "no aux cache on QSA pools)."
     ),
 )
-def alloc_for_extend(
-    batch: ScheduleBatch,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    rollback = getattr(batch.tree_cache, "rollback_prefix_for_extend", None)
-    if rollback is None:
-        return _alloc_for_extend(batch)
+def _roll_back_failed_extend(original, batch):
+    cache = batch.tree_cache
+    if not isinstance(cache, QSAHostPrefixCache):
+        return original(batch)
     try:
-        return _alloc_for_extend(batch)
+        cache.prepare_prefix_for_extend(batch.reqs)
+        return original(batch)
     except BaseException as error:
         try:
-            rollback(batch.reqs)
+            cache.rollback_prefix_for_extend(batch.reqs)
         except BaseException as cleanup_error:
             error.add_note(f"QSA prefix allocation rollback retained ownership: {cleanup_error!r}")
         raise
 
 
-# Production mem_cache/allocation.py:360-478, verbatim.
-def _alloc_for_extend(
-    batch: ScheduleBatch,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    Allocate KV cache for extend batch and write to req_to_token_pool.
-
-    Returns ``(out_cache_loc, req_pool_indices_device, req_pool_indices_cpu)``
-    (the last is the host/CPU mirror). ``alloc_req_slots`` raises ``RuntimeError``
-    if the pool can't satisfy the batch (fail-loud — see its docstring).
-    """
-    # free out-of-window swa tokens
-    batch.maybe_evict_swa()
-
-    reuse_kv = None
-    if batch.is_dllm():
-        reuse_kv = [r.kv.holds_kv and bool(r.dllm_incomplete_ids) for r in batch.reqs]
-
-    # Create tensors for allocation
-    pin_memory = is_pin_memory_available(batch.device)
-    prefix_lens_cpu = torch.tensor(
-        batch.prefix_lens, dtype=torch.int64, pin_memory=pin_memory
-    )
-    extend_lens_cpu = torch.tensor(
-        batch.extend_lens, dtype=torch.int64, pin_memory=pin_memory
-    )
-    prefix_lens_device = prefix_lens_cpu.to(batch.device, non_blocking=True)
-    extend_lens_device = extend_lens_cpu.to(batch.device, non_blocking=True)
-
-    # Allocate req slots (raises RuntimeError if the pool is exhausted)
-    req_pool_indices = alloc_req_slots(
-        batch.req_to_token_pool, batch.reqs, batch.tree_cache
-    )
-    prepare_prefix = getattr(batch.tree_cache, "prepare_prefix_for_extend", None)
-    if prepare_prefix is not None:
-        prepare_prefix(batch.reqs)
-    prefix_tensors = [r.prefix_indices for r in batch.reqs]
-    req_pool_indices_cpu = torch.tensor(
-        req_pool_indices, dtype=torch.int64, pin_memory=pin_memory
-    )
-    req_pool_indices_device = req_pool_indices_cpu.to(batch.device, non_blocking=True)
-
-    # Allocate KV cache (throws exception on failure)
-    alloc_page_size = _alloc_page_size(batch)
-    if reuse_kv is not None and any(reuse_kv):
-        out_cache_loc = _alloc_extend_loc_with_kv_reuse(
-            batch,
-            reuse_kv,
-            req_pool_indices_cpu,
-            prefix_lens_cpu,
-            extend_lens_cpu,
-            req_pool_indices_device,
-            alloc_page_size,
-        )
-    elif alloc_page_size == 1:
-        out_cache_loc = alloc_token_slots(batch.tree_cache, batch.extend_num_tokens)
-    else:
-        # Paged allocation - build last_loc
-        last_loc = [
-            (t[-1:] if len(t) > 0 else torch.full((1,), -1, device=batch.device))
-            for t in prefix_tensors
-        ]
-        out_cache_loc = alloc_paged_token_slots_extend(
-            tree_cache=batch.tree_cache,
-            prefix_lens=prefix_lens_device,
-            prefix_lens_cpu=prefix_lens_cpu,
-            seq_lens=batch.seq_lens,
-            seq_lens_cpu=batch.seq_lens_cpu,
-            last_loc=torch.cat(last_loc),
-            extend_num_tokens=batch.extend_num_tokens,
-            req_pool_indices=req_pool_indices_device,
-            batch=batch,
-        )
-
-    note_allocation = getattr(batch.tree_cache, "note_extend_allocation", None)
-    if note_allocation is not None:
-        note_allocation(batch.reqs, out_cache_loc)
-
-    # Write to req_to_token_pool
-    write_cache_indices(
-        out_cache_loc,
-        req_pool_indices_device,
-        req_pool_indices_cpu,
-        prefix_lens_device,
-        prefix_lens_cpu,
-        batch.seq_lens,
-        batch.seq_lens_cpu,
-        extend_lens_device,
-        extend_lens_cpu,
-        prefix_tensors,
-        batch.req_to_token_pool,
-    )
-    try:
-        batch.req_to_token_pool.alloc_aux_to_lengths(
-            req_pool_indices_cpu=req_pool_indices_cpu,
-            target_seq_lens_cpu=batch.seq_lens_cpu,
-        )
-    except Exception:
-        if note_allocation is None:
-            batch.tree_cache.token_to_kv_pool_allocator.free(out_cache_loc)
-        raise
-
-    # DSV4-NPU hook: no-op on non-DSV4 paths.
-    if _is_npu:
-        maybe_write_dsv4_extend(
-            batch,
-            req_pool_indices_cpu,
-            prefix_lens_cpu,
-            batch.seq_lens_cpu,
-        )
-
-    for req, seq_len in zip(batch.reqs, batch.seq_lens_cpu.tolist()):
-        req.kv.kv_allocated_len = seq_len
-        req.kv.kv_committed_len = seq_len
-
-    restore_prefix = getattr(batch.tree_cache, "restore_prefix_for_extend", None)
-    if restore_prefix is not None:
-        restore_prefix(batch.reqs)
-
-    return out_cache_loc, req_pool_indices_device, req_pool_indices_cpu
-
-
-# Production mem_cache/common.py:297-360, verbatim.
+# v0.5.22 mem_cache/common.py:378-422 with production's change.
 @patch(
     "sglang.srt.mem_cache.common.release_kv_cache",
     "replace",
@@ -278,26 +140,34 @@ def _alloc_for_extend(
     depends=(
         "sglang.srt.mem_cache.common._release_overallocated_kv_indices",
         "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free",
-        "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache",
         "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row",
         "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.checkpoint",
         "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.free_kv_row",
+        f"{URC}.checkpoint_into_tree",
+        f"{URC}.on_release",
+        "sglang.srt.mem_cache.unified_cache.components.mamba.MambaComponent."
+        "cleanup_after_caching_req",
     ),
     reason=(
         "hisparse: getattr on the kvcache; without the QSA runtime nothing is "
-        "added, and the mamba free is reached only by a tree that does not "
-        "manage mamba state on a HybridReqToTokenPool, which upstream's "
-        "create_tree_cache rejects (only M06's QSA host-prefix ChunkCache gets "
-        "there). Replace: the lease release sits between the tree's checkpoint "
+        "added. Replace: the lease release sits between the tree's checkpoint "
         "(where QSAHostPrefixCache captures the prefix, observing the live "
-        "lease) and the logical free in free_kv_row; the mamba free and "
-        "after_release follow on_release and req_to_token_pool.free / "
-        "mark_kv_released. A streaming session that claims the row returns "
-        "before any QSA call (claim_kv_row is the first release hook)."
+        "lease) and the logical free in free_kv_row, and after_release follows "
+        "req_to_token_pool.free / mark_kv_released. A streaming session that "
+        "claims the row returns before any QSA call (claim_kv_row is the first "
+        "release hook). Kept at v0.5.22 (design 3.1.6 fallback): the drain also "
+        "serves QSA leases without host prefixes, whose tree is upstream's "
+        "disabled UnifiedRadixCache, so a QSAHostPrefixCache free_kv_row "
+        "override cannot carry it, and an upstream seam would need the lease "
+        "threaded between calls. Hand merge (RESOLVED): production's mamba "
+        "free for a tree without mamba support is dropped; the disabled "
+        "UnifiedRadixCache (and QSAHostPrefixCache) frees the slot in "
+        "checkpoint or on_release, and create_tree_cache rejects every other "
+        "hybrid-SSM tree."
     ),
 )
-def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = True):
-    """Give the request's kv row back; with ``is_insert`` the tree first keeps
+def release_kv_cache(req: Req, tree_cache: BasePrefixCache, *, checkpoint: bool):
+    """Give the request's kv row back; with ``checkpoint`` the tree first keeps
     what it can key."""
     assert (not req.kv.holds_kv) == req.kv.is_kv_released
     # A mamba-capable cache may alloc mamba state before alloc KV cache
@@ -323,8 +193,8 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = Tr
         tree_cache.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse", None
     )
     owned_kv_len = req.owned_kv_len()
-    is_insert = is_insert and not req.skip_radix_cache_insert
-    if is_insert:
+    checkpoint = checkpoint and not req.skip_radix_cache_insert
+    if checkpoint:
         # A tree that takes over component state (mamba) must see the request
         # finished, or the insert forks the state and the slot leaks.
         assert req.finished() or not tree_cache.supports_mamba(), (
@@ -337,22 +207,12 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = Tr
         qsa_lease = qsa_hisparse.release(req.kv.req_pool_idx, req.rid)
     # The protected prefix is not this req's to free.
     tree_cache.free_kv_row(req.kv, [(req.kv.cache_protected_len, owned_kv_len)])
-    tree_cache.unpin(req)
+    tree_cache.unlock(req.lock)
+    req.lock = None
     _release_overallocated_kv_indices(
         req, owned_kv_len, req.kv.kv_allocated_len, tree_cache
     )
-    tree_cache.on_release(req, inserted=is_insert)
-
-    # A tree that does not own component state must give the mamba slot back
-    # here. Upstream moved that ownership into UnifiedRadixCache (#42354); the
-    # private QSA chunk-cache adapter reports supports_mamba() == False.
-    if isinstance(tree_cache.req_to_token_pool, HybridReqToTokenPool) and (
-        not tree_cache.supports_mamba()
-    ):
-        assert req.kv.holds_mamba, (
-            "mamba state is freed while the tree cache does not manage mamba states"
-        )
-        tree_cache.req_to_token_pool.free_mamba_cache(req)
+    tree_cache.on_release(req, checkpointed=checkpoint)
 
     # The DSV4-NPU ReqToTokenPool subclass's free() additionally releases the
     # c4/c128 state pages; other ReqToTokenPool subclasses are a no-op here.
@@ -363,7 +223,7 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, is_insert: bool = Tr
 
 
 # Production mem_cache/registry.py:81-102, verbatim except the config import,
-# rewritten to the plugin package. Called by M05's hook and M06's copy.
+# rewritten to the plugin package. Called by M05's hook.
 def qsa_private_host_prefix_active(params: CacheInitParams) -> bool:
     """Whether this build serves the private QSA host-prefix adapter.
 
@@ -395,139 +255,71 @@ def qsa_private_host_prefix_active(params: CacheInitParams) -> bool:
     row="M05",
     depends=(
         f"{REGISTRY}.create_tree_cache",
-        "sglang.srt.mem_cache.chunk_cache.ChunkCache",
+        f"{REGISTRY}.create_unified_radix_cache",
         "sglang.srt.mem_cache.qsa_kv_pool.QSATokenToKVPool",
+        # The runtime is attached (Q03) before the cache is built.
+        "sglang.srt.managers.scheduler.Scheduler.__init__",
+        "sglang.srt.managers.scheduler.Scheduler.init_model_worker",
+        "sglang.srt.managers.scheduler.Scheduler.init_all_attention_backends",
+        "sglang.srt.managers.schedule_batch.Req.init_next_round_input",
+        "sglang.srt.mem_cache.common.match_kv_cache",
+        "sglang.srt.mem_cache.common.checkpoint_kv_cache",
+        "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.finish",
+        URC,
+        f"{URC}.__init__",
+        f"{URC}.reset",
+        f"{URC}.match_prefix",
+        f"{URC}.init_load_back",
+        f"{URC}.prefix_device_indices",
+        f"{URC}.maybe_hand_to_session",
+        f"{URC}.claim_kv_row",
+        f"{URC}.checkpoint",
+        f"{URC}.on_release",
+        f"{URC}.release_aborted_request",
+        f"{URC}.release_host_resources",
+        # The tree core behind the disabled cache's empty root match (G6-CPU).
+        # Not the Rust adapter: importing it loads the optional native
+        # extension, which upstream may replace by the Python core; native
+        # code is covered by tests and the GPU gate, like the .cuh headers.
+        "sglang.srt.mem_cache.unified_cache.tree_core_registry.create_tree_core",
+        "sglang.srt.mem_cache.unified_cache.tree_core_registry.select_tree_core_backend",
+        "sglang.srt.mem_cache.unified_cache.unified_tree_core.UnifiedTreeCore",
+        "sglang.srt.session.streaming_session.StreamingSession.take",
+        # Read by prefix_cache.py (and image_request.py) itself: match
+        # parameters and result, the key, force-miss and Track I env switches,
+        # the rows, slots and pages the rollback frees.
+        "sglang.srt.mem_cache.base_prefix_cache.MatchPrefixParams",
+        "sglang.srt.mem_cache.base_prefix_cache.MatchResult",
+        "sglang.srt.mem_cache.radix_cache.RadixKey",
+        "sglang.srt.environ.Envs",
+        "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free",
+        "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache",
+        "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.alloc",
+        "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free",
     ),
     reason=(
         "hisparse: qsa_private_host_prefix_active is False unless "
         "SGLANG_QSA_HISPARSE_V3 is a P2 mode, the host-prefix budget is "
         "positive and the KV pool is QSATokenToKVPool, so the original runs "
-        "otherwise. Around hook: production inserts its branch after "
-        "`params = ctx.params` and the is_pure_swa comparison, which have no "
-        "side effects, so returning ChunkCache(ctx.params) before calling the "
-        "original equals it; the only caller is create_tree_cache (M06), "
-        "whose copy reaches this hook through HookRegistry's propagation. "
-        "Production registry.py 109-112."
+        "otherwise. Around hook: under --disable-radix-cache the original "
+        "returns create_unified_radix_cache(ctx) for every model that is not "
+        "pure SWA (the QSA pool's model is hybrid SSM), after only reading "
+        "ctx; the hook returns the same construction with "
+        "cache_class=QSAHostPrefixCache (no CLI change). S01's guards (no "
+        "HiCache or enabled radix cache, one mutable Mamba slot per request) "
+        "move here from the wrap, which v0.5.22 no longer needs (the cache "
+        "reads its runtime from the kvcache, attached by Q03 during "
+        "init_model_worker, before build_kv_cache). The cache's own "
+        "overrides rely on the depends listed (design (a1)+H)."
     ),
 )
-def _keep_qsa_chunk_cache(original, ctx):
-    if ctx.disable_radix_cache and qsa_private_host_prefix_active(ctx.params):
-        from sglang.srt.mem_cache.chunk_cache import ChunkCache
-
-        return ChunkCache(ctx.params)
-    return original(ctx)
-
-
-# Production mem_cache/registry.py:266-356, verbatim.
-@patch(
-    f"{REGISTRY}.create_tree_cache",
-    "replace",
-    feature=HISPARSE,
-    row="M06",
-    depends=(
-        f"{REGISTRY}.default_radix_cache_factory",
-        f"{REGISTRY}.get_radix_cache_factory",
-        f"{REGISTRY}.registered_radix_cache_backends",
-        "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.supports_mamba",
-    ),
-    reason=(
-        "hisparse: the hybrid-SSM guard is skipped only when "
-        "qsa_private_host_prefix_active (M05), which is False without the "
-        "QSA runtime's P2 mode, host-prefix budget and pool. Replace: the "
-        "change turns a mid-function raise into a log line; the guard reads "
-        "the factory's local result, so no hook seam reproduces it "
-        "(supports_mamba is also read by release_kv_cache and the "
-        "schedulers)."
-    ),
-)
-def create_tree_cache(ctx: TreeCacheBuildContext) -> BasePrefixCache:
-    """Route to the matching factory to construct Radix Cache."""
-    name = get_memory().radix_cache_backend
-    if name:
-        factory = get_radix_cache_factory(name)
-        if factory is None:
-            raise ValueError(
-                f"--radix-cache-backend={name!r} is not registered. "
-                f"Registered backends: {registered_radix_cache_backends()}. "
-                "External backends must call register_radix_cache_backend(...) at import time."
-            )
-        cache = factory(ctx)
-        source = f"registered({name!r})"
-    else:
-        cache = default_radix_cache_factory(ctx)
-        source = "default"
-
-    if (
-        get_memory().enable_hierarchical_cache
-        and get_memory().hicache_host_memory_mode == "buffer_only"
-    ):
-        from sglang.srt.mem_cache.unified_radix_cache import UnifiedRadixCache
-
-        if not isinstance(cache, UnifiedRadixCache):
-            raise ValueError(
-                "--hicache-host-memory-mode buffer_only is only implemented for "
-                f"the unified radix tree; this model selected {type(cache).__name__}."
-            )
-
-    if get_memory().enable_session_radix_cache and not getattr(
-        cache, "enable_session_radix_cache", False
-    ):
+def _build_host_prefix_cache(original, ctx):
+    if not qsa_private_host_prefix_active(ctx.params):
+        return original(ctx)
+    if not ctx.disable_radix_cache or ctx.enable_hierarchical_cache:
         raise ValueError(
-            "--enable-session-radix-cache requires UnifiedRadixCache, but "
-            f"tree_cache is {type(cache).__name__}. Drop the flag or the "
-            "option that selected another tree cache for this model."
+            "QSA host prefixes require the disabled radix cache without HiCache"
         )
-
-    if get_memory().radix_eviction_policy == "tlru":
-        from sglang.srt.mem_cache.unified_radix_cache import UnifiedRadixCache
-
-        # T-LRU's per-node tail bookkeeping only exists on the unified tree;
-        # any other cache would silently fall back to LRU ordering.
-        if not isinstance(cache, UnifiedRadixCache):
-            raise ValueError(
-                "--radix-eviction-policy tlru requires UnifiedRadixCache, but "
-                f"tree_cache is {type(cache).__name__}. Drop the flag or the "
-                "option that selected another tree cache for this model."
-            )
-
-    from sglang.srt.mem_cache.unified_radix_cache import UnifiedRadixCache
-
-    if get_serving().enable_streaming_session and not isinstance(
-        cache, UnifiedRadixCache
-    ):
-        raise NotImplementedError(
-            f"--enable-streaming-session is not verified with {type(cache).__name__}; "
-            "streaming sessions run on UnifiedRadixCache. Please open an issue or "
-            "a PR at https://github.com/sgl-project/sglang if you need this."
-        )
-
-    if ctx.is_hybrid_ssm and not cache.supports_mamba():
-        if not qsa_private_host_prefix_active(ctx.params):
-            raise NotImplementedError(
-                f"Models with mamba state are not verified with {type(cache).__name__}; "
-                "mamba state lives in UnifiedRadixCache. Please open an issue or a PR "
-                "at https://github.com/sgl-project/sglang if you need this."
-            )
-        # Verified exception: the QSA private host-prefix adapter does not take
-        # Mamba ownership away from the request lifecycle. ``release_kv_cache``
-        # frees the mamba slot whenever the tree reports supports_mamba() ==
-        # False, the adapter never shares GPU radix pages, and
-        # ``qsa_hisparse/config.py`` pins this path to the plain FP8 C4 QSA
-        # pool (TP2, page 64, radix disabled, no overlap/speculation).
-        logger.info(
-            "Tree cache %s runs the QSA private host-prefix path; mamba slots "
-            "are released through release_kv_cache",
-            type(cache).__name__,
-        )
-
-    hicache_attached = cache.cache_controller is not None
-    logger.info(
-        "Tree cache initialized: source=%s impl=%s hybrid_swa=%s hybrid_ssm=%s "
-        "hicache_attached=%s",
-        source,
-        type(cache).__name__,
-        ctx.is_hybrid_swa,
-        ctx.is_hybrid_ssm,
-        hicache_attached,
-    )
-    return cache
+    if ctx.params.req_to_token_pool.enable_mamba_extra_buffer:
+        raise ValueError("QSA host prefixes require one mutable Mamba slot per request")
+    return create_unified_radix_cache(ctx, cache_class=QSAHostPrefixCache)

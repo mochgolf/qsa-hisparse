@@ -1,8 +1,11 @@
 """Port of production's test/registered/utils/test_numa_utils.py (897286b12a),
-run with rows U02-U04 active (tests/numa/conftest.py). Unchanged apart from
-this docstring, the ``pytest`` import, ``pytestmark`` and one strict xfail for
-the CPU runner's hidden CUDA (an upstream test unrelated to the rows);
-production's interleave tests fail without the rows."""
+run with rows U02-U04 active (tests/numa/conftest.py). Since Phase 6 it is
+the pin's (v0.5.22) file plus production's change to it (35f3c96ff4 ->
+897286b12a: the interleave tests, which need ``envs``), merged with diff3;
+otherwise unchanged apart from this docstring, the ``pytest`` import,
+``pytestmark`` and one strict xfail for the CPU runner's hidden CUDA (an
+upstream test unrelated to the rows); production's interleave tests fail
+without the rows."""
 
 import ctypes
 import os
@@ -67,15 +70,41 @@ class TestIsNumaAvailable(unittest.TestCase):
     ):
         self.assertFalse(_is_numa_available())
 
-    @patch("sglang.srt.utils.numa_utils._can_set_mempolicy", return_value=True)
+    @patch("sglang.srt.utils.numa_utils._can_set_mempolicy", return_value=False)
     @patch("sglang.srt.utils.numa_utils.shutil.which", return_value="/usr/bin/numactl")
     @patch("sglang.srt.utils.numa_utils._is_cuda", True)
     @patch("os.path.isdir", return_value=True)
-    def test_isdir_called_with_node1_path(
-        self, mock_isdir, _mock_which, _mock_mempolicy
+    def test_cpu_only_accepted_when_mempolicy_not_permitted(
+        self, _mock_isdir, _mock_which, _mock_mempolicy
     ):
-        _is_numa_available()
-        mock_isdir.assert_called_with("/sys/devices/system/node/node1")
+        self.assertTrue(_is_numa_available(require_mempolicy=False))
+
+
+class TestNumaBindWithoutMempolicy(unittest.TestCase):
+    """A container without SYS_NICE can set CPU affinity but not memory policy."""
+
+    def _bind(self, mempolicy_ok: bool) -> MagicMock:
+        libnuma = MagicMock()
+        libnuma.numa_available.return_value = 0
+        with (
+            patch("sglang.srt.utils.numa_utils.get_libnuma", return_value=libnuma),
+            patch("sglang.srt.utils.numa_utils._node_cpus", return_value={0, 1}),
+            patch("os.sched_getaffinity", return_value={0, 1, 2, 3}),
+            patch("os.sched_setaffinity") as setaffinity,
+            patch(
+                "sglang.srt.utils.numa_utils._can_set_mempolicy",
+                return_value=mempolicy_ok,
+            ),
+        ):
+            numa_bind_to_node(0)
+        setaffinity.assert_called_once_with(0, {0, 1})
+        return libnuma
+
+    def test_cpus_bound_and_memory_policy_skipped(self):
+        self._bind(mempolicy_ok=False).numa_set_preferred.assert_not_called()
+
+    def test_memory_policy_set_when_permitted(self):
+        self._bind(mempolicy_ok=True).numa_set_preferred.assert_called_once()
 
 
 # Pin _is_xpu=False so these cases still reach the mocked pynvml on a real XPU
@@ -203,10 +232,6 @@ class TestGetNumaNodeIfAvailable(unittest.TestCase):
         args.numa_node = numa_node
         return args
 
-    def test_auto_numa_bind_enabled_by_default(self):
-        with patch.dict(os.environ, {}, clear=True):
-            self.assertTrue(envs.SGLANG_AUTO_NUMA_BIND.get())
-
     @patch.dict(os.environ, {"SGLANG_AUTO_NUMA_BIND": "0"})
     def test_returns_explicit_numa_node_when_auto_bind_disabled(self):
         args = self._make_server_args(numa_node=[2, 3, 0, 1])
@@ -257,14 +282,6 @@ class TestGetNumaNodeIfAvailable(unittest.TestCase):
     def test_returns_first_node_when_multiple_found(self, _mock_avail, _mock_gpu):
         args = self._make_server_args(numa_node=None)
         self.assertEqual(get_numa_node_if_available(args, 0), 0)
-
-    @patch("sglang.srt.utils.numa_utils._query_numa_node_for_gpu", return_value=[0, 2])
-    @patch("sglang.srt.utils.numa_utils._is_numa_available", return_value=True)
-    def test_logs_warning_when_multiple_nodes(self, _mock_avail, _mock_gpu):
-        args = self._make_server_args(numa_node=None)
-        with self.assertLogs("sglang.srt.utils.numa_utils", level="WARNING") as cm:
-            get_numa_node_if_available(args, 0)
-        self.assertTrue(any("Multiple NUMA nodes" in msg for msg in cm.output))
 
     @patch("sglang.srt.utils.numa_utils._is_numa_available", return_value=True)
     @patch("sglang.srt.utils.numa_utils._query_numa_node_for_gpu", return_value=[1])
@@ -432,6 +449,7 @@ class TestNumaBindIntersection(unittest.TestCase):
     ):
         lib = MagicMock()
         lib.numa_available.return_value = 0
+        lib.get_mempolicy.return_value = 0
         mock_libnuma.return_value = lib
 
         numa_bind_to_node(0)

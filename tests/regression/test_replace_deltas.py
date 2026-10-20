@@ -80,20 +80,50 @@ COPIES: dict[str, tuple] = {
     "G02": ("hisparse/graph.py", "load_batch", ()),
     "B02": ("hisparse/scheduler.py", "process_batch_result_prebuilt", ()),
     "B03": ("hisparse/scheduler.py", "process_batch_result_prefill", ()),
-    "B04": ("hisparse/scheduler.py", "_handle_sampling_mask_abort", ()),
-    "B05": ("hisparse/scheduler.py", "_handle_finish_state_updated_req", ()),
-    "M01": ("hisparse/lifecycle.py", "alloc_for_extend", ()),
     "M03": ("hisparse/lifecycle.py", "release_kv_cache", ()),
-    "M06": ("hisparse/lifecycle.py", "create_tree_cache", ()),
-    "P02": ("hisparse/scheduler.py", "add_one_req", ()),
     "S04": ("hisparse/scheduler.py", "get_next_batch_to_run", ()),
-    "S06": ("hisparse/scheduler.py", "_get_new_batch_prefill_raw", ()),
     "S07": ("hisparse/scheduler.py", "on_idle", ()),
 }
 
 # row: why the copy differs from "pin + fork change" (an upstream edit overlaps
 # the fork's change and was merged by hand).
 RESOLVED: dict[str, str] = {
+    "M03": (
+        "The merge applies cleanly but keeps production's mamba free for a "
+        "tree without mamba support (M05's ChunkCache, admitted by M06). At "
+        "v0.5.22 M05 builds QSAHostPrefixCache, a disabled UnifiedRadixCache "
+        "that owns the slot (checkpoint frees a finished request's, on_release "
+        "an unchecked one's), and create_tree_cache rejects every other "
+        "hybrid-SSM tree without mamba support, so the block is dropped with "
+        "its comment: it could only free the slot a second time. v0.5.22's "
+        "checkpoint= keyword, unlock(req.lock) and on_release(checkpointed=) "
+        "are kept as merged."
+    ),
+    "Q08": (
+        "v0.5.22 (#41933) replaced the chunk-prefill index_select gather, where "
+        "the reference reads raw slots from qsa_hisparse.prefill_slots, by "
+        "pack_qsa_prefill_kv(..., output_dtype=q.dtype). Merge: without a "
+        "runtime the copy keeps v0.5.22's pack but drops output_dtype, so FP8 "
+        "K/V reach the reference's FP8-aware chunk kernel raw and its "
+        "**_kv_descale_kwargs are applied exactly once (the cast would hand "
+        "the kernel unscaled BF16 and its non-FP8 path ignores the descales); "
+        "the packed bytes equal the reference's gather. With a runtime the copy "
+        "keeps the reference's prefill_slots gather (req_pool_indices.tolist(); "
+        "the runtime requires the prefill graph disabled, so the reference's "
+        "breakable-graph slot table, removed by #41933, never applies there). "
+        "tests/qsa/test_prefill_pack_descale.py"
+    ),
+    "T03": (
+        "v0.5.22 (#43463) bounds the decode MQA by the context length when "
+        "fast_topk selects (use_fast_topk, min_scored_len), editing the line of "
+        "the reference's deterministic predicate. Merge: the deterministic flag "
+        "is read before qsa_mqa_decode and folded into use_fast_topk, so the "
+        "bound (unscored short rows, unset logits past each length) applies "
+        "only with fast_topk; the stable top-k reads every score, so "
+        "deterministic decode scores all rows as in the reference. "
+        "tests/qsa/test_qsa_patches.py::"
+        "test_deterministic_decode_skips_native_topk_only_for_the_target_model"
+    ),
     "T04": (
         "Class REPLACE by a frozen msgspec subclass: the copy holds only the "
         "fork's added decode_score_width field and its get_decode_mqa_inputs "

@@ -13,8 +13,11 @@ sglang.launch_server ...``); the wrapper, arguments and environment are kept,
 except ``--port`` (the arm port; production's 8081 is refused). The fork arm
 runs production's code (run_g2.FORK_ROOT/python); the plugin arm runs
 ``<plugin>/src:<pin>/python`` through the launcher with
-``SGLANG_QSA_MODEL_COMPAT=1``. Both use run_g2.PYTHON, ``PYTHONDONTWRITEBYTECODE=1``
-and ``SGLANG_CACHE_DIR`` inside the arm directory.
+``SGLANG_QSA_MODEL_COMPAT=1``. Each arm's server runs on its interpreter,
+run_g2.PYTHON[arm] (production's for the fork arm, the Phase 6 one for the
+plugin arm on the pin v0.5.22; the harnesses run on production's in both),
+with ``PYTHONDONTWRITEBYTECODE=1`` and ``SGLANG_CACHE_DIR`` inside the arm
+directory.
 
 ``run``: checks that the fixtures' tokenizer hash equals the profile model's
 ``tokenizer.json``; refuses a busy GPU or port (run_compat.preflight); starts
@@ -53,6 +56,9 @@ from run_compat import preflight, stop, wait_ready  # noqa: E402
 
 SERVER = ["-m", "sglang.launch_server"]
 NUMACTL_SCRIPTS = "/tmp/sglang_temp_file_*.sh"  # numa_utils._create_numactl_executable
+# A cold chat request's usage.prompt_tokens_details under --enable-cache-report:
+# production's base (35f3c96ff4) omits a zero hit, v0.5.22 reports it (#43005).
+COLD_DETAILS = {"fork": None, "plugin": {"cached_tokens": 0}}
 SMOKE_SYSTEM = "Answer concisely. Reference records:\n" + "amber=17; cyan=25; violet=42.\n" * 128
 
 
@@ -76,7 +82,7 @@ def server(arm, base, output, port):
         raise SystemExit("base profile must contain --port once")
     args[args.index("--port") + 1] = str(port)
     env.update(PYTHONDONTWRITEBYTECODE="1", SGLANG_CACHE_DIR=str(output / "cache"))
-    python = str(run_g2.PYTHON)
+    python = str(run_g2.PYTHON[arm])
     if arm == "fork":
         env["PYTHONPATH"] = str(run_g2.FORK_ROOT / "python")
         return [*wrapper, python, *SERVER, *args], env, None
@@ -144,8 +150,10 @@ def native_concurrency(url, cases):
     return report
 
 
-def openai_smoke(url, model):
-    """A cold and a warm chat request; both answer 42; only the warm one reuses."""
+def openai_smoke(url, model, cold_details):
+    """A cold and a warm chat request; both answer 42; only the warm one reuses.
+
+    The cold request's prompt_tokens_details must equal ``cold_details``."""
     payload = {
         "model": model,
         "messages": [
@@ -166,8 +174,10 @@ def openai_smoke(url, model):
         assert result["choices"][0]["message"]["content"].strip() == "42", result
         assert result["choices"][0]["finish_reason"] == "stop", result
         details = result["usage"]["prompt_tokens_details"]
-        reused = 0 if details is None else details["cached_tokens"]
-        assert (reused == 0) if label == "cold" else (reused > 0), result
+        if label == "cold":
+            assert details == cold_details, result
+        else:
+            assert details is not None and details["cached_tokens"] > 0, result
     return report
 
 
@@ -187,7 +197,7 @@ def harness(output, url, fixtures, name):
     manual = run_g2.FORK_ROOT / "test" / "manual"
     with (output / f"{name}.log").open("w") as log:
         return subprocess.run(
-            [str(run_g2.PYTHON), str(manual / f"qsa_hisparse_prefix_{name}.py"), "--url", url,
+            [str(run_g2.PYTHON["fork"]), str(manual / f"qsa_hisparse_prefix_{name}.py"), "--url", url,
              "--fixtures", str(fixtures), "--output", str(output / f"{name}.json")],
             cwd=manual, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
             stdout=log, stderr=subprocess.STDOUT,
@@ -228,7 +238,9 @@ def run(args):
         status["latency"] = harness(output, url, args.fixtures.resolve(), "latency")
         status["lifecycle"] = harness(output, url, args.fixtures.resolve(), "lifecycle")
         status["concurrency"] = checked(output, "concurrency", native_concurrency, url, fixtures["cases"])
-        status["smoke"] = checked(output, "smoke", openai_smoke, url, base["readiness"]["model"])
+        status["smoke"] = checked(
+            output, "smoke", openai_smoke, url, base["readiness"]["model"], COLD_DETAILS[args.arm]
+        )
     finally:
         stop(process, base["stop_timeout_seconds"])
         (output / "g23.json").write_text(json.dumps(status, indent=2) + "\n")

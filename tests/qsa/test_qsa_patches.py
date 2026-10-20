@@ -320,18 +320,26 @@ def test_stable_topk_only_for_the_target_model(target_model, active):
     assert actual.tolist() == ([[2, 3]] if active else [[3, 2]])
 
 
+@pytest.mark.parametrize("deterministic", [True, False])
 @pytest.mark.parametrize("active", [True, False])
 def test_deterministic_decode_skips_native_topk_only_for_the_target_model(
-    target_model, monkeypatch, active
+    target_model, monkeypatch, active, deterministic
 ):
     target_model(active)
     published = SimpleNamespace(is_config_namespace_published=lambda name: True)
     config = SimpleNamespace(
-        deterministic=SimpleNamespace(enable_deterministic_inference=True)
+        deterministic=SimpleNamespace(enable_deterministic_inference=deterministic)
     )
+    stable = active and deterministic
     native = torch.full((1, 512), 7, dtype=torch.int32)
+    scored = []
+
+    def mqa_decode(*args, min_scored_len=0):
+        scored.append(min_scored_len)
+        return torch.zeros(1, 513)
+
     for module in (COMPAT, qsa_indexer.__name__):
-        monkeypatch.setattr(f"{module}.qsa_mqa_decode", lambda *a: torch.zeros(1, 513))
+        monkeypatch.setattr(f"{module}.qsa_mqa_decode", mqa_decode)
         monkeypatch.setattr(f"{module}.expand_qsa_block_indices", lambda b, *a, **k: b)
     monkeypatch.setattr(f"{COMPAT}.get_context", lambda: published)
     monkeypatch.setattr(f"{COMPAT}.get_exec", lambda: config)
@@ -339,11 +347,17 @@ def test_deterministic_decode_skips_native_topk_only_for_the_target_model(
         "sglang.kernels.ops.attention.fast_topk.fast_topk", lambda *a, **k: native
     )
     indexer = SimpleNamespace(block_topk=512, compress_ratio=4, token_topk=2048)
+    # v0.5.22 (#43463) routes on q.is_cuda, before the MQA call.
+    q = torch.zeros(1, 1)
     with patch.object(torch.Tensor, "is_cuda", new_callable=PropertyMock, return_value=True):
         actual = qsa_indexer.QSAIndexer.select_decode_tokens(
-            indexer, None, None, None, torch.tensor([513]), 2052, None, None
+            indexer, q, None, None, torch.tensor([513]), 2052, None, None
         )
-    assert (actual is native) is not active
+    assert (actual is native) is not stable
+    # RESOLVED T03: the context-length bound (unscored short rows, unset logits
+    # past each length) only goes with fast_topk; the stable top-k reads every
+    # score, so deterministic decode scores every row as the reference does.
+    assert scored == [0 if stable else 512]
 
 
 @pytest.mark.parametrize("active", [True, False])

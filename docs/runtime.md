@@ -6,14 +6,36 @@ the PLAN.md import rewrites. Since Phase 5 the reference is production
 `897286b12a` (fork `ee8fe158d6` merged with upstream `35f3c96ff4`, the pin),
 whose runtime differs from the fork only by its own pin adaptations (below),
 so no pin edits remain. This file lists the proof, the ported tests, and
-every pinned SGLang definition (`35f3c96ff4`) the runtime relies on.
+every pinned SGLang definition (v0.5.22 `baa9befa38` since Phase 6) the
+runtime relies on.
+
+**Phase 6 (pin v0.5.22).** Every definition below was re-checked against
+v0.5.22 (33 changed, 2 removed): what the runtime relies on still holds, so
+the N01/N03 modules stay production's files with no pin edit. The removed
+`mem_cache.chunk_cache.ChunkCache` (#43201) and `utils.common.Range` (#42822)
+were read only by `prefix_cache.py`, which P6-A rebuilt as a plugin-owned
+`UnifiedRadixCache` subclass (`docs/prefix-cache.md`,
+`docs/phase6-prefix-design.md`); its dependencies are row M05's `depends`.
+`coordinator.py` gains a no-op `allocate_spec_scratch` (#37771), its one pin
+edit (`PIN_EDITS`). Changed behavior the
+runtime meets at v0.5.22: `ReqToTokenPool.clear` no longer zeroes
+`req_generation` (#43439, what row M04 did); the request fields
+`prefix_indices`/`extend_range` became `prefix_len`/`extend_end` (#42825,
+#42822; read only by `prefix_cache.py` and patch rows); `release_req` calls
+`release_kv_cache(..., checkpoint=False)` (was `is_insert=False`) after
+`retract_req`, which still raises for QSA. Every `ServerArgs` field
+`config.validate_configuration` and the constructor read still exists under
+the same name (`enable_priority_preemption` and `enable_mamba_extra_buffer`
+are not fields at v0.5.22 either, as at 35f3c96ff4); `tc_piecewise` and
+`cuda_graph_tc_compiler` were removed, which the runtime never accepted.
 
 ## Moved modules
 
 | Plugin module | Reference file | Row |
 | --- | --- | --- |
 | `__init__`, `config`, `coordinator`, `layout`, `runtime`, `single_request`, `slots` | `srt/mem_cache/qsa_hisparse/<same>.py` | N01 |
-| `prefix`, `prefix_cache` (behavior: W6) | `srt/mem_cache/qsa_hisparse/<same>.py` | N02 |
+| `prefix` | `srt/mem_cache/qsa_hisparse/<same>.py` | N02 |
+| `prefix_cache` (plugin-owned since v0.5.22; replaces the reference file) | none | N02 |
 | `graph` | `srt/layers/attention/qsa/hisparse_graph.py` | N03 |
 | none | `srt/mem_cache/qsa_hisparse_{p2,slots,v3}.py` (re-export aliases) | N04, dropped |
 | `depends` | none (plugin-owned, `RUNTIME_DEPENDS`) | |
@@ -26,11 +48,12 @@ asserts:
 - every moved module equals its reference file byte for byte after replacing
   `sglang.srt.mem_cache.qsa_hisparse` → `sglang_qsa_hisparse.hisparse` and
   `sglang.srt.layers.attention.qsa.hisparse_graph` →
-  `sglang_qsa_hisparse.hisparse.graph` and applying `PIN_EDITS` (empty), and
-  nothing else (the Track I modules `prefix`, `prefix_cache`, `runtime`: plus
-  exactly `track_i.diff`, whose content is unchanged since Phase 3);
-- the package holds exactly those modules plus `depends.py` and the Track I
-  identity modules, and the reference package holds exactly the N01/N02 files;
+  `sglang_qsa_hisparse.hisparse.graph` and applying `PIN_EDITS` (v0.5.22:
+  `coordinator.py`'s `allocate_spec_scratch`), and nothing else (the Track I
+  modules `prefix`, `runtime`: plus exactly `track_i.diff`);
+- the package holds exactly those modules plus `depends.py`, the Track I
+  identity modules and `prefix_cache.py`, and the reference package holds
+  exactly the N01/N02 files;
 - no file under the reference's `python/`, `test/` or `scripts/` imports the
   N04 aliases (`qsa_hisparse_{p2,slots,v3}`, `QSAHiSparseP2`, `QSAHiSparseV3`);
 - each ported test differs from its reference file only by the same rewrites
@@ -44,7 +67,7 @@ They replace the v0.5.21 pin edits of Phase 4.
 | Module | Upstream change | Production's code |
 | --- | --- | --- |
 | `config.py`, `runtime.py`, `single_request.py` | `ModelRunner` has no `tp_rank` (35f3c96ff4 reads placement from the published parallel context) | `config.parallel_tp_rank()` returns `get_parallel().tp_rank`; both constructors use it (v0.5.21 edit: `runner.tp_rank`) |
-| `prefix_cache.py` | `ChunkCache` has no `cache_unfinished_req`/`insert_req`; `release_kv_cache` calls `claim_kv_row`, `checkpoint` (when inserting), frees the row, then `on_release`; `checkpoint_kv_cache` calls `checkpoint` for unfinished requests | `claim_kv_row` refuses while a restore record is open (was `before_release`); `checkpoint` captures, then `ChunkCache.checkpoint` (was `cache_unfinished_req` and `before_release`'s capture); `on_release` drops the pending match, then the base (v0.5.21 edit: `on_release` without the base call). The release order is P5-A's M03 copy of production's `release_kv_cache` (docs/prefix-cache.md, site 7) |
+| `prefix_cache.py` | `ChunkCache` has no `cache_unfinished_req`/`insert_req`; `release_kv_cache` calls `claim_kv_row`, `checkpoint` (when inserting), frees the row, then `on_release`; `checkpoint_kv_cache` calls `checkpoint` for unfinished requests | `claim_kv_row` refuses while a restore record is open (was `before_release`); `checkpoint` captures, then `ChunkCache.checkpoint` (was `cache_unfinished_req` and `before_release`'s capture); `on_release` drops the pending match, then the base. Superseded at v0.5.22 by the plugin-owned `UnifiedRadixCache` subclass (docs/prefix-cache.md) |
 
 ## Ported tests
 
@@ -90,45 +113,45 @@ pinned definitions (`def`/`class` line). Module paths drop `sglang.srt.`.
 
 | Definition | Relied on | Used in |
 | --- | --- | --- |
-| `model_executor.model_runner.ModelRunner.__init__` (324) | `server_args`, `model_config` | both constructors, prefix namespace, ledgers |
-| `model_executor.model_runner.ModelRunner.alloc_memory_pool` (896) | `token_to_kv_pool`, `token_to_kv_pool_allocator`, `req_to_token_pool`; `_unified_memory_pool` must be None | both constructors |
-| `runtime_context.get_parallel` (1261) | `tp_rank` of the published parallel bundle, read by `config.parallel_tp_rank` (v0.5.21: `ModelRunner.tp_rank`; before: `ps.tp_rank`) | ledger file names, events |
-| `configs.model_config.ModelConfig.__init__` (457) | `hf_config.to_dict()` | `runtime.prefix_namespace` |
+| `model_executor.model_runner.ModelRunner.__init__` (332) | `server_args`, `model_config` | both constructors, prefix namespace, ledgers |
+| `model_executor.model_runner.ModelRunner.alloc_memory_pool` (954) | `token_to_kv_pool`, `token_to_kv_pool_allocator`, `req_to_token_pool`; `_unified_memory_pool` must be None | both constructors |
+| `runtime_context.get_parallel` (1277) | `tp_rank` of the published parallel bundle, read by `config.parallel_tp_rank` (v0.5.21: `ModelRunner.tp_rank`; before: `ps.tp_rank`) | ledger file names, events |
+| `configs.model_config.ModelConfig.__init__` (489) | `hf_config.to_dict()` | `runtime.prefix_namespace` |
 | `mem_cache.qsa_kv_pool.QSATokenToKVPool` (48) | class attribute `index_state_dtype` | prefix checkpoint index dtype |
 | `mem_cache.qsa_kv_pool.QSATokenToKVPool.__init__` (75) | `qsa_compress_ratio`, `qsa_token_topk`, `qsa_compressed_flat`, `qsa_compressed_k_buffer_pool`, `qsa_key_state_buffer_pool`, `qsa_rope_position_buffer` (pending ring rows `[4 * req_pool_idx, 4 * req_pool_idx + 4)`) | `validate_configuration`, ledgers, prefix capture/restore |
-| `mem_cache.memory_pool.HybridLinearKVPool.__init__` (3967) | `full_kv_pool`, `full_attention_layer_id_mapping`, `full_layer_nums`, `size`, `page_size`, `head_num`, `head_dim`, `dtype`, `device` | constructors, `validate_configuration` |
-| `mem_cache.memory_pool.HybridLinearKVPool._transfer_full_attention_id` (4211) | layer id → full-attention index | `after_store`, `selected`, `capture_decode` |
-| `mem_cache.memory_pool.KVCache.__init__` (1908) | raw pool `size`, `page_size`, `dtype`, `device`, `layer_num` | P2 raw geometry check |
-| `mem_cache.memory_pool.MHATokenToKVPool` (2071) | exact type; `is_quantized_kv_cache` | constructors, `validate_configuration` |
-| `mem_cache.memory_pool.MHATokenToKVPool.__init__` (2074) | `head_num`, `head_dim`, `kv_cache_layout`, `use_hnd`, `post_capture_active` | geometry checks |
-| `mem_cache.memory_pool.MHATokenToKVPool._create_buffers` (2258) | `k_buffer`/`v_buffer`, shape `(size + page_size, 1, 256)`; called again to restore staging | P2 geometry, single-request `begin_batch` |
-| `mem_cache.memory_pool.MHATokenToKVPool._init_data_ptrs_and_strides` (2369) | `k_data_ptrs`/`v_data_ptrs` | single-request handoff and restore |
-| `mem_cache.allocator.base.BaseTokenToKVPoolAllocator.free_group_begin` (193), `.free_group_end` (197) | `free_group` is not None exactly inside a free group | `after_release`, `slots.logical_flushed` |
-| `mem_cache.allocator.paged.PagedTokenToKVPoolAllocator` (116) | exact type | constructors |
-| `mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.available_size` (147) | logical capacity | handoff ownership check, ledgers |
-| `mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free_group_begin` (324), `.free_group_end` (328) | the flush after which leases may be reused (row M02 adds the callback) | `after_logical_flush` |
+| `mem_cache.memory_pool.HybridLinearKVPool.__init__` (4154) | `full_kv_pool`, `full_attention_layer_id_mapping`, `full_layer_nums`, `size`, `page_size`, `head_num`, `head_dim`, `dtype`, `device` | constructors, `validate_configuration` |
+| `mem_cache.memory_pool.HybridLinearKVPool._transfer_full_attention_id` (4378) | layer id → full-attention index | `after_store`, `selected`, `capture_decode` |
+| `mem_cache.memory_pool.KVCache.__init__` (2035) | raw pool `size`, `page_size`, `dtype`, `device`, `layer_num` | P2 raw geometry check |
+| `mem_cache.memory_pool.MHATokenToKVPool` (2198) | exact type; `is_quantized_kv_cache` | constructors, `validate_configuration` |
+| `mem_cache.memory_pool.MHATokenToKVPool.__init__` (2201) | `head_num`, `head_dim`, `kv_cache_layout`, `use_hnd`, `post_capture_active` | geometry checks |
+| `mem_cache.memory_pool.MHATokenToKVPool._create_buffers` (2385) | `k_buffer`/`v_buffer`, shape `(size + page_size, 1, 256)`; called again to restore staging | P2 geometry, single-request `begin_batch` |
+| `mem_cache.memory_pool.MHATokenToKVPool._init_data_ptrs_and_strides` (2496) | `k_data_ptrs`/`v_data_ptrs` | single-request handoff and restore |
+| `mem_cache.allocator.base.BaseTokenToKVPoolAllocator.free_group_begin` (202), `.free_group_end` (206) | `free_group` is not None exactly inside a free group | `after_release`, `slots.logical_flushed` |
+| `mem_cache.allocator.paged.PagedTokenToKVPoolAllocator` (136) | exact type | constructors |
+| `mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.available_size` (168) | logical capacity | handoff ownership check, ledgers |
+| `mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free_group_begin` (382), `.free_group_end` (386) | the flush after which leases may be reused (row M02 adds the callback) | `after_logical_flush` |
 
 ### Request rows, generations, recurrent and PLE state
 
 | Definition | Relied on | Used in |
 | --- | --- | --- |
-| `mem_cache.memory_pool.ReqToTokenPool.__init__` (286) | `req_to_token` (row table, width ≥ 262144), `req_generation` | `prefill_slots`, `_request`, `native_lease_snapshot` |
-| `mem_cache.memory_pool.ReqToTokenPool.alloc_rows` (335) | each allocation increments `req_generation` | lease identity (`slots.acquire` rejects non-increasing generations) |
-| `mem_cache.memory_pool.ReqToTokenPool.clear` (365) | zeroes `req_generation` at the pin; row M04 keeps it monotonic | lease identity after a flush |
-| `mem_cache.memory_pool.HybridReqToTokenPool.__init__` (1245) | `enable_mamba_extra_buffer` | `native_lease_snapshot` |
-| `mem_cache.memory_pool.HybridReqToTokenPool._init_mamba_pool` (1304) | `mamba_pool`, `mamba_allocator`, `mamba_ckpt_pool`, `req_index_to_mamba_index_mapping`, `req_index_to_mamba_ping_pong_track_buffer_mapping`; registers the PLE siblings | constructors, ledgers, prefix capture/restore |
-| `mem_cache.memory_pool.HybridReqToTokenPool.alloc` (1450) | sets `req.kv.mamba_pool_idx` and `mamba_needs_clear = True` | `restore_prefix` clears the flag |
-| `mem_cache.memory_pool.MambaPool` (401) | class default `_slot_siblings` | prefix capture/restore/validation |
-| `mem_cache.memory_pool.MambaPool.State` (416) | `conv`, `temporal`, `replayssm_{d,k,g}` | prefix capture/restore, ReplaySSM rejection |
-| `mem_cache.memory_pool.MambaPool.__init__` (532) | `mamba_cache` layout `[layers, slots, ...]` | prefix capture/restore |
-| `mem_cache.memory_pool.MambaPool.register_slot_state` (410) | `_slot_siblings` list | prefix capture/restore |
-| `mem_cache.memory_pool.MambaPool.get_contiguous_buf_infos` (1163) | buffer pointers and sizes | ledgers |
+| `mem_cache.memory_pool.ReqToTokenPool.__init__` (386) | `req_to_token` (row table, width ≥ 262144), `req_generation` | `prefill_slots`, `_request`, `native_lease_snapshot` |
+| `mem_cache.memory_pool.ReqToTokenPool.alloc_rows` (435) | each allocation increments `req_generation` | lease identity (`slots.acquire` rejects non-increasing generations) |
+| `mem_cache.memory_pool.ReqToTokenPool.clear` (465) | keeps `req_generation` monotonic since v0.5.22 (#43439; before, it zeroed it and row M04 kept it monotonic) | lease identity after a flush |
+| `mem_cache.memory_pool.HybridReqToTokenPool.__init__` (1374) | `enable_mamba_extra_buffer` | `native_lease_snapshot` |
+| `mem_cache.memory_pool.HybridReqToTokenPool._init_mamba_pool` (1440) | `mamba_pool`, `mamba_allocator`, `mamba_ckpt_pool`, `req_index_to_mamba_index_mapping`, `req_index_to_mamba_ping_pong_track_buffer_mapping`; registers the PLE siblings | constructors, ledgers, prefix capture/restore |
+| `mem_cache.memory_pool.HybridReqToTokenPool.alloc` (1586) | sets `req.kv.mamba_pool_idx` and `mamba_needs_clear = True` | `restore_prefix` clears the flag |
+| `mem_cache.memory_pool.MambaPool` (503) | class default `_slot_siblings` | prefix capture/restore/validation |
+| `mem_cache.memory_pool.MambaPool.State` (520) | `conv`, `temporal`, `replayssm_{d,k,g}` | prefix capture/restore, ReplaySSM rejection |
+| `mem_cache.memory_pool.MambaPool.__init__` (636) | `mamba_cache` layout `[layers, slots, ...]` | prefix capture/restore |
+| `mem_cache.memory_pool.MambaPool.register_slot_state` (514) | `_slot_siblings` list | prefix capture/restore |
+| `mem_cache.memory_pool.MambaPool.get_contiguous_buf_infos` (1292) | buffer pointers and sizes | ledgers |
 | `mem_cache.allocator.mamba.MambaSlotAllocator.available_size` (41) | free recurrent slots | ledgers |
 | `mem_cache.ple_state_pool.ShortConvPool` (38) | `conv_state` `[layers, slots, ...]`, `iter_transfer_state_entries` | prefix checkpoint size, capture/restore |
 | `mem_cache.ple_state_pool.NGramPool` (142) | `context` `[slots, ...]`, `iter_transfer_state_entries` | same |
-| `managers.schedule_batch.ReqKvInfo` (928) | `req_pool_idx`, `mamba_pool_idx`, `mamba_needs_clear`, `mamba_cow_src_index`, `kv_allocated_len`, `kv_committed_len`, `cache_protected_len`, `mark_kv_released` | runtime, coordinator, `prefix_cache` |
-| `managers.schedule_batch.Req.__init__` (1008) | `rid`, `kv`, `beam_group`, `hisparse_staging`, and the `prefix_cache` fields below | coordinator, runtime |
-| `managers.schedule_batch.ScheduleBatch._collect_deferred_mamba_cow_and_clear` (3146) | consumes `mamba_needs_clear` / `mamba_cow_src_index`; `restore_prefix` resets both so restored state is not cleared or overwritten | `restore_prefix` |
+| `managers.schedule_batch.ReqKvInfo` (926) | `req_pool_idx`, `mamba_pool_idx`, `mamba_needs_clear`, `mamba_cow_src_index`, `kv_allocated_len`, `kv_committed_len`, `cache_protected_len`, `mark_kv_released` | runtime, coordinator, `prefix_cache` |
+| `managers.schedule_batch.Req.__init__` (1006) | `rid`, `kv`, `beam_group`, `hisparse_staging` | coordinator, runtime |
+| `managers.schedule_batch.ScheduleBatch._collect_deferred_mamba_cow_and_clear` (3116) | consumes `mamba_needs_clear` / `mamba_cow_src_index`; `restore_prefix` resets both so restored state is not cleared or overwritten | `restore_prefix` |
 
 ### QSA state addressing copied by prefix capture/restore
 
@@ -137,25 +160,25 @@ pinned definitions (`def`/`class` line). Module paths drop `sglang.srt.`.
 | `layers.attention.qsa.metadata.build_pending_ring_slots` (237) | pending ring row = `req_pool_idx * 4 + position % 4` |
 | `layers.attention.qsa.metadata.build_group_ring_slots` (260) | decode compression reads the same ring rows |
 | `layers.attention.qsa.graph_metadata._qsa_graph_row_metadata_kernel` (70) | graph decode ring rows, same layout |
-| `layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._qsa_write_plan` (491) | compressed slot = first raw slot // 4, read as `req_to_token[idx, start:stop:4] // 4` |
+| `layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._qsa_write_plan` (489) | compressed slot = first raw slot // 4, read as `req_to_token[idx, start:stop:4] // 4` |
 
 ### Batch metadata
 
 | Definition | Relied on |
 | --- | --- |
-| `model_executor.forward_batch_info.ForwardMode` (210) | `is_idle`, `is_decode`, `is_extend` |
-| `model_executor.forward_batch_info.ForwardBatch` (505) | `batch_size`, `req_pool_indices`, `seq_lens`, `seq_lens_cpu`, `rids`, `extend_seq_lens_cpu` (`req_pool_indices_cpu`: an upstream field since v0.5.21, copied from the schedule batch when it has one; row F01 sets it on every batch while the runtime is active) |
-| `model_executor.forward_batch_info.ForwardBatch.init_new` (930) | fills those fields |
+| `model_executor.forward_batch_info.ForwardMode` (196) | `is_idle`, `is_decode`, `is_extend` |
+| `model_executor.forward_batch_info.ForwardBatch` (491) | `batch_size`, `req_pool_indices`, `seq_lens`, `seq_lens_cpu`, `rids`, `extend_seq_lens_cpu` (`req_pool_indices_cpu`: an upstream field since v0.5.21, copied from the schedule batch when it has one; row F01 sets it on every batch while the runtime is active) |
+| `model_executor.forward_batch_info.ForwardBatch.init_new` (937) | fills those fields |
 
 ### Coordinator callers that no plugin patch replaces
 
 | Definition | Relied on |
 | --- | --- |
-| `managers.schedule_batch.ScheduleBatch.prepare_for_decode` (3585) | calls `map_last_loc_to_buffer(seq_lens, out_cache_loc, req_pool_indices, seq_lens_cpu, req_pool_indices_cpu)` positionally |
-| `managers.schedule_batch.release_req` (2264) | calls `retract_req(req)` for unfinished requests (QSA raises) |
-| `managers.scheduler.Scheduler.release_host_resources` (1831) | calls `destroy()` |
-| `model_executor.model_runner.ModelRunner._prepare_eager_forward_batch` (1629) | `num_real_reqs.fill_(batch_size)` on every eager forward; under p2-offload `num_real_reqs` is the runtime's `real` tensor |
-| `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_prepare` (869) | `num_real_reqs.fill_(bs)` during capture |
+| `managers.schedule_batch.ScheduleBatch.prepare_for_decode` (3563) | calls `map_last_loc_to_buffer(seq_lens, out_cache_loc, req_pool_indices, seq_lens_cpu, req_pool_indices_cpu)` positionally |
+| `managers.schedule_batch.release_req` (2242) | calls `retract_req(req)` for unfinished requests (QSA raises) |
+| `managers.scheduler.Scheduler.release_host_resources` (1876) | calls `destroy()` |
+| `model_executor.model_runner.ModelRunner._prepare_eager_forward_batch` (1696) | `num_real_reqs.fill_(batch_size)` on every eager forward; under p2-offload `num_real_reqs` is the runtime's `real` tensor |
+| `model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_prepare` (953) | `num_real_reqs.fill_(bs)` during capture |
 
 The other callers (`Scheduler`, `SchedulerBatchResultProcessor`,
 `DecodeCudaGraphRunner.load_batch`/`capture_one_shape`) are W2/W3 patch
@@ -167,11 +190,11 @@ targets and are pinned by those rows; `ModelRunner._forward_raw` and
 
 | Definition | Relied on |
 | --- | --- |
-| `model_executor.cuda_graph_config.cuda_graph_fully_disabled` (226), `.check_cuda_graph_backend` (212) | startup graph-mode checks |
-| `model_executor.cuda_graph_config.CudaGraphConfig` (154), `.PhaseConfig` (93) | `decode.bs == [1..max_requests]`, `decode.max_bs == max_requests` |
-| `runtime_context.get_exec` (1294) | `get_exec().graph.cuda_graph_config` |
-| `model_executor.runner.flashinfer_autotune.should_run_flashinfer_autotune` (56) | capture refuses autotune dummy forwards |
-| `model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend.__init__` (83), `.capture_session` (106) | `_graphs` keyed by `ShapeKey`, `_pool` |
+| `model_executor.cuda_graph_config.cuda_graph_fully_disabled` (224), `.check_cuda_graph_backend` (210) | startup graph-mode checks |
+| `model_executor.cuda_graph_config.CudaGraphConfig` (146), `.PhaseConfig` (90) | `decode.bs == [1..max_requests]`, `decode.max_bs == max_requests` |
+| `runtime_context.get_exec` (1310) | `get_exec().graph.cuda_graph_config` |
+| `model_executor.runner.flashinfer_autotune.should_run_flashinfer_autotune` (59) | capture refuses autotune dummy forwards |
+| `model_executor.runner_backend.full_cuda_graph_backend.FullCudaGraphBackend.__init__` (104), `.capture_session` (127) | `_graphs` keyed by `ShapeKey`, `_pool` |
 | `model_executor.runner.shape_key.ShapeKey` (22) | `size`; `vars(key)` in ledgers |
 
 ### Resolver kernel and NVTX helpers
@@ -190,43 +213,36 @@ pass silently, so their defining classes are pinned.
 
 | Definition | Fields read |
 | --- | --- |
-| `server_args.ServerArgs` (223) | assembles the field classes below |
+| `server_args.ServerArgs` (230) | assembles the field classes below |
 | `arg_groups.fields.schedule.Schedule` (19) | `max_running_requests`, `max_total_tokens`, `chunked_prefill_size`, `disable_overlap_schedule`, `enable_mixed_chunk` |
 | `arg_groups.fields.parallel.Parallel` (17) | `tp_size`, `pp_size`, `enable_dp_attention` |
 | `arg_groups.fields.memory.Memory` (21) | `disable_radix_cache`, `enable_hisparse` |
-| `arg_groups.fields.exec_.ExecGraph` (484) | `cuda_graph_backend_{decode,prefill}`, `cuda_graph_bs_decode`, `cuda_graph_max_bs_decode`, `disable_cuda_graph_padding`, `enable_torch_compile`, `cuda_graph_config` |
-| `arg_groups.fields.exec_.ExecDeterministic` (1015) | `enable_deterministic_inference` |
-| `arg_groups.fields.exec_.ExecOverlap` (909) | `enable_two_batch_overlap`, `enable_single_batch_overlap` |
-| `arg_groups.fields.exec_.ExecMamba` (344) | `enable_linear_replayssm`, `enable_mamba_extra_buffer` |
+| `arg_groups.fields.exec_.ExecGraph` (536) | `cuda_graph_backend_{decode,prefill}`, `cuda_graph_bs_decode`, `cuda_graph_max_bs_decode`, `disable_cuda_graph_padding`, `enable_torch_compile`, `cuda_graph_config` |
+| `arg_groups.fields.exec_.ExecDeterministic` (1065) | `enable_deterministic_inference` |
+| `arg_groups.fields.exec_.ExecOverlap` (959) | `enable_two_batch_overlap`, `enable_single_batch_overlap` |
+| `arg_groups.fields.exec_.ExecMamba` (396) | `enable_linear_replayssm`, `enable_mamba_extra_buffer` |
 | `arg_groups.fields.model.Model` (31) | `context_length`, `model_path`, `revision` |
 | `arg_groups.fields.serving.Serving` (22) | `skip_server_warmup`, `enable_streaming_session` |
 | `arg_groups.fields.device.Device` (16) | `random_seed` |
-| `arg_groups.fields.spec.Spec` (23) | `speculative_algorithm` |
+| `arg_groups.fields.spec.Spec` (24) | `speculative_algorithm` |
 | `arg_groups.fields.disagg.Disagg` (21) | `disaggregation_mode` |
 | `arg_groups.fields.lora.Lora` (26) | `enable_lora` |
 
-### `prefix_cache.py` (N02 code; behavior owned by W6)
+### `prefix_cache.py`
 
-| Definition | Relied on |
-| --- | --- |
-| `mem_cache.chunk_cache.ChunkCache` (35) | base class; instance `__dict__` copied; `match_prefix`, `checkpoint(req, *, up_to)` (sets `prefix_indices`); `page_size`, `token_to_kv_pool_allocator`, `req_to_token_pool` |
-| `mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row` (519) | first call of `release_kv_cache`; the base keeps no row (returns False) |
-| `mem_cache.common.checkpoint_kv_cache` (172) | calls `checkpoint(req, up_to=req.extend_range.end)` for unfinished requests (chunk boundaries), unless `skip_radix_cache_insert` |
-| `mem_cache.base_prefix_cache.BasePrefixCache.on_release` (524) | `release_kv_cache` calls it after freeing the row and dropping the lock; the prefix cache drops a finished request's pending match there, then calls the base |
-| `mem_cache.base_prefix_cache.MatchPrefixParams` (65), `.MatchResult` (260) | `params.req`, `params.key`; result fields |
-| `mem_cache.radix_cache.RadixKey` (59) | iterates token ids, `len`, `is_bigram` |
-| `environ.Envs` (257) | `SGLANG_RADIX_FORCE_MISS` |
-| `utils.common.Range` (1282) | `req.extend_range.length` |
-| `mem_cache.memory_pool.ReqToTokenPool.free` (360), `mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache` (1693) | rollback of a failed restore |
-| `mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.alloc` (160), `.free` (270) | prefix pages, rollback |
-| `Req.__init__` (above) | `cache_request_handle`, `full_untruncated_fill_ids`, `prefix_indices`, `extend_range`, `host_hit_length`, `host_loaded_length`, `skip_radix_cache_insert`, `multimodal_inputs`, `positional_embed_overrides`, `input_embeds`, `session`, `beam_group`, `return_hidden_states`, `extra_key`, `cache_salt`, `lora_id` |
+Plugin-owned since v0.5.22: a `UnifiedRadixCache` subclass built by row M05,
+whose `depends` (`patches/hisparse/lifecycle.py`) list the upstream
+definitions it relies on (the cache class and the methods it overrides, the
+allocation and release call sites, match parameters and result, `RadixKey`,
+`Envs`, and the pools and allocator its rollback frees). They left
+`RUNTIME_DEPENDS`; see `docs/prefix-cache.md`.
 
 ## Findings (not changed; the modules stay verbatim)
 
 1. The resolver's CUDA source (`sglang/kernels/jit/csrc/kvcacheio/hisparse.cuh`)
    is not a Python module, so fingerprints do not cover it; only its Python
-   launcher is pinned (the file is identical at v0.5.21, 35f3c96ff4 and
-   production). At v0.5.21 it gained block-id top-k (template
+   launcher is pinned (the file is identical at v0.5.21, 35f3c96ff4,
+   production and v0.5.22; the launcher module too). At v0.5.21 it gained block-id top-k (template
    parameters `SPARSE_BLOCK_SIZE`, `TopKIsBlocks`; the launcher passes 1 and
    false for the MLA path the runtime calls, which reproduces the old
    token-index path), and the miss count is now the number of top-k entries
@@ -251,7 +267,7 @@ pass silently, so their defining classes are pinned.
    pin, so those two terms are inert (multimodal requests are still excluded
    through `multimodal_inputs`).
 4. Activation cost: `fingerprint.verify` parses a module once per name, so
-   the 89 entries take about 5 s per process on the development host.
+   the 87 entries take about 5 s per process on the development host.
 5. At 35f3c96ff4 attention data parallelism is `--attn-dp-size`; the
    deprecated `enable_dp_attention` field is resolved into it and is always
    False after resolution (`parallel_hook._handle_deprecated_dp_attention`).

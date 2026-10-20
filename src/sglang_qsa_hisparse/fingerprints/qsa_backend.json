@@ -1,55 +1,55 @@
 {
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.__init__": {
-    "def_line": 212,
+    "def_line": 210,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 212,
+    "first_line": 210,
     "kind": "function",
-    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "module_sha256": "d98cca322c28e7eabccb8c96bc8690b0be0a601c47e290d03a758bef08decf8d",
     "qualname": "QwenSparseAttnBackend.__init__",
     "sha256": "f10191ca46751da18ab7eb99f40975f4fc22598cbd880b81def21f64e4a20d6c"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._can_defer_block_expansion": {
-    "def_line": 1338,
+    "def_line": 1336,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1338,
+    "first_line": 1336,
     "kind": "function",
-    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "module_sha256": "d98cca322c28e7eabccb8c96bc8690b0be0a601c47e290d03a758bef08decf8d",
     "qualname": "QwenSparseAttnBackend._can_defer_block_expansion",
     "sha256": "db095cae4a7bbead52c3afe627f0c38a2a6bd18cf7025e86c23ea2a5e8a1fe48"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._capture_cuda_graph_metadata": {
-    "def_line": 885,
+    "def_line": 883,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 885,
+    "first_line": 883,
     "kind": "function",
-    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "module_sha256": "d98cca322c28e7eabccb8c96bc8690b0be0a601c47e290d03a758bef08decf8d",
     "qualname": "QwenSparseAttnBackend._capture_cuda_graph_metadata",
     "sha256": "853572522c4d6ae491a31ca84009e3244a05f9568de5df6269ecc649a463725e"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._is_speculative_paged_mode": {
-    "def_line": 263,
+    "def_line": 261,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 262,
+    "first_line": 260,
     "kind": "function",
-    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "module_sha256": "d98cca322c28e7eabccb8c96bc8690b0be0a601c47e290d03a758bef08decf8d",
     "qualname": "QwenSparseAttnBackend._is_speculative_paged_mode",
     "sha256": "b3bed577ae416fafbfe71ad6e6caf28f044f46000c12ba87573deadfce3153ae"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend._supports_fused_kv_pool": {
-    "def_line": 1325,
+    "def_line": 1323,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 1324,
+    "first_line": 1322,
     "kind": "function",
-    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "module_sha256": "d98cca322c28e7eabccb8c96bc8690b0be0a601c47e290d03a758bef08decf8d",
     "qualname": "QwenSparseAttnBackend._supports_fused_kv_pool",
     "sha256": "9848cef07b41354ed5718ac9fcb9bb55c7d81a605488ba406d6ec33b912fc89a"
   },
   "sglang.srt.layers.attention.qwen_sparse_attn_backend.QwenSparseAttnBackend.init_forward_metadata": {
-    "def_line": 767,
+    "def_line": 765,
     "file": "sglang/srt/layers/attention/qwen_sparse_attn_backend.py",
-    "first_line": 767,
+    "first_line": 765,
     "kind": "function",
-    "module_sha256": "f68ff9bf04fb51cec1330958e005ab31232cdfd7e00c01668d407fdc3b4c42ab",
+    "module_sha256": "d98cca322c28e7eabccb8c96bc8690b0be0a601c47e290d03a758bef08decf8d",
     "qualname": "QwenSparseAttnBackend.init_forward_metadata",
     "sha256": "47ad136d9d55d88c0330afaf7f36b233272ae17a116c9b33591057bd7dad34c7"
   }

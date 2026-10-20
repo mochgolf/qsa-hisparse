@@ -34,7 +34,7 @@ def in_reference(path: str) -> bool:
 def roots(evidence, monkeypatch):
     run = evidence("run_g21")
     for name, value in (
-        ("PYTHON", Path(sys.executable)),
+        ("PYTHON", {"fork": Path("/fork-env/python"), "plugin": Path("/plugin-env/python")}),
         ("PLUGIN_ROOT", REPO),
         ("FORK_ROOT", FORK),
         ("PIN_ROOT", pin_root()),
@@ -52,6 +52,7 @@ def test_every_planned_script_and_test_file_exists(roots, arm, tmp_path):
     )
     checked = 0
     for name, cwd, argv, _ in steps:
+        assert argv[0] == f"/{arm}-env/python", (name, argv)  # The arm's interpreter.
         for arg in argv[1:]:
             if not arg.endswith(".py"):
                 continue
@@ -70,6 +71,16 @@ def test_every_planned_script_and_test_file_exists(roots, arm, tmp_path):
     assert pythonpath.split(os.pathsep) == expected
 
 
+def test_arms_default_to_their_own_interpreters_and_the_v0_5_22_pin(evidence):
+    run_g2 = evidence("run_g2")
+    assert run_g2.FORK_ROOT.name == "sglang-dsh-production-20261004"
+    assert run_g2.PIN_ROOT.name == "sglang-v0.5.22"
+    assert run_g2.PYTHON == {
+        "fork": run_g2.QWEN / "results/dsh-maintenance-20261004/upstream-runtime-env/bin/python",
+        "plugin": run_g2.QWEN / "results/phase6-20261018/runtime-env/bin/python",
+    }
+
+
 FAKE_PYTHON = f"""#!{sys.executable}
 import json, os, sys
 NAMES = ("CUDA_VISIBLE_DEVICES", "PYTHONPATH", "TRITON_INTERPRET",
@@ -86,7 +97,7 @@ def test_plugin_arm_runs_every_step_and_fails_on_one_failure(roots, tmp_path, mo
     fake = tmp_path / "python"
     fake.write_text(FAKE_PYTHON)
     fake.chmod(0o755)
-    monkeypatch.setattr(roots.run_g2, "PYTHON", fake)
+    monkeypatch.setattr(roots.run_g2, "PYTHON", {"fork": Path("/unused"), "plugin": fake})
     monkeypatch.setenv("FAKE_CALLS", str(tmp_path / "calls.jsonl"))
     monkeypatch.setenv("TRITON_INTERPRET", "1")
     monkeypatch.setenv("SGLANG_QSA_MODEL_COMPAT", "1")

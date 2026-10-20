@@ -312,6 +312,26 @@ def test_plugin_arm_health_without_launcher_ready_never_starts_the_harness(
     assert port_closed(port)
 
 
+@pytest.mark.parametrize("arm", ["fork", "plugin"])
+def test_each_arm_defaults_to_its_interpreter_and_the_harness_to_productions(
+    evidence, tmp_path, capsys, arm
+):
+    run = evidence("run_compat")
+    roots = {"fork": tmp_path / "fork", "plugin": tmp_path / "plugin"}
+    args = arm_args(tmp_path, roots, 8090, fixtures(tmp_path), arm)
+    del args[args.index("--python") : args.index("--python") + 2]
+    assert run.main([*args, "--dry-run"]) == 0
+    plan = json.loads(capsys.readouterr().out)
+    workspace = run.PLUGIN_ROOT.parent
+    assert run.INTERPRETERS == {
+        "fork": "results/dsh-maintenance-20261004/upstream-runtime-env/bin/python",
+        "plugin": "results/phase6-20261018/runtime-env/bin/python",
+    }
+    assert plan["server"][0] == str(workspace / run.INTERPRETERS[arm])
+    assert plan["harness"][0] == str(workspace / run.INTERPRETERS["fork"])
+    assert run.parse(args).pin_root == workspace / ".worktrees/sglang-v0.5.22"
+
+
 def test_busy_gpu_used_port_and_production_port_are_refused(evidence, tmp_path, monkeypatch):
     run = evidence("run_compat")
     roots, bin_dir = fake_tree(tmp_path, gpu_apps="4242, 45000 MiB")

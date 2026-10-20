@@ -1,11 +1,11 @@
 {
-  "interpreter": "../results/dsh-maintenance-20261004/upstream-runtime-env/bin/python",
+  "interpreter": "../results/phase6-20261018/runtime-env/bin/python",
   "packages": {
-    "flashinfer-python": "0.7.0.post1",
+    "flashinfer-python": "0.7.1",
     "sglang-kernel": "0.4.9",
     "torch": "2.14.1",
     "triton": "3.8.0"
   },
   "python": "3.12.3",
-  "source": "importlib.metadata.version() in the interpreter above (sglang_qsa_hisparse.launch.native_versions), without CUDA; production's interpreter since Phase 5"
+  "source": "importlib.metadata.version() in the interpreter above (sglang_qsa_hisparse.launch.native_versions), without CUDA; Phase 6 interpreter (production's package set with transformers 5.19.0, flashinfer-python 0.7.1, sgl-deep-gemm 0.2.2)"
 }

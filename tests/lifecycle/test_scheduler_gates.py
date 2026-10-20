@@ -1,9 +1,11 @@
-"""Scheduler gates under W2's hooks: host-prefix wrap (S01) and coordinator
-adoption (S02), multimodal decode batches (S03), the staging-to-decode
-transition (S04), lease admission (S05), idle leak checks (S07), idleness (S08), abort of staging requests (S09),
-weight-load invalidation (B06) and the chunk checkpoint cap (P01). Expected
-values follow production's code at 897286b12a (the fork's ee8fe158d6 for
-these gates)."""
+"""Scheduler gates under W2's hooks: coordinator adoption (S02), multimodal
+decode batches (S03), the staging-to-decode transition (S04), lease admission
+(S05), the QSA prefill adder (S06, with P01's chunk checkpoint cap), idle leak
+checks (S07), idleness (S08), abort of staging requests (S09) and weight-load
+invalidation (B06). Expected values follow production's code at 897286b12a
+(the fork's ee8fe158d6 for these gates). S01's host-prefix cache selection
+and rejections moved into M05's factory hook at v0.5.22
+(test_tree_cache_selection.py)."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
@@ -12,19 +14,26 @@ import pytest
 import torch
 
 from sglang.srt.disaggregation.utils import DisaggregationMode
-from sglang.srt.managers.schedule_batch import FINISH_ABORT, NextBatchPlan, ScheduleBatch
-from sglang.srt.managers.schedule_policy import PrefillAdder
+from sglang.srt.managers.schedule_batch import (
+    FINISH_ABORT,
+    NextBatchPlan,
+    Req,
+    ScheduleBatch,
+)
+from sglang.srt.managers.schedule_policy import AddReqResult, PrefillAdder
 from sglang.srt.managers.scheduler import Scheduler
 from sglang.srt.managers.scheduler_components.weight_updater import (
     SchedulerWeightUpdaterManager,
 )
-from sglang.srt.mem_cache.cache_init_params import CacheInitParams
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
-from sglang.srt.mem_cache.chunk_cache import ChunkCache
+from sglang.srt.mem_cache.cache_init_params import CacheInitParams
 from sglang.srt.mem_cache.memory_pool import ReqToTokenPool
+from sglang.srt.mem_cache.unified_cache.components import ComponentType
+from sglang.srt.mem_cache.unified_radix_cache import UnifiedRadixCache
 from sglang.srt.sampling.sampling_batch_info import SamplingBatchInfo
 from sglang_qsa_hisparse.hisparse.prefix_cache import QSAHostPrefixCache
 from sglang_qsa_hisparse.hisparse.slots import QSAHiSparseSlots
+from sglang_qsa_hisparse.patches.hisparse.scheduler import QSAPrefillAdder
 
 pytestmark = pytest.mark.usefixtures("w2_patches")
 
@@ -43,31 +52,18 @@ class Event:
         return True
 
 
-# S01, S02 -------------------------------------------------------------------
+# S02 ------------------------------------------------------------------------
 
 
-def coordinator_scheduler(
-    *,
-    adapter=True,
-    prefix_cache="host",
-    cache_type=ChunkCache,
-    hierarchical=False,
-    mamba_extra_buffer=False,
-    runner_coordinator=True,
-):
+def coordinator_scheduler(*, adapter=True, prefix_cache="host", runner_coordinator=True):
     runtime = SimpleNamespace(uses_qsa_hisparse_leases=True, prefix_cache=prefix_cache)
     kvcache = SimpleNamespace(qsa_hisparse=runtime) if adapter else SimpleNamespace()
     allocator = SimpleNamespace(get_kvcache=lambda: kvcache, device="cpu")
-    pool = SimpleNamespace(enable_mamba_extra_buffer=mamba_extra_buffer)
-    params = CacheInitParams(
-        disable=True, req_to_token_pool=pool, token_to_kv_pool_allocator=allocator, page_size=64
-    )
     return scheduler(
         enable_hisparse=False,
-        enable_hierarchical_cache=hierarchical,
+        enable_hierarchical_cache=False,
         token_to_kv_pool_allocator=allocator,
-        req_to_token_pool=pool,
-        tree_cache=cache_type(params),
+        tree_cache=object(),
         tp_worker=SimpleNamespace(
             model_runner=SimpleNamespace(
                 hisparse_coordinator=Mock() if runner_coordinator else None
@@ -78,32 +74,16 @@ def coordinator_scheduler(
     )
 
 
-def test_host_prefix_cache_wraps_the_chunk_cache_after_adopting_the_coordinator():
+def test_a_lease_scheduler_adopts_the_runner_coordinator_and_keeps_its_cache():
     s = coordinator_scheduler()
-    chunk_cache = s.tree_cache
+    tree_cache = s.tree_cache  # M05 already built the host-prefix cache.
     coordinator = s.tp_worker.model_runner.hisparse_coordinator
 
     s.init_hisparse_coordinator()
 
     assert s.hisparse_coordinator is coordinator
     coordinator.set_decode_producer_stream.assert_called_once_with("forward-stream")
-    assert type(s.tree_cache) is QSAHostPrefixCache
-    assert s.tree_cache.req_to_token_pool is chunk_cache.req_to_token_pool
-    assert (s.tree_cache.host, s.tree_cache.tp_group) == ("host", "tp-group")
-
-
-@pytest.mark.parametrize(
-    "setting, message",
-    [
-        ({"cache_type": type("RadixLike", (ChunkCache,), {})}, "private chunk-cache"),
-        ({"hierarchical": True}, "private chunk-cache"),
-        ({"mamba_extra_buffer": True}, "one mutable Mamba slot"),
-    ],
-)
-def test_host_prefix_cache_rejects_unsupported_schedulers(setting, message):
-    s = coordinator_scheduler(**setting)
-    with pytest.raises(ValueError, match=message):
-        s.init_hisparse_coordinator()
+    assert s.tree_cache is tree_cache
 
 
 @pytest.mark.parametrize(
@@ -116,11 +96,10 @@ def test_host_prefix_cache_rejects_unsupported_schedulers(setting, message):
 )
 def test_without_host_prefixes_the_tree_cache_is_unchanged(setting, adopted):
     s = coordinator_scheduler(**setting)
-    chunk_cache = s.tree_cache
+    tree_cache = s.tree_cache
     s.init_hisparse_coordinator()
-    assert s.tree_cache is chunk_cache
+    assert s.tree_cache is tree_cache
     assert (s.hisparse_coordinator is not None) == adopted
-
 
 # S03 ------------------------------------------------------------------------
 
@@ -139,7 +118,11 @@ def test_rebuilt_decode_batch_carries_multimodal_inputs_for_the_target_model(
         )
         for row, mm in ((1, "image-inputs"), (2, None))
     ]
-    batch = SimpleNamespace(return_logprob=False, multimodal_inputs=None)
+    batch = SimpleNamespace(
+        return_logprob=False,
+        multimodal_inputs=None,
+        spec_algorithm=SimpleNamespace(is_none=lambda: True),  # Read at v0.5.22.
+    )
     s = scheduler(
         device="cpu",
         req_to_token_pool=None,
@@ -243,6 +226,7 @@ def test_idle_pool_leak_checks_are_skipped_while_a_coordinator_exists(coordinato
         **{
             name: MagicMock()
             for name in (
+                "dp_attn_adapter",  # v0.5.22: drop_sync_wait_carry() first.
                 "scheduler_stage_metrics",
                 "invariant_checker",
                 "pool_stats_observer",
@@ -338,6 +322,155 @@ def test_abort_reaches_requests_waiting_in_qsa_staging(leases):
     assert isinstance(staged.to_finish, FINISH_ABORT) == leases
 
 
+# B03 and the coordinator's speculative-decoding call ------------------------
+
+
+def test_prefill_results_stage_qsa_leases_without_notifying_finished_ones(
+    published_context,
+):
+    # Production's gate admits an unfinished prefill into QSA staging; v0.5.22's
+    # new request_finished call for requests finishing in a prefill batch
+    # (#37771) stays on enable_hisparse, which QSA leaves unset (production
+    # never notified QSA leases there).
+    from lifecycle.test_hisparse_batch_result_processor_hidden_states import (
+        _PrefillReq,
+    )
+    from sglang.srt.managers.scheduler_components.batch_result_processor import (
+        SchedulerBatchResultProcessor,
+    )
+    from sglang.srt.model_executor.forward_batch_info import CaptureHiddenMode
+
+    finished, staged = (
+        _PrefillReq(rid=rid, inflight_middle_chunks=0, return_hidden_states=False)
+        for rid in ("finished", "staged")
+    )
+    finished.finished = lambda: bool(finished.output_ids)
+    for req in (finished, staged):
+        req.kv = SimpleNamespace(kv_committed_len=0)
+    batch = SimpleNamespace(
+        reqs=[finished, staged],
+        decoding_reqs=None,
+        return_logprob=False,
+        return_hidden_states=False,
+        return_hidden_states_mode=CaptureHiddenMode.NULL,
+        spec_info=None,
+        spec_algorithm=SimpleNamespace(is_none=lambda: True),
+        prefill_stats=None,
+        dp_cooperation_info=None,
+    )
+    result = SimpleNamespace(
+        copy_done=None,
+        auxiliary_host_output=None,
+        routed_experts_output=None,
+        indexer_topk_output=None,
+        logits_output=SimpleNamespace(
+            hidden_states=None, customized_info=None, sampling_mask_output=None
+        ),
+        next_token_ids=torch.tensor([5, 6]),
+        extend_input_len_per_req=None,
+        extend_logprob_start_len_per_req=None,
+        grammar_advanced=False,
+        can_run_cuda_graph=False,
+        skipped_output_comm=False,
+    )
+    coordinator = Mock()
+    processor = SchedulerBatchResultProcessor(
+        is_generation=True,
+        disaggregation_mode=None,
+        enable_overlap=False,
+        enable_overlap_mlx=False,
+        model_config=SimpleNamespace(think_end_ids=None),
+        token_to_kv_pool_allocator=Mock(),
+        tree_cache="tree-cache",
+        hisparse_coordinator=coordinator,
+        req_to_token_pool=None,
+        decode_offload_manager=None,
+        metrics_collector=None,
+        metrics_reporter=Mock(),
+        draft_worker=None,
+        model_worker=Mock(),
+        logprob_result_processor=None,
+        output_streamer=Mock(),
+        beam_coordinator=Mock(),
+        abort_request=lambda *args, **kwargs: None,
+    )
+    patches = "sglang_qsa_hisparse.patches.hisparse.scheduler"
+    with (
+        patch(f"{patches}.release_kv_cache") as release,
+        patch(f"{patches}.checkpoint_kv_cache") as checkpoint,
+        patch.object(SchedulerBatchResultProcessor, "_maybe_collect_routed_experts"),
+        patch.object(SchedulerBatchResultProcessor, "_maybe_collect_indexer_topk"),
+    ):
+        processor.process_batch_result_prefill(batch, result)
+
+    release.assert_called_once_with(finished, "tree-cache", checkpoint=True)
+    checkpoint.assert_called_once_with(staged, "tree-cache")
+    coordinator.admit_request_into_staging.assert_called_once_with(staged)
+    coordinator.request_finished.assert_not_called()
+
+
+@pytest.mark.parametrize("enable_hisparse", [False, True])
+def test_a_released_request_notifies_the_coordinator_once_before_the_worker(
+    published_context, enable_hisparse
+):
+    # B04 (and B05): QSA leases (enable_hisparse unset) are notified by the
+    # hook on _prepare_kv_cache_release, upstream HiSparse by its own gate;
+    # either way once, before the worker's hook and the release.
+    from sglang.srt.managers.scheduler_components import batch_result_processor
+    from sglang.srt.managers.scheduler_components.batch_result_processor import (
+        SchedulerBatchResultProcessor,
+    )
+
+    events = []
+    processor = SchedulerBatchResultProcessor(
+        is_generation=True,
+        disaggregation_mode=None,
+        enable_overlap=False,
+        enable_overlap_mlx=False,
+        model_config=SimpleNamespace(think_end_ids=None),
+        token_to_kv_pool_allocator=Mock(),
+        tree_cache="tree-cache",
+        hisparse_coordinator=SimpleNamespace(
+            request_finished=lambda req: events.append("request_finished")
+        ),
+        req_to_token_pool=None,
+        decode_offload_manager=None,
+        metrics_collector=None,
+        metrics_reporter=Mock(),
+        draft_worker=None,
+        model_worker=SimpleNamespace(
+            prepare_for_kv_cache_release=lambda req: events.append("prepare")
+        ),
+        logprob_result_processor=None,
+        output_streamer=Mock(),
+        beam_coordinator=Mock(),
+        abort_request=lambda *args, **kwargs: None,
+    )
+    memory = SimpleNamespace(enable_hisparse=enable_hisparse)
+    req = SimpleNamespace(multimodal_inputs=None, session=None, time_stats=Mock())
+    with (
+        patch.object(batch_result_processor, "get_memory", return_value=memory),
+        patch("sglang_qsa_hisparse.patches.hisparse.scheduler.get_memory", return_value=memory),
+        patch.object(
+            batch_result_processor,
+            "release_kv_cache",
+            side_effect=lambda *args, **kwargs: events.append("release"),
+        ),
+    ):
+        processor._handle_sampling_mask_abort(req)
+    assert events == ["request_finished", "prepare", "release"]
+
+
+def test_the_qsa_coordinator_takes_prefill_spec_scratch_as_a_no_op():
+    # v0.5.22's alloc_for_extend calls it on every prefill batch's coordinator.
+    from sglang_qsa_hisparse.hisparse.coordinator import QSAHiSparseCoordinator
+
+    coordinator = QSAHiSparseCoordinator.__new__(QSAHiSparseCoordinator)
+    coordinator.adapter = Mock()
+    assert coordinator.allocate_spec_scratch([1, 2]) is None
+    assert coordinator.adapter.mock_calls == []
+
+
 # B06 ------------------------------------------------------------------------
 
 
@@ -376,31 +509,64 @@ def test_any_weight_load_attempt_invalidates_host_prefixes_first():
     manager.flush_cache.assert_not_called()
 
 
-# P01 ------------------------------------------------------------------------
+# S06 and P01 ------------------------------------------------------------------
+
+
+class AdderReq(SimpleNamespace):
+    extend_len = Req.extend_len
+
+
+def disabled_cache(cache_class=UnifiedRadixCache):
+    """--disable-radix-cache's tree (QSAHostPrefixCache: no snapshots needed)."""
+    runtime = SimpleNamespace(prefix_cache=SimpleNamespace(epoch=0), prefix_namespace=())
+    allocator = PagedTokenToKVPoolAllocator(
+        4096, 64, torch.uint8, "cpu", SimpleNamespace(qsa_hisparse=runtime), False
+    )
+    pool = ReqToTokenPool(size=1, max_context_len=4096, device="cpu", enable_memory_saver=False)
+    return cache_class(
+        CacheInitParams(
+            disable=True,
+            req_to_token_pool=pool,
+            token_to_kv_pool_allocator=allocator,
+            page_size=64,
+            tree_components=(ComponentType.FULL,),
+        )
+    )
+
+
+@pytest.mark.parametrize("leases", [True, False])
+def test_qsa_leases_admit_one_prefill_request_per_pass(published_context, leases):
+    s = scheduler(
+        hisparse_coordinator=SimpleNamespace(uses_qsa_hisparse_leases=leases)
+    )
+    adder_class = s.get_prefill_adder_class()
+    assert adder_class is (QSAPrefillAdder if leases else PrefillAdder)
+    if not leases:
+        return
+    cache = disabled_cache()
+    # As _get_new_batch_prefill_raw builds it, with the scheduler's setting.
+    adder = adder_class(
+        64, cache, cache.token_to_kv_pool_allocator, None, 1.0, 4096, 4096,
+        prefill_max_requests=None,
+    )
+    assert adder.prefill_max_requests == 1
+    adder.can_run_list.append("chunked continuation")
+    assert adder.add_one_req(object(), False, None) == AddReqResult.OTHER
 
 
 def chunked_continuation(checkpoint_limit, chunked_req_limit=None):
     """add_chunked_req for a 201-token prompt with 64 tokens already cached."""
-    allocator = PagedTokenToKVPoolAllocator(4096, 64, torch.uint8, "cpu", SimpleNamespace(), False)
-    pool = ReqToTokenPool(size=1, max_context_len=4096, device="cpu", enable_memory_saver=False)
-    cache = ChunkCache(
-        CacheInitParams(
-            disable=True, req_to_token_pool=pool, token_to_kv_pool_allocator=allocator, page_size=64
-        )
-    )
+    cache = disabled_cache(QSAHostPrefixCache)
     cache.prefill_checkpoint_limit = lambda req: checkpoint_limit
-    adder = PrefillAdder(64, cache, allocator, None, 1.0, 4096, 4096)
+    adder = QSAPrefillAdder(64, cache, cache.token_to_kv_pool_allocator, None, 1.0, 4096, 4096)
     adder.chunked_req_limit = chunked_req_limit  # As the scheduler sets it.
-    req = SimpleNamespace(
+    req = AdderReq(
         full_untruncated_fill_ids=list(range(201)),
-        prefix_indices=torch.arange(64),
+        prefix_len=64,
         sampling_params=SimpleNamespace(max_new_tokens=8),
         output_ids=[],
         retracted_stain=False,
-        kv=SimpleNamespace(mamba_pool_idx=None),
-    )
-    req.set_extend_range = lambda start, end: setattr(
-        req, "extend_range", SimpleNamespace(start=start, end=end, length=end - start)
+        kv=SimpleNamespace(mamba_pool_idx=None, req_pool_idx=1),
     )
     return adder.add_chunked_req(req), req
 
@@ -415,8 +581,8 @@ def chunked_continuation(checkpoint_limit, chunked_req_limit=None):
     ],
 )
 def test_a_chunk_continuation_stops_at_the_host_prefix_checkpoint(
-    checkpoint_limit, chunked_req_limit, end, unfinished
+    published_context, checkpoint_limit, chunked_req_limit, end, unfinished
 ):
     result, req = chunked_continuation(checkpoint_limit, chunked_req_limit)
-    assert (req.extend_range.start, req.extend_range.end) == (64, end)
+    assert (req.prefix_len, req.extend_end) == (64, end)
     assert (result is req) == unfinished

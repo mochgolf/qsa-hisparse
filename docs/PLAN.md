@@ -311,6 +311,44 @@ production's code (deterministic profile, validation weights) against the
 plugin, I5, and G2-3 native checks with production weights against
 production. Then the cutover (owner decision).
 
+## Phase 6: v0.5.22, reference = production (routine maintenance)
+
+Owner (2026-10-18): move to SGLang v0.5.22 (`baa9befa38`); CPU port and
+review, then a GPU window. The reference stays production `897286b12a`
+(`FORK_BASE_COMMIT` `35f3c96ff4`): the plugin at `51e79d3` equals it, and
+that behavior is what Phase 6 preserves. Interpreter
+`../results/phase6-20261018/runtime-env` (production's package set with
+transformers 5.19.0, flashinfer-python 0.7.1, sgl-deep-gemm 0.2.2;
+production's interpreter is untouched). Survey: `docs/phase6-survey.md`.
+Rules P1–P4 apply (P1 is the three-way merge again: copy = v0.5.22
+definition + production's change), Q2 and Q3 of Phase 5 apply, plus:
+
+- **R1 Lifecycle refactor.** v0.5.22 removed `Req.prefix_indices`,
+  `extend_range` and `ChunkCache` and changed `match_prefix`/`init_load_back`
+  (survey, "Blocking upstream change"). Production behavior is kept: exact
+  host prefix hits at page-64 boundaries (including inside images) restore KV
+  and recurrent/PLE state; misses behave like upstream. Design:
+  `docs/phase6-prefix-design.md` (orchestrator). Rows whose production change
+  no longer applies textually are hand-merged and listed in `RESOLVED`.
+- **R2 Upstream overlap.** Where upstream now does part of what a row does
+  (e.g. #41933 fused prefill gather vs the FP8 descale rows; #43463 vs T03),
+  report keep/narrow/drop with the upstream commit; never apply a scale or
+  bound twice.
+
+| Task | Area | Owned paths |
+|---|---|---|
+| P6-A | scheduler, lifecycle, host prefix cache | P4-A paths, `hisparse/prefix_cache.py`, `tests/prefix/` |
+| P6-B | graph, pools, forward batch | P4-B paths |
+| P6-C | model, QSA, quantization, kernels | P4-C paths |
+| P6-D | runtime package (except `prefix_cache.py`), image, activation, NUMA, launcher lock, evidence | P4-D paths except `tests/prefix/`, `environment.lock.json`, `tests/regression/test_plugin_off.py` |
+
+Gates: **G6-CPU** (full CPU suite on the Phase 6 interpreter at v0.5.22,
+`tools/fingerprint.py check`, manifest current, every REPLACE in
+`test_replace_deltas.py`, Appendix A complete, REPLACE count table; review)
+and **G6-GPU** (owner window): the Phase 5 evidence with production's code as
+the fork arm against the plugin at v0.5.22 (G2-1, G2-2, compat, G2-4), I5,
+and G2-3 with production weights. Cutover is a separate owner decision.
+
 ## Review protocol
 
 After each gate's work is merged, run from this repository:

@@ -433,6 +433,46 @@ builds as in the Phase 2 window.
   not compared.
 - **G2-4**: as in Phase 2, from the G2-2 arms.
 
+### Phase 6 (pin v0.5.22, reference production 897286b12a; G6-GPU)
+
+Prepared on CPU (2026-10-19), not run. F is production's code on production's
+interpreter (`qwen:results/dsh-maintenance-20261004/upstream-runtime-env`), P
+the plugin on v0.5.22 on the Phase 6 interpreter
+(`qwen:results/phase6-20261018/runtime-env`, the launcher lock). The
+interpreters are `run_compat.INTERPRETERS`, shared by the other runners as
+`run_g2.PYTHON[arm]`; client harnesses run on production's interpreter in both
+arms. `run_g2.PIN_ROOT` and `run_compat.py --pin-root` default to
+`.worktrees/sglang-v0.5.22`; `FORK_ROOT` stays production. Commands are those
+of Phase 5.
+
+- **G2-1**: F unchanged. P's step 8b runs v0.5.22's
+  `registered/kernels/ops/attention/qsa/{test_qsa_indexer,test_qsa_strided_zero_fill}.py`
+  and `registered/kernels/ops/gemm/test_hc_mix.py` (paths as at 35f3c96ff4).
+  v0.5.22's `test_qsa_indexer.py` adds four tests production's file lacks
+  (`test_tilelang_mqa_decode_grid_covers_every_group[6|100|700]`,
+  `test_tilelang_mqa_decode_skips_rows_that_fit_topk`), so compare with
+  `pytest_outcomes.py --fork F/step8.log --plugin P/step8a.log P/step8b.log
+  --inventory g21_step8_inventory_35f3c96ff4.txt --plugin-inventory
+  g21_step8_inventory_v0.5.22.txt`: IDs only in the plugin inventory must pass
+  in P and are not compared across arms; every other ID is compared as before.
+  Collected on CPU: P's 8a (the plugin's `tests/qsa/test_qsa.py` as of P6-D's
+  branch, production's port) and 8b give the 91 Phase 5 IDs, the four new
+  ones and the SM121 skip. If the merged `tests/qsa/test_qsa.py` gains
+  v0.5.22's upstream tests (`test_qsa_prefill_kv_packing`, 96 cases, and
+  `test_qsa_large_fp8_prefill_float_reference`, 8, both CUDA-only), re-collect
+  8a with `--collect-only` and extend the plugin inventory before the window.
+- **G2-2, compat, G2-3, I5**: as in Phase 5, with the interpreters above.
+  The processor fingerprint in every image artifact key includes
+  `transformers.__version__` (5.17.0 in F, 5.19.0 in P), so item hashes and
+  pad values differ between arms; I5 compares within the plugin arm only.
+  Between those versions the HF Qwen2-VL image processor changed only for
+  per-call `min_pixels`/`max_pixels`, which SGLang passes only from
+  `--mm-process-config` (unused by the profiles).
+- **Plugin off** (`tests/regression/test_plugin_off.py`): pristine v0.5.22
+  with no plugin on the path, Phase 6 interpreter, CPU runner: the five unit
+  files 90 passed / 3 skipped, `test_qsa.py` 35 passed / 106 skipped / 13
+  CUDA-only failures, 23 subtests.
+
 ## Gaps
 
 1. **No fork goldens exist for the Phase 2 environment.** Snapshot 7 used the

@@ -117,6 +117,10 @@ class QSAHiSparseCoordinator:
             self.adapter._request(req_idx, state.lease.rid)
             self.adapter.slots.require(state.lease, "decode")
 
+    def allocate_spec_scratch(self, req_pool_indices):
+        # Speculative-decoding scratch (#37771); QSA P2 runs without speculation.
+        return
+
     def wait_for_pending_backup(self):
         # Each request/layer waits its own writeback in the shared V3 algorithms.
         return

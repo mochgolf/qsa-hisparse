@@ -55,18 +55,8 @@
       "feature": "hisparse",
       "patches": [
         {
-          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._handle_sampling_mask_abort",
-          "hook_type": "replace"
-        }
-      ],
-      "attach": []
-    },
-    "B05": {
-      "feature": "hisparse",
-      "patches": [
-        {
-          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._handle_finish_state_updated_req",
-          "hook_type": "replace"
+          "target": "sglang.srt.managers.scheduler_components.batch_result_processor.SchedulerBatchResultProcessor._prepare_kv_cache_release",
+          "hook_type": "before"
         }
       ],
       "attach": []
@@ -274,7 +264,7 @@
       "patches": [
         {
           "target": "sglang.srt.mem_cache.allocation.alloc_for_extend",
-          "hook_type": "replace"
+          "hook_type": "around"
         }
       ],
       "attach": []
@@ -299,16 +289,6 @@
       ],
       "attach": []
     },
-    "M04": {
-      "feature": "model_compat",
-      "patches": [
-        {
-          "target": "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.clear",
-          "hook_type": "around"
-        }
-      ],
-      "attach": []
-    },
     "M05": {
       "feature": "hisparse",
       "patches": [
@@ -318,41 +298,6 @@
         }
       ],
       "attach": []
-    },
-    "M06": {
-      "feature": "hisparse",
-      "patches": [
-        {
-          "target": "sglang.srt.mem_cache.registry.create_tree_cache",
-          "hook_type": "replace"
-        }
-      ],
-      "attach": []
-    },
-    "P01": {
-      "feature": "hisparse",
-      "patches": [
-        {
-          "target": "sglang.srt.managers.schedule_policy.PrefillAdder.add_chunked_req",
-          "hook_type": "before"
-        }
-      ],
-      "attach": []
-    },
-    "P02": {
-      "feature": "hisparse",
-      "patches": [
-        {
-          "target": "sglang.srt.managers.schedule_policy.PrefillAdder.add_one_req",
-          "hook_type": "replace"
-        }
-      ],
-      "attach": [
-        {
-          "owner": "sglang.srt.managers.schedule_policy.PrefillAdder",
-          "name": "_add_one_req"
-        }
-      ]
     },
     "Q01": {
       "feature": "model_compat",
@@ -530,16 +475,6 @@
       ],
       "attach": []
     },
-    "S01": {
-      "feature": "hisparse",
-      "patches": [
-        {
-          "target": "sglang.srt.managers.scheduler.Scheduler.init_hisparse_coordinator",
-          "hook_type": "after"
-        }
-      ],
-      "attach": []
-    },
     "S02": {
       "feature": "hisparse",
       "patches": [
@@ -584,8 +519,8 @@
       "feature": "hisparse",
       "patches": [
         {
-          "target": "sglang.srt.managers.scheduler.Scheduler._get_new_batch_prefill_raw",
-          "hook_type": "replace"
+          "target": "sglang.srt.managers.scheduler.Scheduler.get_prefill_adder_class",
+          "hook_type": "after"
         }
       ],
       "attach": []

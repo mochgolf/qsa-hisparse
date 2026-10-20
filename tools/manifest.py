@@ -46,11 +46,6 @@ OVERRIDES = {
             {"owner": "sglang.srt.layers.attention.qwen_sparse_attn_backend._resolve_flash_attn_varlen_func", "name": "cache_clear"},
         ],
     },
-    "P02": {
-        "patches": [{"target": "sglang.srt.managers.schedule_policy.PrefillAdder.add_one_req", "hook_type": "replace"}],
-        # The fork renamed the original body to PrefillAdder._add_one_req.
-        "attach": [{"owner": "sglang.srt.managers.schedule_policy.PrefillAdder", "name": "_add_one_req"}],
-    },
     # The runtime turns the pin's fused #40972 KV path off (reference _fused_kv_eligible).
     "Q03": {
         "patches": [{"target": f"{BACKEND}.__init__", "hook_type": "after"}],

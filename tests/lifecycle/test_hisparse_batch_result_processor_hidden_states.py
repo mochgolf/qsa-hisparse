@@ -1,11 +1,13 @@
 """Production's (897286b12a) edit of the pinned upstream test
-test/registered/unit/managers/test_batch_result_processor_hidden_states.py,
-run with W2's hooks active. Production removed the batch_result_processor
-``get_memory`` patch with the import (B01). B02-B05's copies resolve module
-globals in the plugin module (inventory 6, G3), so the two mocks of
-``checkpoint_kv_cache`` and ``release_kv_cache`` patch the plugin module;
-every assertion is unchanged. The pinned original runs with the plugin off in
-test_w2_activation.py.
+test/registered/unit/managers/test_batch_result_processor_hidden_states.py
+(here v0.5.22's), run with W2's hooks active. Production removed the
+batch_result_processor ``get_memory`` patch with the import (B01). B02 and
+B03's copies resolve module globals in the plugin module (inventory 6, G3),
+so the mocks of ``checkpoint_kv_cache`` and the prefill ``release_kv_cache``
+patch the plugin module; the decode abort runs the pinned
+``_handle_sampling_mask_abort`` (B04 is a hook since v0.5.22) and keeps
+upstream's mock. Every assertion is unchanged. The pinned original runs with
+the plugin off in test_w2_activation.py.
 """
 
 import unittest
@@ -13,6 +15,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
+
 import torch
 
 from sglang.srt.environ import envs
@@ -183,6 +186,7 @@ class _PrefillReq:
         self.require_reasoning = False
         self.customized_info = None
         self.beam_group = None
+        self.discard_output_reason = None
 
     def finished(self):
         return False
@@ -322,6 +326,63 @@ class TestPrefillSkippedOutput(CustomTestCase):
         )
 
 
+class TestMixedBatchKvRelease(CustomTestCase):
+    def test_decode_req_finishing_in_mixed_batch_gets_release_hook(self):
+        """A decode req that finishes inside a mixed batch goes through the
+        worker's pre-release hook, as it would in a decode batch; a prefill
+        req finishing on its first token does not."""
+        prefill_req = _PrefillReq(
+            rid="prefill", inflight_middle_chunks=0, return_hidden_states=False
+        )
+        decode_req = _PrefillReq(
+            rid="decode", inflight_middle_chunks=0, return_hidden_states=False
+        )
+        for req in (prefill_req, decode_req):
+            req.finished = lambda req=req: bool(req.output_ids)
+            req.kv = SimpleNamespace(kv_committed_len=0)
+        batch = SimpleNamespace(
+            reqs=[prefill_req, decode_req],
+            decoding_reqs=[decode_req],
+            return_logprob=False,
+            return_hidden_states=False,
+            return_hidden_states_mode=CaptureHiddenMode.NULL,
+            spec_info=None,
+            spec_algorithm=SimpleNamespace(is_none=lambda: True),
+            prefill_stats=None,
+            dp_cooperation_info=None,
+        )
+        result = SimpleNamespace(
+            copy_done=None,
+            auxiliary_host_output=None,
+            routed_experts_output=None,
+            indexer_topk_output=None,
+            logits_output=SimpleNamespace(
+                hidden_states=None, customized_info=None, sampling_mask_output=None
+            ),
+            next_token_ids=torch.tensor([5, 6]),
+            extend_input_len_per_req=None,
+            extend_logprob_start_len_per_req=None,
+            grammar_advanced=False,
+            can_run_cuda_graph=False,
+            skipped_output_comm=False,
+        )
+        processor = _make_processor(self)
+
+        with (
+            patch(f"{PATCHES}.release_kv_cache") as release,
+            patch.object(
+                SchedulerBatchResultProcessor, "_maybe_collect_routed_experts"
+            ),
+            patch.object(SchedulerBatchResultProcessor, "_maybe_collect_indexer_topk"),
+        ):
+            processor.process_batch_result_prefill(batch, result)
+
+        self.assertEqual(release.call_count, 2)
+        processor.model_worker.prepare_for_kv_cache_release.assert_called_once_with(
+            decode_req
+        )
+
+
 class TestDecodeWithoutLogits(CustomTestCase):
     def test_pipeline_result_commits_token_without_sampling_metadata(self):
         processor = _make_processor(self)
@@ -374,14 +435,16 @@ class TestSamplingMaskStatusErrors(CustomTestCase):
             ),
             next_token_ids=torch.tensor([8]),
         )
-        with patch(f"{PATCHES}.release_kv_cache") as release:
+        with patch(
+            "sglang.srt.managers.scheduler_components.batch_result_processor.release_kv_cache"
+        ) as release:
             processor.process_batch_result_decode(batch, result)
 
         self.assertEqual(req.output_ids, [7])
         self.assertEqual(req.to_finish.status_code, 400)
         req.update_finish_state.assert_called_once_with(0)
         processor.model_worker.prepare_for_kv_cache_release.assert_called_once_with(req)
-        release.assert_called_once_with(req, processor.tree_cache, is_insert=False)
+        release.assert_called_once_with(req, processor.tree_cache, checkpoint=False)
         processor.output_streamer.stream_output.assert_called_once_with([req], False)
 
     def test_overflow_and_invalid_have_distinct_http_errors(self):

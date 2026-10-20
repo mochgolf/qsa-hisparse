@@ -15,7 +15,8 @@ FAKE_SERVER = """
 import http.server, json, os, sys
 from pathlib import Path
 args = sys.argv[1:]
-if "--run-dir" in args:  # The plugin launcher.
+plugin = "--run-dir" in args
+if plugin:  # The plugin launcher.
     run_dir = Path(args[args.index("--run-dir") + 1])
     run_dir.mkdir()
     (run_dir / "ready.json").write_text("{}")
@@ -42,7 +43,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "prompt_tokens": len(body["input_ids"])}})
         else:
             chats.append(1)
-            details = None if len(chats) == 1 else {"cached_tokens": 2048}
+            cold = {"cached_tokens": 0} if plugin else None  # v0.5.22 #43005 vs production
+            if os.environ.get("FAKE_SWAP_COLD_DETAILS"):
+                cold = None if plugin else {"cached_tokens": 0}
+            details = cold if len(chats) == 1 else {"cached_tokens": 2048}
             self.reply({"choices": [{"message": {"content": "42"}, "finish_reason": "stop"}],
                         "usage": {"prompt_tokens": 2089, "prompt_tokens_details": details}})
     def log_message(self, *a):
@@ -96,7 +100,7 @@ def profile(tmp_path, **changes):
 def g23(evidence, tmp_path, monkeypatch):
     run = evidence("run_g23")
     for name, value in (
-        ("PYTHON", Path(sys.executable)),
+        ("PYTHON", {"fork": Path(sys.executable), "plugin": Path(sys.executable)}),
         ("PLUGIN_ROOT", tmp_path / "plugin"),
         ("FORK_ROOT", tmp_path / "fork"),
         ("PIN_ROOT", tmp_path / "pin"),
@@ -105,18 +109,19 @@ def g23(evidence, tmp_path, monkeypatch):
     return run
 
 
-def test_arm_commands_keep_the_wrapper_and_change_only_port_and_arm(g23, tmp_path):
+def test_arm_commands_keep_the_wrapper_and_change_only_port_and_arm(g23, tmp_path, monkeypatch):
+    monkeypatch.setattr(g23.run_g2, "PYTHON", {"fork": "/fork-env/python", "plugin": "/plugin-env/python"})
     base = profile(tmp_path)
     out = tmp_path / "out"
     argv, env, ready = g23.server("fork", base, out, 8090)
     tail = ["--model-path", str(tmp_path / "model"), "--tp-size", "2", "--port", "8090",
             "--enable-cache-report"]  # fmt: skip
-    assert argv == ["/usr/bin/env", sys.executable, "-m", "sglang.launch_server", *tail]
+    assert argv == ["/usr/bin/env", "/fork-env/python", "-m", "sglang.launch_server", *tail]
     assert ready is None and env["PYTHONPATH"] == str(tmp_path / "fork" / "python")
     assert "SGLANG_PLUGINS" not in env and "SGLANG_QSA_MODEL_COMPAT" not in env
     assert env["SGLANG_NUMA_INTERLEAVE"] == "1" and env["SGLANG_CACHE_DIR"] == str(out / "cache")
     argv, env, ready = g23.server("plugin", base, out, 8090)
-    assert argv == ["/usr/bin/env", sys.executable, "-m", "sglang_qsa_hisparse.launch",
+    assert argv == ["/usr/bin/env", "/plugin-env/python", "-m", "sglang_qsa_hisparse.launch",
                     "--run-dir", str(out / "launcher"), "--", *tail]  # fmt: skip
     assert ready == out / "launcher" / "ready.json"
     assert env["SGLANG_QSA_MODEL_COMPAT"] == "1"
@@ -158,8 +163,11 @@ def write_tree(tmp_path):
     return bin_dir
 
 
+@pytest.mark.parametrize("swap", [False, True], ids=["exact", "swapped-cold-details"])
 @pytest.mark.parametrize("arm", ["fork", "plugin"])
-def test_arm_runs_every_check_against_its_server_then_stops_it(g23, tmp_path, monkeypatch, arm):
+def test_arm_runs_every_check_against_its_server_then_stops_it(g23, tmp_path, monkeypatch, arm, swap):
+    if swap:  # The other arm's cold prompt_tokens_details must fail the smoke check.
+        monkeypatch.setenv("FAKE_SWAP_COLD_DETAILS", "1")
     bin_dir = write_tree(tmp_path)
     scripts = tmp_path / "scripts"
     scripts.mkdir()
@@ -176,10 +184,12 @@ def test_arm_runs_every_check_against_its_server_then_stops_it(g23, tmp_path, mo
     port, out = free_port(), tmp_path / f"arm-{arm}"
     args = ["run", "--arm", arm, "--base-profile", str(tmp_path / "base.json"),
             "--fixtures", str(tmp_path / "fixtures.json"), "--output", str(out), "--port", str(port)]  # fmt: skip
-    assert g23.main(args) == 0
-    assert json.loads((out / "g23.json").read_text()) == dict.fromkeys(
-        ("latency", "lifecycle", "concurrency", "smoke"), 0
-    )
+    assert g23.main(args) == (1 if swap else 0)
+    assert json.loads((out / "g23.json").read_text()) == {
+        **dict.fromkeys(("latency", "lifecycle", "concurrency"), 0), "smoke": 1 if swap else 0
+    }
+    if swap:
+        return
     info = json.loads((out / "server_info.json").read_text())
     assert info["argv"][info["argv"].index("--port") + 1] == str(port)
     assert json.loads((out / "numactl.json").read_text()) == ["--cpunodebind=0 --interleave=all"]

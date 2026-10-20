@@ -327,3 +327,51 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   `--mm-preprocess-cache-size-mb 2048` (CPU only; startup GPU accounting
   unchanged); repeated image prompts hit 4,800 of 4,863 tokens. Default
   `service/current.json` = `service/profiles/qwen-local-plugin-mm-20261009.json`.
+- Routine maintenance (2026-10-18): upstream main `7c9a78efbe` is 996 commits
+  past the pin; v0.5.22 released (`docs/phase6-survey.md`). Both contain the
+  prefix-cache lifecycle refactor (#42822–#42825, #42923, #43023) and
+  #43201, which deletes `ChunkCache` (base of `QSAHostPrefixCache`). Owner:
+  Phase 6 to **v0.5.22** (same torch 2.14.1 / sglang-kernel 0.4.9;
+  transformers 5.19.0, flashinfer 0.7.1), CPU port and review, then a GPU
+  window. New interpreter `results/phase6-20261018/runtime-env` (production's
+  freeze with the three bumps; production's untouched). Baseline at `main`
+  on the old pin: 685 + 3 + 26 passed. Host prefix design
+  (`docs/phase6-prefix-design.md`): `UnifiedRadixCache` subclass through
+  `create_unified_radix_cache(cache_class=)`, hits as host hits, pages via
+  `prefix_device_indices`, adder subclass via `get_prefill_adder_class`
+  (aims to remove the S06, P02, M01, M03, M06 REPLACE rows). P6.0
+  (`d4f6189`); tasks P6-A..D started.
+- Phase 6 tasks merged into `phase6` (`docs/phase6-results.md`): host prefix
+  cache is a `UnifiedRadixCache` subclass (M05 via `cache_class`), adder
+  subclass via `get_prefill_adder_class`; REPLACE 32 → 26 (S06, P02, M01,
+  M06, B04, B05 gone; M04 dropped by #43439); Q08/T03/M03 hand merges
+  (#41933 FP8 descale applied once; #43463 bound only with `fast_topk`).
+  CPU suite on the Phase 6 interpreter at v0.5.22: 723 + 4 + 11 passed,
+  402 fingerprints, manifest current. Next: G6-CPU review.
+- G6-CPU (`reviews/G6CPU*.md`): one P2 (fingerprints did not cover the tree
+  core behind the disabled cache's empty match) fixed in M05's `depends`;
+  the re-check's P2 (the Rust adapter import loads the optional native
+  extension at activation) fixed by keeping only the pure-Python tree-core
+  definitions; cleared in round 3. 405 fingerprints; CPU 723 + 4 + 11.
+  Next: G6-GPU window (owner approval; production stop/restore).
+- G6-GPU window (2026-10-19 09:29–11:55, production restored and verified;
+  `docs/phase6-results.md`): G2-1, fast_topk, G2-2 (10 items incl. observer
+  byte digests), compat (401), G2-4, I5 and G2-3 all PASS (plugin at v0.5.22
+  equals production's code). Open: warm prefix-hit latency +10–52 ms
+  (+8–18%) in P, growing with prefix length; cold equal. Needs a profile
+  before any cutover (owner).
+- Warm-hit latency diagnosed (profiling window 2026-10-20 05:54–06:17,
+  production restored and verified): the plugin's hit path costs the same
+  as production's; the gap is upstream v0.5.22 — the `/generate` contract
+  check (O(prompt length), 1–36 ms) and the decoder stage scaffolding
+  (`layers/layer_boundary/`, per eager forward) are the likely explanation;
+  no substantial plugin regression in the sampled cache path and hooks.
+  Cutover remains an owner decision.
+- G6-GPU review (`reviews/G6GPU*.md`): cleared after one re-check. Fixed:
+  G2-3's cold `prompt_tokens_details` (`null` → `{"cached_tokens": 0}`,
+  upstream #43005) reported and now enforced per arm, latency attribution
+  worded as likely explanation, skip count, profiling labels. Pending owner:
+  D8 addendum (#43005), merge of `phase6` into main, cutover.
+- Owner (2026-10-20): D8 addendum (#43005) accepted; merge `phase6` into main
+  and push (previous state: tag `pin-35f3c96ff4-final`); cut production over
+  to the plugin at v0.5.22.
