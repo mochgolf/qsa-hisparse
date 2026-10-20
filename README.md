@@ -13,23 +13,26 @@ out-of-tree SGLang general plugin (entry point group `sglang.srt.plugins`).
 
 The plugin is pinned to one SGLang revision and verifies it at startup:
 
-- SGLang upstream `35f3c96ff4` (main, 2026-10-04), unmodified;
-- torch 2.14.1, sglang-kernel 0.4.9, flashinfer-python 0.7.0.post1, triton
-  3.8.0 ([`environment.lock.json`](src/sglang_qsa_hisparse/environment.lock.json));
+- SGLang release v0.5.22 (`baa9befa38`, 2026-10-13), unmodified;
+- torch 2.14.1, sglang-kernel 0.4.9, flashinfer-python 0.7.1, triton 3.8.0
+  ([`environment.lock.json`](src/sglang_qsa_hisparse/environment.lock.json)),
+  with SGLang's other requirements (e.g. transformers 5.19.0); SGLang builds
+  its radix tree core with a Rust toolchain (`cargo`) on first start;
 - model: Qwen3.8 Flash Next (`Qwen4ExpForConditionalGeneration`), TP2, FP8
   E4M3 KV cache, page size 64, up to 262,144 tokens per request, up to 8
   running requests; tested on 2× RTX 4090 48 GB (SM89).
 
 Activation compares the source bytes of every patched SGLang module with
 pinned fingerprints and stops the process on any mismatch, so a different
-SGLang revision fails at startup instead of misbehaving.
+SGLang revision fails at startup instead of misbehaving. The previous
+release, for SGLang `35f3c96ff4`, is the tag `pin-35f3c96ff4-final`.
 
 ## Install
 
 ```bash
 # SGLang at the pinned revision, in its own environment
 git clone https://github.com/sgl-project/sglang.git
-git -C sglang checkout 35f3c96ff4
+git -C sglang checkout v0.5.22
 python -m pip install -e sglang/python
 
 # the plugin
@@ -84,8 +87,9 @@ and environment, on GPU-kernel probes and tests, a deterministic TP2 server
 qualification to 262,016 tokens (token IDs, cached tokens, logprobs and
 byte digests of every restored state), a compatibility-only profile, memory
 figures, image prefix evidence, and native latency/smoke checks. Results:
-[`docs/phase5-results.md`](docs/phase5-results.md) (current pin, reference =
-the fork's production build), [`docs/phase4-results.md`](docs/phase4-results.md),
+[`docs/phase6-results.md`](docs/phase6-results.md) (current pin v0.5.22,
+reference = the fork's production build),
+[`docs/phase5-results.md`](docs/phase5-results.md), [`docs/phase4-results.md`](docs/phase4-results.md),
 [`docs/phase2-results.md`](docs/phase2-results.md),
 [`docs/window3-results.md`](docs/window3-results.md) (images). Intentional
 differences from the fork are listed in [`docs/DEVIATIONS.md`](docs/DEVIATIONS.md).
@@ -110,7 +114,7 @@ CPU tests (no GPU; select SGLang sources with `QSA_PIN_ROOT`, an interpreter
 with `QSA_PYTHON`):
 
 ```bash
-QSA_PIN_ROOT=<sglang checkout at 35f3c96ff4> QSA_PYTHON=<python> tools/run_cpu_tests.sh
+QSA_PIN_ROOT=<sglang checkout at v0.5.22> QSA_PYTHON=<python> tools/run_cpu_tests.sh
 ```
 
 ## License

@@ -372,3 +372,6 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   upstream #43005) reported and now enforced per arm, latency attribution
   worded as likely explanation, skip count, profiling labels. Pending owner:
   D8 addendum (#43005), merge of `phase6` into main, cutover.
+- Owner (2026-10-20): D8 addendum (#43005) accepted; merge `phase6` into main
+  and push (previous state: tag `pin-35f3c96ff4-final`); cut production over
+  to the plugin at v0.5.22.
