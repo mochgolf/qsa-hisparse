@@ -15,7 +15,8 @@ FAKE_SERVER = """
 import http.server, json, os, sys
 from pathlib import Path
 args = sys.argv[1:]
-if "--run-dir" in args:  # The plugin launcher.
+plugin = "--run-dir" in args
+if plugin:  # The plugin launcher.
     run_dir = Path(args[args.index("--run-dir") + 1])
     run_dir.mkdir()
     (run_dir / "ready.json").write_text("{}")
@@ -42,7 +43,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "prompt_tokens": len(body["input_ids"])}})
         else:
             chats.append(1)
-            details = None if len(chats) == 1 else {"cached_tokens": 2048}
+            cold = {"cached_tokens": 0} if plugin else None  # v0.5.22 #43005 vs production
+            if os.environ.get("FAKE_SWAP_COLD_DETAILS"):
+                cold = None if plugin else {"cached_tokens": 0}
+            details = cold if len(chats) == 1 else {"cached_tokens": 2048}
             self.reply({"choices": [{"message": {"content": "42"}, "finish_reason": "stop"}],
                         "usage": {"prompt_tokens": 2089, "prompt_tokens_details": details}})
     def log_message(self, *a):
@@ -159,8 +163,11 @@ def write_tree(tmp_path):
     return bin_dir
 
 
+@pytest.mark.parametrize("swap", [False, True], ids=["exact", "swapped-cold-details"])
 @pytest.mark.parametrize("arm", ["fork", "plugin"])
-def test_arm_runs_every_check_against_its_server_then_stops_it(g23, tmp_path, monkeypatch, arm):
+def test_arm_runs_every_check_against_its_server_then_stops_it(g23, tmp_path, monkeypatch, arm, swap):
+    if swap:  # The other arm's cold prompt_tokens_details must fail the smoke check.
+        monkeypatch.setenv("FAKE_SWAP_COLD_DETAILS", "1")
     bin_dir = write_tree(tmp_path)
     scripts = tmp_path / "scripts"
     scripts.mkdir()
@@ -177,10 +184,12 @@ def test_arm_runs_every_check_against_its_server_then_stops_it(g23, tmp_path, mo
     port, out = free_port(), tmp_path / f"arm-{arm}"
     args = ["run", "--arm", arm, "--base-profile", str(tmp_path / "base.json"),
             "--fixtures", str(tmp_path / "fixtures.json"), "--output", str(out), "--port", str(port)]  # fmt: skip
-    assert g23.main(args) == 0
-    assert json.loads((out / "g23.json").read_text()) == dict.fromkeys(
-        ("latency", "lifecycle", "concurrency", "smoke"), 0
-    )
+    assert g23.main(args) == (1 if swap else 0)
+    assert json.loads((out / "g23.json").read_text()) == {
+        **dict.fromkeys(("latency", "lifecycle", "concurrency"), 0), "smoke": 1 if swap else 0
+    }
+    if swap:
+        return
     info = json.loads((out / "server_info.json").read_text())
     assert info["argv"][info["argv"].index("--port") + 1] == str(port)
     assert json.loads((out / "numactl.json").read_text()) == ["--cpunodebind=0 --interleave=all"]

@@ -56,6 +56,9 @@ from run_compat import preflight, stop, wait_ready  # noqa: E402
 
 SERVER = ["-m", "sglang.launch_server"]
 NUMACTL_SCRIPTS = "/tmp/sglang_temp_file_*.sh"  # numa_utils._create_numactl_executable
+# A cold chat request's usage.prompt_tokens_details under --enable-cache-report:
+# production's base (35f3c96ff4) omits a zero hit, v0.5.22 reports it (#43005).
+COLD_DETAILS = {"fork": None, "plugin": {"cached_tokens": 0}}
 SMOKE_SYSTEM = "Answer concisely. Reference records:\n" + "amber=17; cyan=25; violet=42.\n" * 128
 
 
@@ -147,8 +150,10 @@ def native_concurrency(url, cases):
     return report
 
 
-def openai_smoke(url, model):
-    """A cold and a warm chat request; both answer 42; only the warm one reuses."""
+def openai_smoke(url, model, cold_details):
+    """A cold and a warm chat request; both answer 42; only the warm one reuses.
+
+    The cold request's prompt_tokens_details must equal ``cold_details``."""
     payload = {
         "model": model,
         "messages": [
@@ -169,8 +174,10 @@ def openai_smoke(url, model):
         assert result["choices"][0]["message"]["content"].strip() == "42", result
         assert result["choices"][0]["finish_reason"] == "stop", result
         details = result["usage"]["prompt_tokens_details"]
-        reused = 0 if details is None else details["cached_tokens"]
-        assert (reused == 0) if label == "cold" else (reused > 0), result
+        if label == "cold":
+            assert details == cold_details, result
+        else:
+            assert details is not None and details["cached_tokens"] > 0, result
     return report
 
 
@@ -231,7 +238,9 @@ def run(args):
         status["latency"] = harness(output, url, args.fixtures.resolve(), "latency")
         status["lifecycle"] = harness(output, url, args.fixtures.resolve(), "lifecycle")
         status["concurrency"] = checked(output, "concurrency", native_concurrency, url, fixtures["cases"])
-        status["smoke"] = checked(output, "smoke", openai_smoke, url, base["readiness"]["model"])
+        status["smoke"] = checked(
+            output, "smoke", openai_smoke, url, base["readiness"]["model"], COLD_DETAILS[args.arm]
+        )
     finally:
         stop(process, base["stop_timeout_seconds"])
         (output / "g23.json").write_text(json.dumps(status, indent=2) + "\n")

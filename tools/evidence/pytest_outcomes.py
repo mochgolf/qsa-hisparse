@@ -194,7 +194,7 @@ def main(argv=None):
     by_file = [Counter({k: v for k, v in arms[arm][1].items() if k[0] != "id"}) for arm in "FP"]
     if by_file[0] != by_file[1]:
         problems.append(f"skips differ: F {dict(by_file[0])}, P {dict(by_file[1])}")
-    print(f"{len(fork)} outcomes + {sum(arms['F'][1].values())} skipped per arm (F); "
+    print(f"{len(fork)} outcomes + {sum(by_file[0].values())} skipped per arm (F); "
           f"{len(plugin_only)} plugin-only tests; declared known failures: {sorted(known)}")
     for problem in problems:
         print("DIFF", problem)

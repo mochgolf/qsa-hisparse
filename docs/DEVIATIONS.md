@@ -20,3 +20,7 @@ D3 reworded for v0.5.21's upstream field and D6, D7 accepted by the owner on
 2026-10-08 (Phase 4), subject to the G4-GPU parity gate.
 D8 accepted by the owner on 2026-10-19 (Phase 6), subject to the G6-GPU
 parity gate.
+D8 addendum (2026-10-20, pending owner acceptance): with
+`--enable-cache-report`, a cold OpenAI response's `usage.prompt_tokens_details`
+is `{"cached_tokens": 0}` instead of production's `null` — upstream #43005
+(`11cd2701a8`, in v0.5.22), not plugin behavior; found by the G6-GPU review.

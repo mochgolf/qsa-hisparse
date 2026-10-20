@@ -364,5 +364,6 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   production restored and verified): the plugin's hit path costs the same
   as production's; the gap is upstream v0.5.22 — the `/generate` contract
   check (O(prompt length), 1–36 ms) and the decoder stage scaffolding
-  (`layers/layer_boundary/`, per eager forward). Nothing to fix in the
-  plugin. Cutover remains an owner decision.
+  (`layers/layer_boundary/`, per eager forward) are the likely explanation;
+  no substantial plugin regression in the sampled cache path and hooks.
+  Cutover remains an owner decision.

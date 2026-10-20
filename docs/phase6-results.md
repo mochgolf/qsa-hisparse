@@ -126,14 +126,14 @@ evidence (private): `qwen:results/plugin-g6-20261019/` (`window6.sh`,
 
 | Gate | Result |
 | --- | --- |
-| G2-1 | **PASS.** Probe comparator F = P on 5 reports (alignment 1, whole-K 1,187, native 1,187, graphs 217, top-k 110); `steps.json` is runner metadata (every step exit 0 in both arms; now in the comparator's `RUN_METADATA`). Step 8: 91 outcomes + 2 skips equal per arm, the 4 v0.5.22-only indexer tests pass in P, no failures |
+| G2-1 | **PASS.** Probe comparator F = P on 5 reports (alignment 1, whole-K 1,187, native 1,187, graphs 217, top-k 110); `steps.json` is runner metadata (every step exit 0 in both arms; now in the comparator's `RUN_METADATA`). Step 8: 91 outcomes + 1 skip (SM121) equal per arm, the 4 v0.5.22-only indexer tests pass in P, no failures |
 | fast_topk (`773f3c2d84`) | **PASS.** 29 passed on each arm |
 | FP8 descale on GPU | Covered by step 8a (production's FP8 descale GPU tests in `tests/qsa/test_qsa.py`, passed) and G2-2 (FP8 KV, deterministic, F = P). The window's extra `descale-plugin` step was invalid: `test_prefill_pack_descale.py`/`test_fp8_descale.py` are Triton-interpreter CPU tests (CPU tensors, faked `q.is_cuda`) and fail on a real GPU without `TRITON_INTERPRET` ("Pointer argument cannot be accessed from Triton"); they pass in the CPU suite |
 | G2-2 | **PASS.** `--require-observer 2`: F = P on all 10 items — concurrency 79, lifecycle 89, qualification 1,181 (token IDs, cached tokens, logprobs to 262,016 tokens, concurrency 8), ledger 30, per-rank events 1,514, per-rank observer byte digests 1,505 (captured and restored prefix bytes), server log 9, server info 4 |
 | G2-2 compat-only | **PASS.** F = P on 401 items, server log and server info |
 | G2-4 | **PASS.** `fixed_bytes` 1,611,399,936, `logical_bytes_per_token` 768, `max_total_num_tokens` 2,097,152, `lease_capacity` 8, `mamba_bytes` 2,374,447,760 on both; measured weight 36.869 GB both (G2-2), 36.867 / 36.869 (compat) |
 | I5 | **PASS** in both ViT-cache sessions (10 image cases: hits at page-64 boundaries incl. inside images, negatives, swapped/different preprocessing; text control equal to this window's F) |
-| G2-3 | **PASS** (production's profile and weights, port 8082): every check passed on both arms, token accounting equal for 31 requests, equal scheduler numactl (`--cpunodebind=2/3 --interleave=all`) |
+| G2-3 | **PASS with one upstream response change** (production's profile and weights, port 8082): every check passed on both arms, token accounting equal for 31 requests, equal scheduler numactl (`--cpunodebind=2/3 --interleave=all`). The OpenAI smoke's cold `usage.prompt_tokens_details` is `null` in F and `{"cached_tokens": 0}` in P: upstream #43005 (`11cd2701a8`, in v0.5.22) reports a zero hit under `--enable-cache-report` (baseline step 16 asked for `null`; found by the G6-GPU review — the checker normalized both to 0). Not plugin behavior; owner acceptance under D8. `run_g23.py` now requires each arm's exact cold form (`COLD_DETAILS`); the window's smoke reports satisfy it |
 
 **Warm-hit latency (diagnosed below).** G2-3 medians (s), F / P — cold: 8192 7.189 /
 7.221, 65536 9.936 / 9.917, 262016 63.305 / 63.450 (within 0.5%); warm:
@@ -153,14 +153,18 @@ ranks). `qwen:results/plugin-g6-20261019/profile/` (`profile_warm.py`,
 `analyze.py`, `spans.py`, `inside.py`, `children.py`, traces): both arms with
 production's profile and weights, latency-harness request shape (65,548
 tokens, 65,536 cached), 5 unprofiled warm hits, 2 under the torch profiler
-(CPU + GPU, stacks, shapes), 5 more unprofiled. Unprofiled warm medians:
-F 0.2001 s, P 0.2218 s (+21.7 ms; G2-3 measured +36 ms at this length).
+(CPU + GPU, stacks, shapes), 5 more unprofiled. Warm medians, F / P:
+before profiling 0.2002 / 0.2218 s (+21.6 ms), after profiling 0.2183 /
+0.2402 s, all ten unprofiled 0.2095 / 0.2310 s (G2-3 measured +36 ms at
+this length).
 
-Attribution (TP0 traces, second profiled request unless noted):
+Attribution (TP0 traces, profiled, so Python-heavy code is inflated; per
+request, averaged over the two profiled requests unless noted):
 - **Scheduling, match, admission, allocation and restore** (the redesigned
   host prefix cache): `scheduler.get_next_batch_to_run` 142.8 ms F /
-  140.6 ms P (profiled), and the restore itself 106.7 / 105.1 ms
-  (`restore_prefix_for_extend` / `maybe_hand_to_session`): no cost.
+  140.6 ms P (first profiled request), and the restore itself 106.7 /
+  105.1 ms (`restore_prefix_for_extend` / `maybe_hand_to_session`): no
+  measurable difference.
 - **Plugin hooks in the forward**: HC mix +0.1 ms, fused HC +0.8, Marlin MoE
   +0.1, QSA `forward_extend` +0.7 (profiled) — the wrapper overhead Phase 5
   already had.
@@ -181,9 +185,14 @@ Attribution (TP0 traces, second profiled request unless noted):
   `_compute_mrope_positions_extend` (shape [1, 12]; 0.08 ms in the second
   request, 0.18 ms in F's first) is a first-call stall, not steady state.
 
-Conclusion: the gap comes from upstream v0.5.22 (contract check growing with
-prompt length; per-forward decoder-stage overhead), not from the plugin's
-port; the plugin's own hit path costs the same as production's. Nothing to
-fix in the plugin; the cutover decision weighs these upstream costs
-(production's chat traffic pays only the per-forward stage overhead on short
+Conclusion: the likely explanation is upstream v0.5.22 — the `/generate`
+contract check (growing with prompt length) and the per-forward
+decoder-stage overhead. In the sampled cache path and hooks the plugin shows
+no substantial regression against production's code. This is not a full
+accounting: the HTTP-side contract check was timed on CPU, not in the
+traced servers, and profiled durations do not translate one to one into
+unprofiled latency; F and P also differ in dependencies (interpreter) and
+in the plugin together, so a small plugin contribution cannot be excluded.
+The cutover decision weighs these costs (production's chat traffic does not
+pass the `/generate` check; it pays the per-forward stage overhead on short
 extends).
