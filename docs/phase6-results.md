@@ -196,3 +196,30 @@ in the plugin together, so a small plugin contribution cannot be excluded.
 The cutover decision weighs these costs (production's chat traffic does not
 pass the `/generate` check; it pays the per-forward stage overhead on short
 extends).
+
+## Cutover (2026-10-20)
+
+Owner-approved (manual permission mode). Plugin `main` = `d9c2339` (merge
+of `phase6`, pushed; previous state tag `pin-35f3c96ff4-final`), release
+worktree `qwen:.worktrees/qsa-plugin-d9c2339`, profile
+`qwen:service/profiles/qwen-local-plugin-mm-20261020.json`: the previous
+production profile (`qwen-local-plugin-mm-20261009.json`) with only the
+interpreter (`results/phase6-20261018/runtime-env`), `PATH` (that
+interpreter's `bin` and `~/.cargo/bin` first), `PYTHONPATH` (release
+worktree + `.worktrees/sglang-v0.5.22`) and `cwd` (v0.5.22) changed. `cargo`
+must be on the service `PATH`: v0.5.22's Rust tree-core loader runs `cargo
+--version --verbose` to key its artifact even when the artifact is cached
+(found before the cutover with the service environment; the G6-GPU servers
+inherited a `PATH` with cargo).
+
+Production was idle and restarted 08:33:24; ready 08:40:51 (first-start JIT
+builds); the launcher verified 2 scheduler activation records
+(`model_compat`, `hisparse`); `UnifiedRadixCache` with `RustUnifiedTreeCore`;
+`/health` 200, same model id, GPU memory 45,358 MiB per GPU (the previous
+fresh-start value); no error lines since the restart. Smoke
+(`qwen:results/cutover-20261020/smoke.txt`): a 2,089-token chat answered
+`42` cold (`{"cached_tokens": 0}`) and warm (2,048 cached, 1.94 s → 0.16 s);
+two images (1536×1536, 2048×1024) plus text, 4,377 prompt tokens: cold 0
+cached, warm 4,352 cached with the same answer (3.84 s → 0.59 s).
+`service/current.json` now equals the new profile (owner). Rollback:
+`./qwen-service.sh restart --profile service/profiles/qwen-local-plugin-mm-20261009.json`.

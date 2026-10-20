@@ -375,3 +375,9 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
 - Owner (2026-10-20): D8 addendum (#43005) accepted; merge `phase6` into main
   and push (previous state: tag `pin-35f3c96ff4-final`); cut production over
   to the plugin at v0.5.22.
+- Cutover (2026-10-20 08:33–08:41, owner, manual mode): production runs the
+  plugin at v0.5.22 (`d9c2339`, profile `qwen-local-plugin-mm-20261020.json`,
+  now `service/current.json`); launcher verified both ranks; text and image
+  smoke pass with prefix hits. The profile adds `~/.cargo/bin` to `PATH`
+  (v0.5.22's Rust tree-core loader needs `cargo`). Rollback:
+  `qwen-local-plugin-mm-20261009.json`. Phase 6 done.
