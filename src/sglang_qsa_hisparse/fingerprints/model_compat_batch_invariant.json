@@ -1,0 +1,101 @@
+{
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops._log_softmax_batch_invariant": {
+    "def_line": 634,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 634,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "_log_softmax_batch_invariant",
+    "sha256": "577324c9050eca69daee77fd1249ceceb195983c49acb1331e0166fb1b97acd5"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops._mm_dtype_compat": {
+    "def_line": 1157,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 1157,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "_mm_dtype_compat",
+    "sha256": "6fee894be8cf86fe03eae53ec0149010703922c73babd01fe5335ebcdcd4624a"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops._rms_norm_aten_compat": {
+    "def_line": 1144,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 1144,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "_rms_norm_aten_compat",
+    "sha256": "fab1c98ea82e26da55095c8d61110b05dfbec4fcb8079df1be018f76ddba28d8"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops.addmm_batch_invariant": {
+    "def_line": 630,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 630,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "addmm_batch_invariant",
+    "sha256": "7c512163d38c63e2a24c4a60c69a9ac485d95fafadf988011111be159a64dc55"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops.bmm_batch_invariant": {
+    "def_line": 774,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 774,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "bmm_batch_invariant",
+    "sha256": "99a8632cfd01b8bce24199f320fe9fde748c915d96f9288fdb8288a949e23531"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops.disable_batch_invariant_mode": {
+    "def_line": 1230,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 1230,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "disable_batch_invariant_mode",
+    "sha256": "ba6349800f72abee22d3cbb6b665a4cf6e11eda392be831cf8b4e11176b0a3df"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops.enable_batch_invariant_mode": {
+    "def_line": 1170,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 1170,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "enable_batch_invariant_mode",
+    "sha256": "f2723c924eb44005e2a0abcfb32f9b94c3cf2222031f3bc5af4f8bae3e5483a9"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops.mean_batch_invariant": {
+    "def_line": 639,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 639,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "mean_batch_invariant",
+    "sha256": "9ce82c8893aa249987d1a983d6d7cf522783d46bd88fe3aff6e76289aab99091"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops.mm_batch_invariant": {
+    "def_line": 620,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 620,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "mm_batch_invariant",
+    "sha256": "9486abaa90312dd94208755fefe18d45762aa9a76bf747f83a349031377782bb"
+  },
+  "sglang.srt.utils.common.get_dispatch_device_backend": {
+    "def_line": 620,
+    "file": "sglang/srt/utils/common.py",
+    "first_line": 620,
+    "kind": "function",
+    "module_sha256": "34dc280f0679c8355bbc6f0621c0ca0476c469c4bf98c9c8544c00bf54f10e54",
+    "qualname": "get_dispatch_device_backend",
+    "sha256": "fde1a0843a3e2a575d51363c3a2dfc109e52512a0e1dd3f665dcf99f09480a9a"
+  },
+  "sglang.srt.utils.common.is_cuda": {
+    "def_line": 158,
+    "file": "sglang/srt/utils/common.py",
+    "first_line": 157,
+    "kind": "function",
+    "module_sha256": "34dc280f0679c8355bbc6f0621c0ca0476c469c4bf98c9c8544c00bf54f10e54",
+    "qualname": "is_cuda",
+    "sha256": "39c19bb4cf39bb1c410b0de0e6334a2fb272c4ccce798ef240cdb0b219ffae25"
+  }
+}

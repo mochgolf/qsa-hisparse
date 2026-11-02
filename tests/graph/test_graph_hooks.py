@@ -25,6 +25,8 @@ from sglang.srt.model_executor.forward_batch_info import (
     ForwardMode,
 )
 from sglang.srt.model_executor.model_runner import ModelRunner, ModelRunnerOutput
+from sglang.srt.model_executor.forward_context import get_forward_context
+from sglang.srt.model_executor.runner import decode_cuda_graph_runner as graph_module
 from sglang.srt.model_executor.runner.decode_cuda_graph_runner import DecodeCudaGraphRunner
 from sglang.srt.model_executor.runner.eager_runner import EagerRunner
 from sglang.srt.model_executor.runner.shape_key import ShapeKey
@@ -122,6 +124,8 @@ def _graph_runner(events, coordinator, backend):
         lora_manager=None,
         canary_manager=None,
         capture_tail_hooks=[],
+        capture_head_hooks=[],
+        model=SimpleNamespace(shared_experts_config=None),
         is_draft_worker=False,
         device_timer=None,
         spec_algorithm=SimpleNamespace(
@@ -140,6 +144,14 @@ def _graph_runner(events, coordinator, backend):
     runner.record_nolora_graph = False
     runner.attention_graph_variants = None
     runner._metadata_glue = None
+    runner._early_verify_metadata = None
+    runner._restage_skip = False
+    runner._skips_prefilled_inputs = False
+    runner._draft_metadata_glue = False
+    runner._target_metadata_glue = False
+    runner._metadata_prep_fork_resolved = True
+    runner._metadata_prep_fork = None
+    runner.uocr_graph_io = None
     runner.is_dllm = False
     runner.dllm_uses_input_embeds = False
     runner.capture_hidden_mode = CaptureHiddenMode.NULL
@@ -178,6 +190,7 @@ def _capture(events, runner, bs=2):
         global_num_tokens_cpu=None,
         input_ids="input_ids",
         positions="positions",
+        moe_num_token_non_padded=lambda: None,
     )
     runner.capture_prepare = lambda bs, stream_idx=None, num_tokens=None: (
         forward_batch,
@@ -198,7 +211,7 @@ def test_capture_enters_graph_capture_and_chains_warmup_hooks(events, published)
     with activated("G01"):
         _capture(events, runner)
 
-    key = ShapeKey(size=2, stream_idx=None, variant_label=None, attention_variant=None)
+    key = ShapeKey(size=2, variant_label=None, attention_variant=None)
     assert events[0] == ("qsa.graph_capture:enter", (2,), {"native_key": key, "native_backend": backend})
     assert events[-1][0] == "qsa.graph_capture:exit"
     assert ("backend.capture_one", (key,), {}) in events
@@ -216,6 +229,25 @@ def test_capture_without_attention_warmup_hook_still_calls_runtime(events, publi
     with activated("G01"):
         _capture(events, runner)
     assert [n for n in events.names if n.endswith("warmup")] == ["qsa.after_graph_warmup"] * 2
+
+
+def test_capture_preserves_head_hooks_and_the_live_batch_context(events, published):
+    """Main's per-forward controls must survive the QSA capture insertion."""
+    runner = _graph_runner(events, _coordinator(events, _qsa(events)), _FullBackend(events))
+
+    def head_hook(active_runner, batch):
+        assert active_runner is runner
+        assert get_forward_context().moe_num_token_non_padded is batch.moe_num_token_non_padded
+        events.append(("capture_head", (), {}))
+
+    runner.model_runner.capture_head_hooks.append(head_hook)
+    with activated("G01"):
+        _capture(events, runner)
+
+    stages = {"capture_head", "attn.init_forward_metadata_in_graph", "model.forward"}
+    assert [name for name in events.names if name in stages] == [
+        "capture_head", "attn.init_forward_metadata_in_graph", "model.forward"
+    ] * 3
 
 
 def test_capture_requires_the_native_full_backend(events, published):
@@ -248,11 +280,12 @@ def _decode_batch(preplanned=False, batch_size=3):
         lora_ids=None,
         input_ids=torch.zeros(batch_size, dtype=torch.int64),
         needs_forward_metadata_init=lambda: not preplanned,
+        moe_num_token_non_padded=lambda: None,
     )
 
 
 def _load(events, runner, forward_batch):
-    with mock.patch.object(graph, "build_replay_fb_view", events.call("build_replay_fb_view", "view")):
+    with mock.patch.object(graph_module, "build_replay_fb_view", events.call("build_replay_fb_view", "view")):
         runner.load_batch(forward_batch)
 
 
@@ -275,7 +308,7 @@ def test_replay_prepares_runtime_before_buffer_fill(events, published):
     assert events[4][1] == ("view",)
     assert (runner.raw_bs, runner.bs, runner.raw_num_token) == (3, 4, 3)
     assert runner._replay_graph_key == ShapeKey(
-        size=4, stream_idx=None, variant_label=None, attention_variant=None
+        size=4, variant_label=None, attention_variant=None
     )
 
 
@@ -357,6 +390,8 @@ def _model_runner(events, coordinator, can_run_graph):
     runner = ModelRunner.__new__(ModelRunner)
     runner.device = "cuda"
     runner.attn_backend = SimpleNamespace()
+    runner.model = SimpleNamespace(shared_experts_config=None)
+    runner.uocr_greedy_graph = None
     runner.hisparse_coordinator = coordinator
     runner.decode_cuda_graph_runner = SimpleNamespace(
         can_run_graph=lambda forward_batch: can_run_graph,
@@ -365,9 +400,12 @@ def _model_runner(events, coordinator, can_run_graph):
     return runner
 
 
-def test_qsa_graph_decode_cannot_fall_back_to_eager(events):
+def test_qsa_graph_decode_cannot_fall_back_to_eager(events, published):
     runner = _model_runner(events, _coordinator(events, _qsa(events)), can_run_graph=False)
-    forward_batch = SimpleNamespace(forward_mode=ForwardMode.DECODE, batch_size=2)
+    forward_batch = SimpleNamespace(
+        forward_mode=ForwardMode.DECODE, batch_size=2,
+        moe_num_token_non_padded=lambda: None,
+    )
     with activated("R02"), pytest.raises(RuntimeError, match="cannot fall back to eager"):
         runner._forward_raw(forward_batch, None)
     # Deviation D7: the raise comes from the eager branch's first call, after
@@ -376,10 +414,13 @@ def test_qsa_graph_decode_cannot_fall_back_to_eager(events):
 
 
 @pytest.mark.parametrize("graph_enabled", [True, False])
-def test_qsa_graph_decode_replays_after_the_pinned_fill(events, graph_enabled):
+def test_qsa_graph_decode_replays_after_the_pinned_fill(events, published, graph_enabled):
     coordinator = _coordinator(events, _qsa(events, graph_enabled=graph_enabled))
     runner = _model_runner(events, coordinator, can_run_graph=True)
-    forward_batch = SimpleNamespace(forward_mode=ForwardMode.DECODE, batch_size=2)
+    forward_batch = SimpleNamespace(
+        forward_mode=ForwardMode.DECODE, batch_size=2,
+        moe_num_token_non_padded=lambda: None,
+    )
     with activated("R02"):
         output = runner._forward_raw(forward_batch, "pp")
 

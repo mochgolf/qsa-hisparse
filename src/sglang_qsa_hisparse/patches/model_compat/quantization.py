@@ -1,6 +1,7 @@
 """GPTQ / AutoRound Marlin MoE loading (inventory Z01-Z04), scoped to the target model.
 
-All four rows change behavior while HiSparse is unset, so they belong to
+Z02 is superseded by upstream #35955 (BF16 scales and TP act-order sizes).
+The three remaining rows change behavior while HiSparse is unset, so they belong to
 ``model_compat`` (PLAN.md rule 1). They sit on generic quantized-MoE loading
 paths, so every hook delegates to the pinned code unless
 ``scope.target_model_active()`` (rule 9).
@@ -28,7 +29,6 @@ from sglang.srt.layers.quantization.auto_round import (
     logger,
     scalar_types,
 )
-from sglang.srt.layers.quantization.gptq.schemes.gptq_moe import GPTQMarlinMoEScheme
 from sglang.srt.layers.quantization.marlin_utils import marlin_moe_permute_scales
 from sglang.srt.layers.quantization.utils import replace_parameter
 from sglang_qsa_hisparse import scope
@@ -36,7 +36,6 @@ from sglang_qsa_hisparse.features import MODEL_COMPAT
 from sglang_qsa_hisparse.patching import patch
 
 _GPTQ_KERNELS = "sglang.srt.hardware_backend.gpu.quantization.gptq_kernels"
-_GPTQ_MOE = "sglang.srt.layers.quantization.gptq.schemes.gptq_moe"
 _AUTO_ROUND = "sglang.srt.layers.quantization.auto_round"
 _MARLIN_UTILS = "sglang.srt.layers.quantization.marlin_utils"
 _FUSED_MOE = "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoE"
@@ -150,150 +149,6 @@ class ForkGPTQMarlinMoEKernel:
         gc.collect()
         torch.cuda.empty_cache()
 
-
-class ForkGPTQMarlinMoEScheme:
-    def create_weights(
-        self,
-        layer: torch.nn.Module,
-        num_experts: int,
-        hidden_size: int,
-        intermediate_size_per_partition: int,
-        params_dtype: torch.dtype,
-        **extra_weight_attrs,
-    ):
-        from sglang.srt.layers.moe.fused_moe_triton import FusedMoeWeightScaleSupported
-
-        self.kernel.is_k_full = (
-            not self.quant_config.desc_act
-        ) or layer.moe_tp_size == 1
-
-        if self.quant_config.group_size != -1:
-            scales_size13 = hidden_size // self.quant_config.group_size
-            if self.quant_config.desc_act:
-                w2_scales_size = intermediate_size_per_partition
-            else:
-                w2_scales_size = intermediate_size_per_partition
-            scales_size2 = w2_scales_size // self.quant_config.group_size
-            strategy = FusedMoeWeightScaleSupported.GROUP.value
-        else:
-            scales_size13 = 1
-            scales_size2 = 1
-            strategy = FusedMoeWeightScaleSupported.CHANNEL.value
-
-        extra_weight_attrs.update({"quant_method": strategy, "is_transposed": True})
-
-        w13_qweight = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                hidden_size // self.quant_config.pack_factor,
-                2 * intermediate_size_per_partition,
-                dtype=torch.int32,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w13_qweight", w13_qweight)
-        set_weight_attrs(w13_qweight, extra_weight_attrs)
-
-        w2_qweight = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                intermediate_size_per_partition // self.quant_config.pack_factor,
-                hidden_size,
-                dtype=torch.int32,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w2_qweight", w2_qweight)
-        set_weight_attrs(w2_qweight, extra_weight_attrs)
-
-        w13_scales = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                scales_size13,
-                2 * intermediate_size_per_partition,
-                dtype=params_dtype,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w13_scales", w13_scales)
-        set_weight_attrs(w13_scales, extra_weight_attrs)
-
-        w2_scales = torch.nn.Parameter(
-            torch.empty(num_experts, scales_size2, hidden_size, dtype=params_dtype),
-            requires_grad=False,
-        )
-        layer.register_parameter("w2_scales", w2_scales)
-        set_weight_attrs(w2_scales, extra_weight_attrs)
-        set_weight_attrs(w2_scales, {"load_full_w2": self.quant_config.desc_act})
-
-        w13_qzeros = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                scales_size13,
-                2 * intermediate_size_per_partition // self.quant_config.pack_factor,
-                dtype=params_dtype,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w13_qzeros", w13_qzeros)
-        set_weight_attrs(w13_qzeros, extra_weight_attrs)
-
-        w2_qzeros = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                scales_size2,
-                hidden_size // self.quant_config.pack_factor,
-                dtype=params_dtype,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w2_qzeros", w2_qzeros)
-        set_weight_attrs(w2_qzeros, extra_weight_attrs)
-        set_weight_attrs(w2_qzeros, {"load_full_w2": self.quant_config.desc_act})
-
-        w13_g_idx = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                hidden_size,
-                dtype=torch.int32,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w13_g_idx", w13_g_idx)
-        set_weight_attrs(w13_g_idx, extra_weight_attrs)
-
-        w2_g_idx = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                intermediate_size_per_partition,
-                dtype=torch.int32,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w2_g_idx", w2_g_idx)
-        set_weight_attrs(w2_g_idx, extra_weight_attrs)
-
-        w13_g_idx_sort_indices = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                hidden_size,
-                dtype=torch.int32,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w13_g_idx_sort_indices", w13_g_idx_sort_indices)
-        set_weight_attrs(w13_g_idx_sort_indices, extra_weight_attrs)
-
-        w2_g_idx_sort_indices = torch.nn.Parameter(
-            torch.empty(
-                num_experts,
-                intermediate_size_per_partition,
-                dtype=torch.int32,
-            ),
-            requires_grad=False,
-        )
-        layer.register_parameter("w2_g_idx_sort_indices", w2_g_idx_sort_indices)
-        set_weight_attrs(w2_g_idx_sort_indices, extra_weight_attrs)
 
 
 class ForkAutoRoundConfig:
@@ -469,25 +324,6 @@ patch(
     )
 )
 
-patch(
-    f"{_GPTQ_MOE}.GPTQMarlinMoEScheme.create_weights",
-    "replace",
-    feature=MODEL_COMPAT,
-    row="Z02",
-    depends=(
-        "sglang.srt.utils.common.set_weight_attrs",
-        "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoeWeightScaleSupported",
-    ),
-    reason=(
-        "Fork: w2 group scales are sized without moe_tp_size, and the w13/w2 "
-        "scales use params_dtype instead of fp16. Mid-function values, so "
-        "replace. model_compat: changes GPTQ Marlin MoE parameter shapes and "
-        "dtypes with HiSparse unset. Scope (rule 9): generic GPTQ MoE weight "
-        "creation; the copy runs only when target_model_active(), otherwise the "
-        "pinned method. Copy ForkGPTQMarlinMoEScheme.create_weights is verbatim; "
-        "mechanical edits: none."
-    ),
-)(scoped(GPTQMarlinMoEScheme.create_weights, ForkGPTQMarlinMoEScheme.create_weights))
 
 patch(
     f"{_AUTO_ROUND}.AutoRoundConfig.apply_gptq_quant_layer",

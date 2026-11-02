@@ -5,8 +5,8 @@ Rows R01, R02 (``model_executor/model_runner.py``), F01
 (``model_executor/runner/decode_cuda_graph_runner.py``). All are hisparse: every
 fork change is gated on a ``qsa_hisparse`` runtime on the KV pool or on the
 coordinator's ``adapter``, which upstream ``HiSparseCoordinator`` lacks.
-The G01/G02 REPLACE bodies are production's definitions, i.e. the pinned
-definitions with the fork's change (PLAN.md rules P1, Q1); they run with this
+The G01/G02 REPLACE bodies carry production's QSA changes onto the pinned
+upstream definitions (PLAN.md rules P1, Q1); they run with this
 module's globals, which import the same objects the pinned modules use. R02
 and G03 are narrowed to hooks (deviations D7 and D6).
 """
@@ -15,12 +15,12 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-from typing import Callable, Optional, cast
+from typing import Callable, Optional
 
 from sglang.srt.layers.dp_attention import set_dp_buffer_len, set_is_extend_in_batch
 from sglang.srt.model_executor.forward_batch_info import ForwardBatch, PPProxyTensors
 from sglang.srt.model_executor.forward_context import ForwardContext, forward_context
-from sglang.srt.model_executor.runner.decode_cuda_graph_runner import build_replay_fb_view
+from sglang.srt.model_executor.runner.early_verify_metadata import STAGED_SLOTS
 from sglang.srt.model_executor.runner.flashinfer_autotune import (
     maybe_flashinfer_autotune_speculative_draft,
 )
@@ -28,9 +28,10 @@ from sglang.srt.model_executor.runner_backend.breakable_cuda_graph_backend impor
     BreakableCudaGraphBackend,
 )
 from sglang.srt.model_executor.runner_backend.full_cuda_graph_backend import FullCudaGraphBackend
-from sglang.srt.multiplex.pdmux_context import get_current_stream_idx
 from sglang.srt.runtime_context import get_exec, get_parallel
-from sglang.srt.speculative.ragged_verify import resolve_ragged_verify_layout
+from sglang.srt.model_executor.runner_utils.forked_metadata_prep import (
+    join_in_graph_metadata_prep,
+)
 from sglang.srt.utils import empty_context
 from sglang_qsa_hisparse.features import HISPARSE
 from sglang_qsa_hisparse.patching import patch
@@ -162,6 +163,9 @@ def _reject_eager_qsa_graph_decode(self, forward_batch, *args, **kwargs):
         f"{_GRAPH}._make_graph_key",
         f"{_GRAPH}._ragged_capture_slots",
         f"{_GRAPH}._record_in_graph_metadata_prep_done",
+        f"{_GRAPH}._run_in_graph_metadata_prep",
+        f"{_GRAPH}._forks_draft_metadata_prep",
+        "sglang.srt.model_executor.runner_utils.forked_metadata_prep.join_in_graph_metadata_prep",
         f"{_GRAPH}.capture_prepare",
         _FULL_BACKEND,
         "sglang.srt.layers.dp_attention.set_dp_buffer_len",
@@ -174,23 +178,24 @@ def _reject_eager_qsa_graph_decode(self, forward_batch, *args, **kwargs):
         "sglang.srt.utils.common.empty_context",
     ),
     reason=(
-        "Production's definition (the pinned body with the fork change), no "
-        "edits: require "
+        "Pinned definition with production's QSA changes: require "
         "FullCudaGraphBackend under the QSA graph, compute shape_key before "
         "forward_context (moved out of canary_ctx; pure, inventory section 4 "
         "item 3), enter qsa.graph_capture after capture_prepare (which fills "
         "num_real_reqs, the runtime's real-row count that graph_capture zeroes, "
         "so an around on this method would not reproduce it), and chain "
         "qsa.after_graph_warmup after the attention warmup hook (a closure). "
-        "FullCudaGraphBackend is imported here as the fork imports it into the "
-        "runner module. hisparse: gated on hisparse_coordinator.adapter."
+        "Keep main's live forward-batch contexts, capture head/tail hooks, "
+        "UOCR prologue and forked metadata-prep join; use its stream-free key "
+        "API (#43898). FullCudaGraphBackend is imported here as the fork "
+        "imports it into the runner module. hisparse: gated on "
+        "hisparse_coordinator.adapter."
     ),
 )
 def capture_one_shape(
     self,
     size: int,
     forward: Callable,
-    stream_idx: Optional[int] = None,
     variant_label: Optional[str] = None,
     attention_variant: Optional[str] = None,
 ):
@@ -204,7 +209,7 @@ def capture_one_shape(
         )
 
     forward_batch, attn_backend, pp_proxy_tensors = self.capture_prepare(
-        bs, stream_idx=stream_idx, num_tokens=num_tokens
+        bs, num_tokens=num_tokens
     )
 
     # All setup hooks below read get_attn_backend() (TboForwardBatchPreparer,
@@ -215,11 +220,17 @@ def capture_one_shape(
         raise RuntimeError("QSA bounded capture requires the native full graph backend")
     shape_key = self._make_graph_key(
         self._capture_graph_size(bs=bs, num_tokens=num_tokens),
-        stream_idx, variant_label, attention_variant)
-    qsa_capture = (qsa.graph_capture(bs, native_key=shape_key, native_backend=self.backend)
-                   if getattr(qsa, "graph_enabled", False)
-                   else empty_context())
-    with forward_context(ForwardContext(attn_backend=attn_backend)), qsa_capture:
+        variant_label,
+        attention_variant,
+    )
+    qsa_capture = (
+        qsa.graph_capture(bs, native_key=shape_key, native_backend=self.backend)
+        if getattr(qsa, "graph_enabled", False)
+        else empty_context()
+    )
+    with forward_context(
+        ForwardContext(attn_backend=attn_backend), forward_batch=forward_batch
+    ), qsa_capture:
         self.tbo_plugin.capture_one_batch_size(forward_batch, num_tokens=num_tokens)
 
         if forward_batch.lora_ids is not None:
@@ -228,65 +239,77 @@ def capture_one_shape(
         attn_backend.init_forward_metadata_out_graph(forward_batch, in_capture=True)
 
         def run_once():
-            # Graph-recordable metadata-prep hook. The unified memory pool
-            # records ZERO translate nodes here: all its read/write translates
-            # run eagerly in `init_forward_metadata_out_graph` (replay-prep), so
-            # the captured graph reads already-physical locs. Base no-op for triton.
-            attn_backend.init_forward_metadata_in_graph(forward_batch)
-            self._record_in_graph_metadata_prep_done()
-
-            # No invalidate_loc_cache() here: the unified pool translates its
-            # locs in `init_forward_metadata_out_graph`, so no cache to invalidate.
-
-            forward_batch.dp_local_start_pos = forward_batch.dp_local_num_tokens = (
-                None
-            )
-            set_dp_buffer_len(
-                forward_batch.global_dp_buffer_len,
-                num_tokens,
-                forward_batch.dp_padding_mode.is_max_len(),
-                forward_batch.global_num_tokens_cpu,
-            )
-            set_is_extend_in_batch(False)
-
-            kwargs = {}
-            if (
-                self.pp_size > 1
-                and "pp_proxy_tensors" in inspect.signature(forward).parameters
+            if self.uocr_graph_io is not None:
+                self.uocr_graph_io.record_prologue(forward_batch)
+            # Debug replay retains this callback beyond the capture scope.
+            with forward_context(
+                ForwardContext(attn_backend=attn_backend),
+                forward_batch=forward_batch,
             ):
-                kwargs["pp_proxy_tensors"] = PPProxyTensors(
-                    {k: v.clone() for k, v in pp_proxy_tensors.tensors.items()}
-                )
-            if (
-                (
-                    self.dllm_uses_input_embeds
-                    or (
-                        self.model_runner.spec_algorithm.is_dflash_family()
-                        and self.model_runner.is_draft_worker
-                    )
-                )
-                and "input_embeds" in inspect.signature(forward).parameters
-                and not hasattr(self.model_runner.model, "forward_embed")
-            ):
-                if self.dllm_input_preparation is None:
-                    kwargs["input_embeds"] = self.buffers.input_embeds[:num_tokens]
-                else:
-                    state = self.buffer_registry.get_slot(
-                        "dllm_input_preparation_state"
-                    ).buffer[:num_tokens]
-                    kwargs["input_embeds"] = self.dllm_input_preparation(
-                        self.model_runner.model, forward_batch.input_ids, state
-                    )
+                if forward_batch.lora_ids is not None:
+                    self.model_runner.lora_manager.reset_routing_cache()
+                for capture_hook in self.model_runner.capture_head_hooks:
+                    capture_hook(self, forward_batch)
+                # Backends may gather live pool mappings into their static
+                # metadata here; these nodes run before any model KV reads.
+                self._run_in_graph_metadata_prep(attn_backend, forward_batch)
 
-            out = forward(
-                forward_batch.input_ids,
-                forward_batch.positions,
-                forward_batch,
-                **kwargs,
-            )
-            for capture_hook in self.model_runner.capture_tail_hooks:
-                capture_hook(self, out, forward_batch, num_tokens)
-            return out
+                forward_batch.dp_local_start_pos = (
+                    forward_batch.dp_local_num_tokens
+                ) = None
+                set_dp_buffer_len(
+                    forward_batch.global_dp_buffer_len,
+                    num_tokens,
+                    forward_batch.dp_padding_mode.is_max_len(),
+                    forward_batch.global_num_tokens_cpu,
+                )
+                set_is_extend_in_batch(False)
+
+                kwargs = {}
+                if (
+                    self.pp_size > 1
+                    and "pp_proxy_tensors" in inspect.signature(forward).parameters
+                ):
+                    kwargs["pp_proxy_tensors"] = PPProxyTensors(
+                        {k: v.clone() for k, v in pp_proxy_tensors.tensors.items()}
+                    )
+                if (
+                    (
+                        self.dllm_uses_input_embeds
+                        or (
+                            self.model_runner.spec_algorithm.is_dflash_family()
+                            and self.model_runner.is_draft_worker
+                        )
+                    )
+                    and "input_embeds" in inspect.signature(forward).parameters
+                    and not hasattr(self.model_runner.model, "forward_embed")
+                ):
+                    if self.dllm_input_preparation is None:
+                        kwargs["input_embeds"] = self.buffers.input_embeds[
+                            :num_tokens
+                        ]
+                    else:
+                        state = self.buffer_registry.get_slot(
+                            "dllm_input_preparation_state"
+                        ).buffer[:num_tokens]
+                        kwargs["input_embeds"] = self.dllm_input_preparation(
+                            self.model_runner.model, forward_batch.input_ids, state
+                        )
+
+                out = forward(
+                    forward_batch.input_ids,
+                    forward_batch.positions,
+                    forward_batch,
+                    **kwargs,
+                )
+                if join_in_graph_metadata_prep():
+                    raise RuntimeError(
+                        "The draft forward never joined its forked metadata prep; "
+                        "unset SGLANG_OPT_DSV41_DSPARK_DRAFT_PREP_FORK."
+                    )
+                for capture_hook in self.model_runner.capture_tail_hooks:
+                    capture_hook(self, out, forward_batch, num_tokens)
+                return out
 
         self.deepep_adapter.capture(is_extend_in_batch=False)
         canary_ctx = (
@@ -323,6 +346,7 @@ def capture_one_shape(
             )
 
 
+
 @patch(
     f"{_GRAPH}.load_batch",
     "replace",
@@ -331,11 +355,16 @@ def capture_one_shape(
     depends=(
         f"{_GRAPH}._capture_graph_size",
         f"{_GRAPH}._global_num_tokens_for_graph",
+        f"{_GRAPH}._copy_replay_inputs",
+        f"{_GRAPH}._glue_key",
+        f"{_GRAPH}._take_early_verify_metadata",
+        f"{_GRAPH}._init_replay_attn_metadata",
+        f"{_GRAPH}._init_replay_attn_metadata_from_view",
+        f"{_GRAPH}._staged_signature",
+        "sglang.srt.model_executor.runner.early_verify_metadata.EarlyVerifyMetadata",
         f"{_GRAPH}._make_graph_key",
         f"{_GRAPH}._max_dp_batch_size",
         f"{_GRAPH}._ragged_capture_slots",
-        f"{_GRAPH}._ragged_graph_num_tokens",
-        f"{_GRAPH}._replay_attn_backend",
         f"{_GRAPH}._resolve_attention_variant",
         f"{_GRAPH}._resolve_lora_variant",
         f"{_GRAPH}._set_dp_real_num_tokens",
@@ -343,16 +372,16 @@ def capture_one_shape(
         f"{_GRAPH}._validate_capture_hidden_mode",
         f"{_GRAPH_MODULE}.build_replay_fb_view",
         "sglang.srt.model_executor.cuda_graph_buffer_registry.CudaGraphBufferRegistry.fill_from",
-        "sglang.srt.multiplex.pdmux_context.get_current_stream_idx",
-        "sglang.srt.speculative.ragged_verify.resolve_ragged_verify_layout",
     ),
     reason=(
-        "Production's definition (the pinned body with the fork change), no "
-        "edits: reject external "
+        "Pinned definition with production's QSA changes: reject external "
         "preplanning under the QSA graph, call qsa.prepare_graph_replay(batch, bs) "
         "after bs is computed and before buffer_registry.fill_from, and skip "
         "num_real_reqs.fill_ (three mid-function insertions; no runner seam lies "
-        "between the bucket choice and fill_from). hisparse: gated on "
+        "between the bucket choice and fill_from). Keep main's direct ragged "
+        "layout, early metadata staging, input-restaging and factored replay "
+        "metadata; prepare QSA after early-stage resolution and before the "
+        "fill. hisparse: gated on "
         "hisparse_coordinator.adapter."
     ),
 )
@@ -370,17 +399,17 @@ def load_batch(
             "Diffusion graph replay requires prepared input embeddings"
         )
     ragged_layout = (
-        resolve_ragged_verify_layout(forward_batch)
-        if self.ragged_verify_mode
-        else None
+        forward_batch.ragged_verify_layout if self.ragged_verify_mode else None
     )
     is_ragged = ragged_layout is not None
 
     self.deepep_adapter.replay()
 
     qsa = getattr(self.model_runner.hisparse_coordinator, "adapter", None)
-    if (getattr(qsa, "graph_enabled", False)
-            and not forward_batch.needs_forward_metadata_init()):
+    if (
+        getattr(qsa, "graph_enabled", False)
+        and not forward_batch.needs_forward_metadata_init()
+    ):
         raise RuntimeError("QSA graph replay does not support external preplanning")
 
     if not forward_batch.needs_forward_metadata_init():
@@ -407,8 +436,7 @@ def load_batch(
             )
             self._stage_ragged_verify_layout(ragged_layout, graph_size_key)
         self._set_dp_real_num_tokens(self.raw_num_token)
-        self.buffers.input_ids[: self.raw_num_token].copy_(forward_batch.input_ids)
-        self.buffers.positions[: self.raw_num_token].copy_(forward_batch.positions)
+        self._copy_replay_inputs(forward_batch)
         if (
             pp_proxy_tensors is not None
             and self.buffers.pp_proxy_tensors is not None
@@ -438,9 +466,8 @@ def load_batch(
             )
         variant_label = self._resolve_lora_variant(forward_batch)
         attention_variant = self._resolve_attention_variant(forward_batch, self.bs)
-        stream_idx = get_current_stream_idx() if self.enable_pdmux else None
         self._replay_graph_key = self._make_graph_key(
-            graph_size_key, stream_idx, variant_label, attention_variant
+            graph_size_key, variant_label, attention_variant
         )
         return
 
@@ -450,12 +477,13 @@ def load_batch(
     raw_bs = forward_batch.batch_size
 
     if is_ragged:
-        raw_num_token = ragged_layout.graph_num_tokens
-        graph_size_key = self._ragged_graph_num_tokens(raw_num_token)
-        assert graph_size_key == ragged_layout.graph_num_tokens, (
-            f"ragged verify tier mismatch: runner tier {graph_size_key} != "
-            f"layout graph_num_tokens {ragged_layout.graph_num_tokens}"
-        )
+        # The layout tier is always on this runner's capture grid, so no
+        # re-round or assert here: the planner rounds on
+        # ragged_capture_num_tokens, which returns this runner's
+        # capture_num_tokens (same source), and verify_layout_grid's
+        # [total] escape branches only fire with ragged_verify_mode off,
+        # where this branch is unreachable.
+        raw_num_token = graph_size_key = ragged_layout.graph_num_tokens
         bs = self._ragged_capture_slots(graph_size_key)
         assert bs >= raw_bs, (
             f"ragged capture slots {bs} (tier {graph_size_key}) < raw_bs "
@@ -475,6 +503,13 @@ def load_batch(
             bs=bs, num_tokens=padded_num_tokens
         )
 
+    attention_variant = self._resolve_attention_variant(forward_batch, bs)
+    glue_key = self._glue_key(
+        bs, str(forward_batch.forward_mode), attention_variant
+    )
+    early_staged = self._take_early_verify_metadata(
+        forward_batch, raw_bs=raw_bs, bs=bs, is_ragged=is_ragged, key=glue_key
+    )
     if getattr(qsa, "graph_enabled", False):
         qsa.prepare_graph_replay(forward_batch, bs)
 
@@ -485,7 +520,12 @@ def load_batch(
         raw_num_tokens=raw_num_token,
         padded_num_tokens=padded_num_tokens,
         pp_proxy_tensors=pp_proxy_tensors,
+        skip_slots=STAGED_SLOTS if early_staged else frozenset(),
     )
+    if self._restage_skip and not early_staged:
+        self._staged_inputs = self._staged_signature(forward_batch)
+    if self._skips_prefilled_inputs:
+        self._prefilled_inputs = (forward_batch.input_ids, forward_batch.positions)
 
     if (
         not is_ragged
@@ -516,53 +556,17 @@ def load_batch(
     ):
         forward_batch.spec_info.custom_mask = buffers.custom_mask
 
-    attn_backend = self._replay_attn_backend()
-    fb_view = build_replay_fb_view(
-        forward_batch=forward_batch,
-        buffers=buffers,
-        bs=bs,
+    self._init_replay_attn_metadata(
+        forward_batch,
         raw_bs=raw_bs,
+        bs=bs,
         num_tokens=padded_num_tokens,
-        global_num_tokens_cpu=self._global_num_tokens_for_graph(padded_num_tokens),
-        seq_len_fill_value=self.seq_len_fill_value,
-        capture_forward_mode=self.capture_forward_mode,
-        is_encoder_decoder=self.is_encoder_decoder,
+        glue_key=glue_key,
+        early_staged=early_staged,
+        attention_variant=attention_variant,
     )
-    if (
-        self.model_runner.lora_manager is not None
-        and self.model_runner.lora_manager.attn_dp_enabled
-    ):
-        self.model_runner.lora_manager.prepare_lora_batch(
-            cast(ForwardBatch, fb_view)
-        )
-    # Glue-graph fast path: pointer-stable prep (static buffers + pool
-    # tensors only) is captured per key; guards keep every python-visible
-    # branch inside the backends constant for that key.
-    if (
-        self._metadata_glue is not None
-        and not self._metadata_glue.disabled
-        and raw_bs == bs
-        and not self.enable_two_batch_overlap
-        and not self.enable_pdmux
-        and self.model_runner.lora_manager is None
-    ):
-        # actual_forward_mode belongs in the key even though the captured
-        # graph always targets capture_forward_mode: DSV4's replay prep
-        # substitutes seq_lens / seq_lens_cpu / seq_lens_sum /
-        # req_pool_indices / out_cache_loc when the runtime mode is IDLE,
-        # so IDLE and active DECODE are different python branches and must
-        # not share a captured graph.
-        self._metadata_glue.run(
-            attn_backend,
-            fb_view,
-            (
-                bs,
-                str(self.capture_forward_mode),
-                str(fb_view.actual_forward_mode),
-            ),
-        )
-    else:
-        attn_backend.init_forward_metadata_out_graph(fb_view)
+    if self._draft_metadata_glue or self._target_metadata_glue:
+        self._maybe_log_draft_glue()
 
     self.raw_bs = raw_bs
     self.raw_num_token = raw_num_token
@@ -570,15 +574,21 @@ def load_batch(
     if is_ragged:
         self._ragged_graph_size = graph_size_key
 
-    if self.model_runner.hisparse_coordinator is not None and not getattr(qsa, "graph_enabled", False):
+    if (
+        self.model_runner.hisparse_coordinator is not None
+        and not getattr(qsa, "graph_enabled", False)
+    ):
         self.model_runner.hisparse_coordinator.num_real_reqs.fill_(raw_bs)
 
     variant_label = self._resolve_lora_variant(forward_batch)
-    attention_variant = self._resolve_attention_variant(forward_batch, bs)
-    stream_idx = get_current_stream_idx() if self.enable_pdmux else None
+    if self._early_verify_metadata is not None:
+        self._early_verify_metadata.count_variant(
+            attention_variant, taken=early_staged
+        )
     self._replay_graph_key = self._make_graph_key(
-        graph_size_key, stream_idx, variant_label, attention_variant
+        graph_size_key, variant_label, attention_variant
     )
+
 
 
 @patch(
@@ -588,6 +598,9 @@ def load_batch(
     row="G03",
     depends=(
         f"{_FULL_BACKEND}.replay_session",
+        "sglang.srt.model_executor.runner_backend.base_cuda_graph_backend.BaseCudaGraphBackend.prepare_replay",
+        "sglang.srt.model_executor.runner_backend.base_cuda_graph_backend.BaseCudaGraphBackend.supports_shared_read_events",
+        "sglang.srt.model_executor.runner.base_runner.BaseRunner.model_context",
         "sglang.srt.utils.device_timer.device_timer_ctx",
     ),
     reason=(

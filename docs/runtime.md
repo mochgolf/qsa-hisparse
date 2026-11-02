@@ -1,13 +1,26 @@
 # Runtime package (W1)
 
 Inventory rows N01–N04. The HiSparse runtime lives in
-`src/sglang_qsa_hisparse/hisparse/` as verbatim copies of the reference with
-the PLAN.md import rewrites. Since Phase 5 the reference is production
+`src/sglang_qsa_hisparse/hisparse/` as copies of the reference with
+the PLAN.md import rewrites and the explicit `PIN_EDITS` below. Since Phase 5 the reference is production
 `897286b12a` (fork `ee8fe158d6` merged with upstream `35f3c96ff4`, the pin),
-whose runtime differs from the fork only by its own pin adaptations (below),
-so no pin edits remain. This file lists the proof, the ported tests, and
-every pinned SGLang definition (v0.5.22 `baa9befa38` since Phase 6) the
+whose runtime differs from the fork by its own pin adaptations (below).
+This file lists the proof, the ported tests, and
+the pinned SGLang definitions (main `582168dd7c` since Phase 7) the
 runtime relies on.
+
+**Phase 7 (main `582168dd7c`).** The state-storage and typed-layer-routing
+refactors preserve the runtime's physical MHA buffers and Mamba/PLE slot
+views; new dependencies in `RUNTIME_DEPENDS` cover their implementation.
+`coordinator.py` additionally implements `request_lists()` with the native
+coordinator's ordered `hisparse_staging` projection. Main's
+`Scheduler.request_lists`, request-row observer and invariant checks call this
+protocol; without it even an empty QSA staging queue raises `AttributeError`.
+The exact additive method is recorded in `PIN_EDITS`, and the real scheduler
+and invariant checker are exercised by `test_coordinator_request_lists.py`.
+`test_main_storage_compat.py` checks literal recurrent/PLE checkpoint bytes and
+typed-router visibility of the runtime's per-request ring bytes on CPU. These
+checks do not cover GPU copies or numerical kernels.
 
 **Phase 6 (pin v0.5.22).** Every definition below was re-checked against
 v0.5.22 (33 changed, 2 removed): what the runtime relies on still holds, so
@@ -49,7 +62,8 @@ asserts:
   `sglang.srt.mem_cache.qsa_hisparse` → `sglang_qsa_hisparse.hisparse` and
   `sglang.srt.layers.attention.qsa.hisparse_graph` →
   `sglang_qsa_hisparse.hisparse.graph` and applying `PIN_EDITS` (v0.5.22:
-  `coordinator.py`'s `allocate_spec_scratch`), and nothing else (the Track I
+  `coordinator.py`'s `allocate_spec_scratch`; main additionally its
+  `request_lists`), and nothing else (the Track I
   modules `prefix`, `runtime`: plus exactly `track_i.diff`);
 - the package holds exactly those modules plus `depends.py`, the Track I
   identity modules and `prefix_cache.py`, and the reference package holds

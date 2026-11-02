@@ -15,7 +15,7 @@ runs production's code (run_g2.FORK_ROOT/python); the plugin arm runs
 ``<plugin>/src:<pin>/python`` through the launcher with
 ``SGLANG_QSA_MODEL_COMPAT=1``. Each arm's server runs on its interpreter,
 run_g2.PYTHON[arm] (production's for the fork arm, the Phase 6 one for the
-plugin arm on the pin v0.5.22; the harnesses run on production's in both),
+plugin arm on the current pinned main snapshot; the harnesses run on production's in both),
 with ``PYTHONDONTWRITEBYTECODE=1`` and ``SGLANG_CACHE_DIR`` inside the arm
 directory.
 

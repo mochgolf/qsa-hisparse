@@ -16,6 +16,8 @@ of forward_extend. The oracle is FP32 attention over the dequantized pool
 from types import SimpleNamespace
 
 import pytest
+
+from pool_routes import TypedPoolDouble
 import torch
 
 from sglang.srt.layers.attention.qsa.sparse_attn import pack_qsa_prefill_kv
@@ -62,7 +64,7 @@ class _CudaLikeTensor:
         return getattr(self._tensor, name)
 
 
-class _Pool:
+class _Pool(TypedPoolDouble):
     """KV pool double with the pinned write contract: divide, then cast."""
 
     def __init__(self, dtype, k, v, k_scale, v_scale):

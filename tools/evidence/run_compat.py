@@ -51,11 +51,11 @@ HARNESS = Path("test/manual/qsa_hisparse_prefix_acceptance.py")
 PRODUCTION_PORT = 8081
 # Server interpreters per arm, relative to the workspace (the parent of the
 # plugin checkout): production's code runs on production's interpreter, the
-# plugin on the pin (v0.5.22) on the Phase 6 interpreter. Client harnesses use
+# plugin on the pinned main snapshot on its maintenance interpreter. Client harnesses use
 # the fork arm's.
 INTERPRETERS = {
     "fork": "results/dsh-maintenance-20261004/upstream-runtime-env/bin/python",
-    "plugin": "results/phase6-20261018/runtime-env/bin/python",
+    "plugin": "results/qsa-maintenance-20261102/runtime-env/bin/python",
 }
 
 
@@ -186,7 +186,7 @@ def parse(argv):
         "--fork-root", type=Path, default=parent / ".worktrees/sglang-dsh-production-20261004"
     )
     parser.add_argument(
-        "--pin-root", type=Path, default=parent / ".worktrees/sglang-v0.5.22"
+        "--pin-root", type=Path, default=parent / "sources/sglang-main-582168dd7c"
     )
     parser.add_argument("--plugin-root", type=Path, default=PLUGIN_ROOT)
     parser.add_argument("--profile", type=Path, default=PROFILE)

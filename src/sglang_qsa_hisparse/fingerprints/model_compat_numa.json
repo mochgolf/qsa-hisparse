@@ -1,10 +1,10 @@
 {
   "sglang.srt.environ.EnvBool": {
-    "def_line": 143,
+    "def_line": 145,
     "file": "sglang/srt/environ.py",
-    "first_line": 143,
+    "first_line": 145,
     "kind": "class",
-    "module_sha256": "80017ce7326d2af4d331518f1c3a3d24f1a379c8193f59b2ffabd54017c21441",
+    "module_sha256": "b05ac512e03b3ef2fdb054faadfafabd68180d68f1afb0d8ecd13e0cefc4d316",
     "qualname": "EnvBool",
     "sha256": "1f487e2617c6eeb9ae535737154886e6332c88d3bbc99141d233591a37139586"
   },
@@ -13,52 +13,52 @@
     "file": "sglang/srt/environ.py",
     "first_line": 45,
     "kind": "class",
-    "module_sha256": "80017ce7326d2af4d331518f1c3a3d24f1a379c8193f59b2ffabd54017c21441",
+    "module_sha256": "b05ac512e03b3ef2fdb054faadfafabd68180d68f1afb0d8ecd13e0cefc4d316",
     "qualname": "EnvField",
-    "sha256": "02443ba85a18124f5e04f754da46ce70d79b607e2e86ed4b60f10add4cc4cf74"
+    "sha256": "044d06a92f172d0a64e048783881029f3f476cfea0d5f2dc442071cf566a0f25"
   },
   "sglang.srt.environ.Envs": {
-    "def_line": 251,
+    "def_line": 253,
     "file": "sglang/srt/environ.py",
-    "first_line": 251,
+    "first_line": 253,
     "kind": "class",
-    "module_sha256": "80017ce7326d2af4d331518f1c3a3d24f1a379c8193f59b2ffabd54017c21441",
+    "module_sha256": "b05ac512e03b3ef2fdb054faadfafabd68180d68f1afb0d8ecd13e0cefc4d316",
     "qualname": "Envs",
-    "sha256": "79c97ab1664128876f1d1d9a8aa1e537dabd52b1be1bc7d95be1cdd9f954d372"
+    "sha256": "b55761814d0efa90d2284c7eb07c9babc1f2589cfefea9aeeb91a4d936a68879"
   },
   "sglang.srt.environ.exportable_env_vars": {
-    "def_line": 1928,
+    "def_line": 2383,
     "file": "sglang/srt/environ.py",
-    "first_line": 1928,
+    "first_line": 2383,
     "kind": "function",
-    "module_sha256": "80017ce7326d2af4d331518f1c3a3d24f1a379c8193f59b2ffabd54017c21441",
+    "module_sha256": "b05ac512e03b3ef2fdb054faadfafabd68180d68f1afb0d8ecd13e0cefc4d316",
     "qualname": "exportable_env_vars",
     "sha256": "f2b954515eb97111be746581d8b08b62eb3c747fb52c4ee07f7383df9c22a6cf"
   },
   "sglang.srt.utils.numa_utils._numactl_cpu_mem_args": {
-    "def_line": 223,
+    "def_line": 231,
     "file": "sglang/srt/utils/numa_utils.py",
-    "first_line": 223,
+    "first_line": 231,
     "kind": "function",
-    "module_sha256": "a13dc0148edbf8c291e3f9cdf75ad8c71bff03352fb2dedc2b87d475212097fe",
+    "module_sha256": "0f7fd714292cfb681f66e5bea00240e74cbe26a8bf1f7d1812cb046ef6752192",
     "qualname": "_numactl_cpu_mem_args",
     "sha256": "68370626f1d7e9c1eef24ab57b661da04dce080a4c87b66613d064eb663d0646"
   },
   "sglang.srt.utils.numa_utils._probe_numactl_args": {
-    "def_line": 246,
+    "def_line": 254,
     "file": "sglang/srt/utils/numa_utils.py",
-    "first_line": 246,
+    "first_line": 254,
     "kind": "function",
-    "module_sha256": "a13dc0148edbf8c291e3f9cdf75ad8c71bff03352fb2dedc2b87d475212097fe",
+    "module_sha256": "0f7fd714292cfb681f66e5bea00240e74cbe26a8bf1f7d1812cb046ef6752192",
     "qualname": "_probe_numactl_args",
     "sha256": "93a596d48558376c5f1e860e7f9cee8591947b9099e8bda51e3e78a8c32a462a"
   },
   "sglang.srt.utils.numa_utils._strip_memory_args": {
-    "def_line": 238,
+    "def_line": 246,
     "file": "sglang/srt/utils/numa_utils.py",
-    "first_line": 238,
+    "first_line": 246,
     "kind": "function",
-    "module_sha256": "a13dc0148edbf8c291e3f9cdf75ad8c71bff03352fb2dedc2b87d475212097fe",
+    "module_sha256": "0f7fd714292cfb681f66e5bea00240e74cbe26a8bf1f7d1812cb046ef6752192",
     "qualname": "_strip_memory_args",
     "sha256": "aa6f867f6498d147a5a7ed7caa500680d33d29acdcb363f919f887a451f4bdde"
   },
@@ -67,8 +67,8 @@
     "file": "sglang/srt/utils/numa_utils.py",
     "first_line": 27,
     "kind": "function",
-    "module_sha256": "a13dc0148edbf8c291e3f9cdf75ad8c71bff03352fb2dedc2b87d475212097fe",
+    "module_sha256": "0f7fd714292cfb681f66e5bea00240e74cbe26a8bf1f7d1812cb046ef6752192",
     "qualname": "configure_subprocess",
-    "sha256": "0c445eb9340b6c8f7520cc509bde11a7ab01c49f60007610f8931c4a8479aede"
+    "sha256": "907b5abd21f0782d2f3f084e306e5e2c28567ba408f7df4ba7374ec7ae580dfb"
   }
 }

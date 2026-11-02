@@ -14,10 +14,9 @@ the arm directory. Compare afterwards with
 ``compare.py <fork> <plugin> --require-observer 2``.
 
 Since Phase 5 the fork arm is production's code (``FORK_ROOT``, production
-``897286b12a``, whose ``test/manual`` harnesses equal the fork's). Since
-Phase 6 the plugin arm runs on the pin v0.5.22 and each arm has its own
-interpreter (``PYTHON``): production's for the fork arm, the Phase 6
-interpreter for the plugin arm; the client harnesses run on production's in
+``897286b12a``, whose ``test/manual`` harnesses equal the fork's). The plugin arm runs on the current pinned main snapshot and each arm has
+its own interpreter (``PYTHON``): production's for the fork arm, the isolated
+maintenance interpreter for the plugin arm; the client harnesses run on production's in
 both arms.
 """
 
@@ -36,7 +35,7 @@ from run_compat import INTERPRETERS, preflight, stop, wait_ready  # noqa: E402
 QWEN = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 FORK_ROOT = QWEN / ".worktrees" / "sglang-dsh-production-20261004"  # production
-PIN_ROOT = QWEN / ".worktrees" / "sglang-v0.5.22"
+PIN_ROOT = QWEN / "sources" / "sglang-main-582168dd7c"
 PYTHON = {arm: QWEN / path for arm, path in INTERPRETERS.items()}  # Per arm.
 
 

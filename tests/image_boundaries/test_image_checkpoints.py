@@ -19,6 +19,9 @@ import torch
 
 from sglang.srt.managers.schedule_batch import Req, ReqKvInfo
 from sglang.srt.mem_cache.allocator.mamba import MambaSlotAllocator
+from sglang.srt.mem_cache.kv.state_storage import StateStorage
+from sglang.srt.mem_cache.kv.router import KVLayerRouter
+from lifecycle.pool_fixtures import allocate_rows, tree_slots
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.base_prefix_cache import (
     CacheRequestHandle,
@@ -31,6 +34,7 @@ from sglang.srt.mem_cache.ple_state_pool import NGramPool, ShortConvPool
 from sglang.srt.mem_cache.radix_cache import RadixKey
 from sglang.srt.mem_cache.unified_cache.components import ComponentType
 from sglang.srt.model_executor.forward_batch_info import ForwardBatch, ForwardMode
+from sglang.srt.model_executor.forward_context import ForwardContext, forward_context
 from sglang.srt.models import qwen4_exp
 from sglang.srt.runtime_context import get_context
 from sglang_qsa_hisparse.hisparse.prefix import HostPrefixCache
@@ -89,6 +93,7 @@ class Host:
         a.pool.qsa_hisparse = a
         rp = a.req_pool = HybridReqToTokenPool.__new__(HybridReqToTokenPool)
         ReqToTokenPool.__init__(rp, 2, a.capacity, "cpu", False)
+        rp.state = StateStorage.empty("mamba")
         rp.layer_transfer_counter = None  # Set by HybridReqToTokenPool.__init__.
         rp.enable_mamba_extra_buffer = False
         rp.mamba_initial_tracking_slots = 0  # Read by v0.5.22's allocation.
@@ -96,6 +101,7 @@ class Host:
         rp.mamba_allocator = MambaSlotAllocator(2, "cpu")
         mamba = rp.mamba_pool = MambaPool.__new__(MambaPool)
         mamba.replayssm_write_pos = None
+        mamba.replayssm_spec_write_pos = None
         mamba.mamba_cache = MambaPool.State(
             conv=[torch.zeros((3, 3, 2, 3), dtype=torch.bfloat16)],
             temporal=torch.zeros((3, 3, 2, 2), dtype=torch.float32),
@@ -107,12 +113,17 @@ class Host:
         ngram.context = torch.zeros((3, NGRAM - 1), dtype=torch.int64)
         ngram.intermediate_context = None
         mamba._slot_siblings = (short, ngram)
+        rp.state.layer_map = {3: 0, 7: 1}
+        a.pool.layer_transfer_counter = None
+        a.pool.layer_router = KVLayerRouter.from_layer_maps(a.pool, [])
+        rp.state.bind_routes(a.pool.layer_router)
         a.req_table = rp.req_to_token
         a.runner = SimpleNamespace(
             token_to_kv_pool_allocator=PagedTokenToKVPoolAllocator(
                 512, 64, torch.uint8, "cpu", a.pool, False
             )
         )
+        a.runner.token_to_kv_pool_allocator.state = rp.state
         a.copy_stream, a.producer_stream = Mock(), Mock()
         a.host_slabs = torch.empty((2, 2, 64, 2048), dtype=torch.uint8)
         a._allocate_decode_workspace()
@@ -127,7 +138,7 @@ class Host:
             rp,
             a.runner.token_to_kv_pool_allocator,
             64,
-            tree_components=(ComponentType.FULL, ComponentType.MAMBA),
+            tree_slots=tree_slots(ComponentType.FULL, ComponentType.MAMBA),
         )
         self.cache = QSAHostPrefixCache(params)
 
@@ -186,11 +197,13 @@ class Host:
             extend_seq_lens=torch.tensor([stop - start]),
             extend_seq_lens_cpu=[stop - start],
         )
-        ple = qwen4_exp._prepare_ple_batch(
-            ids, batch, ngram_size=NGRAM, ngram_eos_token_id=0
-        )
-        if commit:
-            qwen4_exp._commit_ple_batch(ple, batch)
+        backend = SimpleNamespace(token_to_kv_pool=self.a.pool, req_to_token_pool=self.a.req_pool)
+        with forward_context(ForwardContext(attn_backend=backend)):
+            ple = qwen4_exp._prepare_ple_batch(
+                ids, batch, ngram_size=NGRAM, ngram_eos_token_id=0
+            )
+            if commit:
+                qwen4_exp._commit_ple_batch(ple, batch)
         return ple.ngram_context
 
     def cold(self, req, stops):
@@ -199,7 +212,7 @@ class Host:
         Returns the live state at every stop: what the next chunk would read.
         """
         a = self.a
-        a.req_pool.alloc([req])
+        allocate_rows(a.req_pool, [req])
         idx, mid = req.kv.req_pool_idx, req.kv.mamba_pool_idx
         pages = self.allocator.alloc(stops[-1])
         a.req_table[idx, : stops[-1]] = pages.int()
@@ -253,7 +266,7 @@ class Host:
         a = self.a
         lease = a.release(req.kv.req_pool_idx, req.rid)
         self.allocator.free(req.pages)
-        a.req_pool.free_mamba_cache(req)
+        a.req_pool.state.release(a.req_pool, req)
         a.req_pool.free(req)
         req.kv.mark_kv_released()
         a.after_release(lease)
@@ -280,7 +293,7 @@ class Host:
         req.prefix_len += loaded
         self.cache.prepare_prefix_for_extend([req])
         req.pages = self.cache.prefix_device_indices(req)
-        self.a.req_pool.alloc([req])
+        allocate_rows(self.a.req_pool, [req])
         self.a.req_table[req.kv.req_pool_idx, : req.prefix_len] = req.pages.int()
         req.kv.kv_allocated_len = req.kv.kv_committed_len = req.prefix_len
         self.cache.maybe_hand_to_session(req)

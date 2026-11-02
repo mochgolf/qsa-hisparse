@@ -49,6 +49,12 @@ instead of ``__new__``, so ``--known`` lists only what that fork run fails.
 Since Phase 6 (pin v0.5.22) the plugin arm uses
 ``g21_step8_inventory_v0.5.22.txt``: the Phase 5 inventory plus the tests
 v0.5.22 added to ``test_qsa_indexer.py`` (plugin-only).
+
+The main snapshot ``582168dd7c`` uses ``g21_step8_inventory_582168dd7c.txt``:
+all previous outcomes and the exact architecture skip, plus ten required new
+outcomes from pre-run CPU collection. #44114 adds ``packed_dtype`` to two
+existing strided-gather parameter IDs; ``RENAMED_TESTS`` maps precisely those
+cases to their reference IDs. The new FP8/FP8 case remains distinct.
 """
 
 import argparse
@@ -66,11 +72,25 @@ SUMMARY = re.compile(r"^=*\s*((?:\d+ \w+(?:, )?)+) in [\d.]+s")
 SUMMARY_ITEM = re.compile(r"(\d+) (passed|failed|skipped|xfailed|xpassed|errors?|deselected|warnings?|subtests passed)")
 # Upstream test file renamed after the reference run -> its reference name.
 RENAMED = {"test_hc_mix.py": "test_hc_mix_triton.py"}
+# #44114 adds a packed_dtype parameter but retains the old BF16/BF16 and
+# FP8/BF16 cases. Normalize only those exact IDs, leaving the new FP8/FP8
+# case plugin-only and requiring it to pass.
+RENAMED_TESTS = {
+    "test_qsa_strided_zero_fill.py::test_strided_gather_zero_fills_tail[dtype0-packed_dtype0]":
+        "test_qsa_strided_zero_fill.py::test_strided_gather_zero_fills_tail[dtype0]",
+    "test_qsa_strided_zero_fill.py::test_strided_gather_zero_fills_tail[dtype1-packed_dtype1]":
+        "test_qsa_strided_zero_fill.py::test_strided_gather_zero_fills_tail[dtype1]",
+}
 
 
 def file_key(path):
     name = Path(path).name
     return RENAMED.get(name, name)
+
+
+def test_key(path, name):
+    key = f"{file_key(path)}::{name}"
+    return RENAMED_TESTS.get(key, key)
 
 
 def parse(path, tests, skips):
@@ -89,7 +109,7 @@ def parse(path, tests, skips):
         if match := OUTCOME.match(line):
             status, node, message = match.groups()
             file, _, name = node.partition("::")
-            key = f"{file_key(file)}::{name}"
+            key = test_key(file, name)
             if status == "FAILED" and not message:
                 message = raised.get(name, "")
             outcome = (status, message or "")
@@ -102,7 +122,7 @@ def parse(path, tests, skips):
             skips[(file_key(file), reason)] += int(count)
             run_skips[(file_key(file), reason)] += int(count)
         elif match := VERBOSE_SKIP.match(line):
-            skips[("id", f"{file_key(match.group(1))}::{match.group(2)}")] += 1
+            skips[("id", test_key(match.group(1), match.group(2)))] += 1
         elif match := SUMMARY.match(line.strip("= ")):
             summary = Counter()
             for number, kind in SUMMARY_ITEM.findall(match.group(1)):

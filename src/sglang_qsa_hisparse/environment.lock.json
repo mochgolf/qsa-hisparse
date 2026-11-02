@@ -1,11 +1,11 @@
 {
-  "interpreter": "../results/phase6-20261018/runtime-env/bin/python",
+  "interpreter": "../results/qsa-maintenance-20261102/runtime-env/bin/python",
   "packages": {
-    "flashinfer-python": "0.7.1",
-    "sglang-kernel": "0.4.9",
+    "flashinfer-python": "0.7.2",
+    "sglang-kernel": "0.4.10",
     "torch": "2.14.1",
     "triton": "3.8.0"
   },
   "python": "3.12.3",
-  "source": "importlib.metadata.version() in the interpreter above (sglang_qsa_hisparse.launch.native_versions), without CUDA; Phase 6 interpreter (production's package set with transformers 5.19.0, flashinfer-python 0.7.1, sgl-deep-gemm 0.2.2)"
+  "source": "importlib.metadata.version() in the isolated Phase 7 interpreter; inherits Phase 6 packages read-only, with sglang-kernel 0.4.10, flashinfer-python 0.7.2, sgl-deep-gemm 0.2.3.post2 and humming-kernels 0.1.18 installed locally. GPU qualification passed for main 582168dd7c on 2x RTX 4090 48 GB SM89 under the declared TP2 deterministic and native profiles; see docs/phase7-results.md. This is compatibility qualification; the existing production release was restored."
 }

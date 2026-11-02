@@ -349,6 +349,21 @@ and **G6-GPU** (owner window): the Phase 5 evidence with production's code as
 the fork arm against the plugin at v0.5.22 (G2-1, G2-2, compat, G2-4), I5,
 and G2-3 with production weights. Cutover is a separate owner decision.
 
+## Phase 7: latest-main maintenance (2026-11-02)
+
+Owner requested routine maintenance to the latest SGLang main and selective
+incorporation of relevant PRs. Freeze main at
+`582168dd7c3821198c92766f0319b9e1c8c17bd3`; preserve the Phase 6 contract
+and production reference. Survey: `phase7-survey.md`; port and checks:
+`phase7-results.md`. Apply the existing source-merge, overlap, activation and
+release-order rules. Split scheduler/lifecycle, graph/pools, model/QSA,
+runtime and PR survey work in parallel; finish with the prescribed read-only
+review. Shared environments remain untouched. The owner subsequently
+authorized GPU stop/regression/restore windows; the complete declared matrix
+passes, followed by restoration of the original production release and the
+final read-only review. Production promotion and publication remain separate
+owner decisions.
+
 ## Review protocol
 
 After each gate's work is merged, run from this repository:

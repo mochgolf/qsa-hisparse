@@ -64,7 +64,6 @@ COPIES: dict[str, tuple] = {
         "ForkGPTQMarlinMoEKernel.process_weights_after_loading",
         [],
     ),
-    "Z02": ("model_compat/quantization.py", "ForkGPTQMarlinMoEScheme.create_weights", []),
     "Z03": ("model_compat/quantization.py", "ForkAutoRoundConfig.apply_gptq_quant_layer", []),
     "K02": (
         "hisparse/pools.py",
@@ -88,6 +87,57 @@ COPIES: dict[str, tuple] = {
 # row: why the copy differs from "pin + fork change" (an upstream edit overlaps
 # the fork's change and was merged by hand).
 RESOLVED: dict[str, str] = {
+    "G01": (
+        "Main removes PD multiplexing/stream_idx (#43898), wraps both setup "
+        "and each retained run_once in forward_context(forward_batch=...) "
+        "(#44994), and adds capture_head_hooks, UOCR prologue and forked "
+        "metadata-prep joining. Keep the entire new upstream body; move its "
+        "pure shape-key construction before the outer context with the new "
+        "three-argument key API, enter QSA graph_capture after capture_prepare, "
+        "and chain after_graph_warmup. The changed context header and moved "
+        "key conflict with production's corresponding QSA insertion."
+    ),
+    "G02": (
+        "Main removes PD stream keys (#43898), carries ragged layouts directly "
+        "on ForwardBatch (#34031/#34038), and adds early verify metadata, "
+        "input-restaging bookkeeping and _init_replay_attn_metadata. Keep "
+        "the entire upstream body and its staging/skip_slots behavior; insert "
+        "the QSA prepare immediately before fill_from after early-stage "
+        "resolution, retain the external-preplanning rejection and guard "
+        "num_real_reqs.fill_. Production's prepare insertion at this same "
+        "fill_from boundary conflicts with the new staging statements."
+    ),
+    "A05": (
+        "Main #45753 adds max_q to avoid a host sync in CP calls. The plugin "
+        "accepts that optional host length while retaining the reference FP8 "
+        "descale kernel and its KV_IS_FP8 parameter. Main's SLOT_INDICES=False "
+        "belongs to its paged-prefill kernel, not the plugin-owned packed kernel."
+    ),
+    "E08": (
+        "Selectively adopt #38900's loader lifetime fix: a nonlocal boolean "
+        "replaces the nested shard loader's self-reference for warning state. "
+        "The snapshot of pre-repack parameters is released on return without "
+        "waiting for cyclic GC; weight loading and numerical operations are unchanged."
+    ),
+    "J03": (
+        "Main adds no_combine for the MoE runner contract; return the existing "
+        "router-weighted expert tensor before reduction when requested. Keep "
+        "the reference GEMM alignment/workspace and activation implementations "
+        "with the plugin-owned deterministic Marlin JIT. #45462's inactive-count "
+        "prefix and extra GEMM flags require its newer native kernel ABI and "
+        "cannot be passed to the reference kernel. The removed GPT-OSS torch "
+        "activation helper is retained locally to preserve reference arithmetic."
+    ),
+    "Q10": (
+        "#44114 keeps FP8 sparse scratch on SM100. Retain the reference BF16 "
+        "scratch so plugin extraction applies non-unit KV descales once before "
+        "TRTLLM; rounding descaled values back into FP8 changes that contract."
+    ),
+    "Q11": (
+        "#46990 replaces the upstream store call with a typed KV layer view; "
+        "the plugin retains _store_kv for physical HiSparse locations and FP8 "
+        "descale handling, followed by its existing after_store lease callback."
+    ),
     "M03": (
         "The merge applies cleanly but keeps production's mamba free for a "
         "tree without mamba support (M05's ChunkCache, admitted by M06). At "
@@ -97,7 +147,10 @@ RESOLVED: dict[str, str] = {
         "hybrid-SSM tree without mamba support, so the block is dropped with "
         "its comment: it could only free the slot a second time. v0.5.22's "
         "checkpoint= keyword, unlock(req.lock) and on_release(checkpointed=) "
-        "are kept as merged."
+        "are kept as merged. At main 582168dd7c the early state-slot release "
+        "and final request-row release retain upstream's kv_storage_of "
+        "delegation (#46988/#46989); the QSA lease still drains between "
+        "checkpoint and free_kv_row and finishes after mark_kv_released."
     ),
     "Q08": (
         "v0.5.22 (#41933) replaced the chunk-prefill index_select gather, where "
@@ -111,7 +164,9 @@ RESOLVED: dict[str, str] = {
         "keeps the reference's prefill_slots gather (req_pool_indices.tolist(); "
         "the runtime requires the prefill graph disabled, so the reference's "
         "breakable-graph slot table, removed by #41933, never applies there). "
-        "tests/qsa/test_prefill_pack_descale.py"
+        "tests/qsa/test_prefill_pack_descale.py. Main #46990's typed KV layer "
+        "reads are used for cache buffers; _store_kv retains physical location "
+        "and FP8 scaling semantics."
     ),
     "T03": (
         "v0.5.22 (#43463) bounds the decode MQA by the context length when "
@@ -121,6 +176,8 @@ RESOLVED: dict[str, str] = {
         "bound (unscored short rows, unset logits past each length) applies "
         "only with fast_topk; the stable top-k reads every score, so "
         "deterministic decode scores all rows as in the reference. "
+        "Main #42087's batch-invariant predicate also disables fast_topk; the "
+        "reference deterministic predicate still selects its stable kernel. "
         "tests/qsa/test_qsa_patches.py::"
         "test_deterministic_decode_skips_native_topk_only_for_the_target_model"
     ),

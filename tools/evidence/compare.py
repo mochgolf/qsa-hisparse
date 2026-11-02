@@ -20,7 +20,8 @@ the exit status is 1 if any item differs.
 - ``server.log``: LOG_FIGURES per TP rank, in sorted order.
 - ``events/rank-N.jsonl`` (fork runtime ledger): the first event's
   FIXED_POOL_FIELDS, every ``graph_capture_complete`` record without times
-  and pointers, and the prefix event sequence with PREFIX_FIELDS
+  and pointers (only an omitted graph_key.stream_idx is equivalent to None),
+  and the prefix event sequence with PREFIX_FIELDS
   (scheduling-dependent SCHEDULING_FIELDS are not compared).
 - ``observer/rank-N.jsonl`` (observer.py): every record. Within each arm,
   every restore must also equal the capture of the checkpoint it restored.
@@ -239,7 +240,13 @@ def ledger_items(path):
     prefix = 0
     for row in rows:
         if row["event"] == "graph_capture_complete":
-            items.append(("graph_capture_complete", stripped(row)))
+            record = stripped(row)
+            # Main omits this unused optional graph-key field; the reference
+            # emits None. Preserve every non-null value and all other fields.
+            graph_key = record.get("graph_key")
+            if isinstance(graph_key, dict):
+                graph_key.setdefault("stream_idx", None)
+            items.append(("graph_capture_complete", record))
         elif row["event"].startswith("prefix_"):
             record = {key: row.get(key) for key in PREFIX_FIELDS}
             record["rid"] = rid(record["rid"])

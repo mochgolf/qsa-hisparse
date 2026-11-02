@@ -1,9 +1,9 @@
 """Scheduler, batch-result and prefill-admission integration (inventory W2).
 
-Rows S02, S04-S09 and B02-B04; P01 and P02 are methods of S06's
+Rows S02, S04-S10 and B02-B04; P01 and P02 are methods of S06's
 ``QSAPrefillAdder``, and B04's hook on ``_prepare_kv_cache_release`` also
 carries B05. B01 (an unused import) is a drop; S01 is removed at v0.5.22
-(M05 builds the host prefix cache). REPLACE hooks are v0.5.22's
+(M05 builds the host prefix cache). REPLACE hooks are main 582168dd7c's
 definitions plus production's change (PLAN.md rules 3 and P1); they run
 with this module's globals, so every name they use is imported below from
 the pinned module that defines the target (inventory 6, G3).
@@ -24,17 +24,14 @@ from sglang.srt.managers.scheduler import (
     DisaggregationMode,
     NextBatchPlan,
     envs,
-    get_spec,
     scheduler_stage_method,
     set_schedule_time_batch,
 )
 from sglang.srt.managers.scheduler_components.batch_result_processor import (
-    FINISH_MATCHED_TOKEN,
-    BaseSpecWorker,
     checkpoint_kv_cache,
     get_disagg,
-    get_exec,
     get_memory,
+    materialize_typed_customized_info,
     release_kv_cache,
 )
 from sglang_qsa_hisparse.features import HISPARSE
@@ -106,7 +103,9 @@ def _adopt_qsa_coordinator(result, self):
         "the beam cap. Production scheduler.py 3825-3831 verbatim."
     ),
 )
-def _cap_allocatable_reqs(res, self, running_bs, beam_width=None, running_batch=None):
+def _cap_allocatable_reqs(
+    res, self, running_bs, beam_width=None, running_batch=None, num_held_rows=0
+):
     if getattr(self.hisparse_coordinator, "uses_qsa_hisparse_leases", False):
         if beam_width is not None and beam_width != 1:
             raise ValueError("QSA P2 does not support beam/prefix ownership sharing")
@@ -163,7 +162,40 @@ def _add_staging_reqs(inflight, self):
     return inflight
 
 
-# v0.5.22 managers/scheduler.py:3765-3905 with production's change.
+@patch(
+    f"{SCHEDULER}._prefill_launch_starts_running",
+    "after",
+    feature=HISPARSE,
+    row="S10",
+    depends=(
+        f"{SCHEDULER}._join_launched_reqs",
+        f"{SCHEDULER}._on_step_launch",
+        f"{SCHEDULER}.init_invariant_checker",
+        f"{SCHEDULER}.request_lists",
+        "sglang.srt.managers.scheduler_components.invariant_checker."
+        "SchedulerInvariantChecker.maybe_check_running_reqs",
+        "sglang.srt.managers.scheduler_components.invariant_checker."
+        "SchedulerInvariantChecker.maybe_check_request_lists",
+        "sglang.srt.managers.scheduler_components.running_reqs.RunningReqs",
+    ),
+    reason=(
+        "hisparse: only a QSA lease coordinator changes the result. Main's "
+        "running-request collaborator starts ordinary requests at their final "
+        "prefill launch and native HiSparse requests after staging, gated on "
+        "enable_hisparse. QSA leaves that flag unset but has the same separate "
+        "staging ownership: S04 joins the running set only after host-ready "
+        "collection. This pure after hook prevents the earlier launch join "
+        "and makes the invariant checker omit QSA prefill step batches, so a "
+        "parked request belongs only to the coordinator's request_lists."
+    ),
+)
+def _start_qsa_running_after_staging(result, self):
+    return result and not getattr(
+        self.hisparse_coordinator, "uses_qsa_hisparse_leases", False
+    )
+
+
+# main 582168dd7c managers/scheduler.py:4074-4207 with production's change.
 @patch(
     f"{SCHEDULER}.get_next_batch_to_run",
     "replace",
@@ -178,11 +210,13 @@ def _add_staging_reqs(inflight, self):
         f"{SCHEDULER}._build_hisparse_decode_batch",
         f"{SCHEDULER}._process_hicache_events",
         f"{SCHEDULER}._should_defer_prefill",
+        "sglang.srt.managers.scheduler_components.running_reqs.RunningReqs",
+        "sglang.srt.managers.scheduler_components.invariant_checker."
+        "SchedulerInvariantChecker.maybe_check_running_reqs",
         "sglang.srt.managers.schedule_batch.NextBatchPlan",
         "sglang.srt.managers.schedule_batch.ScheduleBatch",
         "sglang.srt.observability.req_time_stats.set_schedule_time_batch",
         STAGE_METHOD,
-        "sglang.srt.runtime_context.get_spec",
     ),
     reason=(
         SAME_GATE
@@ -198,8 +232,6 @@ def get_next_batch_to_run(
     self.process_pending_chunked_abort()
     self._process_hicache_events()
 
-    if self.enable_fpm:
-        self._fpm_batch_t0 = time.monotonic()
     if self.dllm_config is not None:
         self.dllm_manager.filter_finished_reqs()
 
@@ -226,6 +258,7 @@ def get_next_batch_to_run(
         ready_reqs = self.hisparse_coordinator.collect_ready_reqs()
         if len(ready_reqs) > 0:
             new_batch = self._build_hisparse_decode_batch(ready_reqs)
+            self.running_reqs.join(new_batch.reqs)
             if running_batch.is_empty():
                 running_batch = new_batch
             else:
@@ -263,19 +296,17 @@ def get_next_batch_to_run(
                 # Merge running_batch with prefill batch
                 running_batch.merge_batch(last_batch)
 
-    # For prefill-only batch, filter out finished requests since they
-    # won't go through the decode step. This keeps running_batch accurate
-    # for load reporting (num_running_reqs via /v1/loads).
-    # Runs outside the last_batch block so stale requests are cleaned
-    # even when no new batches arrive (e.g. traffic stops).
-    if running_batch.is_prefill_only:
-        running_batch.filter_batch()
-        if running_batch.is_empty():
-            running_batch.batch_is_full = False
+    # Every step, not only after a merge: overlap merges a prefill's requests
+    # before its result finishes them, and update_running_batch may never run.
+    running_bs = running_batch.batch_size()
+    running_batch.filter_batch()
+    if running_batch.batch_size() < running_bs:
+        running_batch.batch_is_full = False
+    self.invariant_checker.maybe_check_running_reqs(running_batch, last_batch)
 
     if self.dllm_config is not None:
         new_batch = self.get_new_batch_dllm(running_batch)
-    elif self._should_defer_prefill():
+    elif self._should_defer_prefill(running_batch):
         new_batch = None
     else:
         prefill_plan = self.get_new_batch_prefill(running_batch)
@@ -286,7 +317,6 @@ def get_next_batch_to_run(
     if (
         need_mlp_sync
         and not self.spec_algorithm.is_none()
-        and not get_spec().speculative_skip_dp_mlp_sync
         and not envs.SGLANG_ENABLE_DP_SPEC_PREFILL_COORDINATION.get()
     ):
         # NOTE: This branch makes sure prefill and decode batches will not be mixed when spec and dp-attn is enabled.
@@ -328,8 +358,6 @@ def get_next_batch_to_run(
 
     if ret:
         set_schedule_time_batch(ret)
-        if self.enable_fpm:
-            ret.fpm_start_time = self._fpm_batch_t0
 
     return NextBatchPlan(batch_to_run=ret, running_batch=running_batch)
 
@@ -460,7 +488,7 @@ def _qsa_prefill_adder(result, self):
     return result
 
 
-# v0.5.22 managers/scheduler.py:5071-5160 with production's change.
+# main 582168dd7c managers/scheduler.py:5546-5642 with production's change.
 @patch(
     f"{SCHEDULER}.on_idle",
     "replace",
@@ -471,6 +499,8 @@ def _qsa_prefill_adder(result, self):
         f"{SCHEDULER}.maybe_send_health_check_signal",
         f"{SCHEDULER}.maybe_sleep_on_idle",
         f"{SCHEDULER}.publish_load_snapshot",
+        "sglang.srt.managers.scheduler_components.deferred_responses.DeferredResponses",
+        "sglang.srt.managers.scheduler_components.request_receiver.SchedulerRequestReceiver",
         "sglang.srt.managers.scheduler_components.invariant_checker."
         "SchedulerInvariantChecker",
         STAGE_METHOD,
@@ -485,6 +515,7 @@ def _qsa_prefill_adder(result, self):
 def on_idle(self):
     """Idle housekeeping: guard, check, metrics, reset, sleep."""
     self.dp_attn_adapter.drop_sync_wait_carry()
+    self.deferred_responses.stream_released()
     # Flush any health-check signal deferred while the engine was busy.
     self.maybe_send_health_check_signal()
 
@@ -509,10 +540,13 @@ def on_idle(self):
             self.enable_hicache_storage
             or self.disaggregation_mode != DisaggregationMode.NULL
             or self.enable_lmcache
+            or self.deferred_responses.has_pending()
         ):
-            # Storage and transfer workers need the GIL between I/O calls.
-            # Singleton PD polls no longer yield through a collective.
+            # Storage, transfer, and deferred-output workers need the GIL
+            # between I/O calls. Singleton PD polls no longer yield through
+            # a collective.
             time.sleep(0)
+        self.request_receiver.wait_for_progress()
         return
     self.metrics_reporter.record_scheduler_idle()
 
@@ -539,10 +573,10 @@ def on_idle(self):
             if has_leak:
                 self.invariant_checker._report_leak("pool", "\n".join(messages))
             self.invariant_checker._check_req_pool()
-            # Byte-conservation diagnostic (allocator-owned; static pools
-            # return [] — the token identity above can't see byte leaks).
+            # Byte-conservation diagnostic (static pools return [] — the
+            # token identity above can't see byte leaks).
             byte_violations = (
-                self.token_to_kv_pool_allocator.verify_byte_accounting()
+                self.pool_stats_observer.storage.accounting_violations()
             )
             if byte_violations:
                 self.invariant_checker._report_leak(
@@ -568,12 +602,17 @@ def on_idle(self):
         self.load_inquirer.get_loads, force=True, snapshot=snapshot
     )
 
-    # sleep until next event
-    self.maybe_sleep_on_idle()
+    if self.deferred_responses.has_pending():
+        # Held responses are released by polling, not by a socket event:
+        # keep polling, and yield the GIL to the completion's worker.
+        time.sleep(0)
+    else:
+        # sleep until next event
+        self.maybe_sleep_on_idle()
     self.metrics_reporter.record_scheduler_idle()
 
 
-# v0.5.22 managers/scheduler_components/batch_result_processor.py:117-134 with production's change.
+# main 582168dd7c managers/scheduler_components/batch_result_processor.py:159-176 with production's change.
 @patch(
     f"{PROCESSOR}.process_batch_result_prebuilt",
     "replace",
@@ -607,7 +646,7 @@ def process_batch_result_prebuilt(self, batch: ScheduleBatch):
         self.token_to_kv_pool_allocator.free_group_end()
 
 
-# v0.5.22 managers/scheduler_components/batch_result_processor.py:258-515 with production's change.
+# main 582168dd7c managers/scheduler_components/batch_result_processor.py:316-587 with production's change.
 @patch(
     f"{PROCESSOR}.process_batch_result_prefill",
     "replace",
@@ -619,6 +658,9 @@ def process_batch_result_prebuilt(self, batch: ScheduleBatch):
         f"{PROCESSOR}._apply_prefill_grammar",
         f"{PROCESSOR}._apply_prefill_logprobs",
         f"{PROCESSOR}._convert_embeddings",
+        f"{PROCESSOR}._convert_embedding_for_response",
+        "sglang.srt.managers.scheduler_components.batch_result_processor."
+        "materialize_typed_customized_info",
         f"{PROCESSOR}._get_prefill_hidden_capture_mode",
         f"{PROCESSOR}._maybe_collect_customized_info",
         f"{PROCESSOR}._maybe_collect_indexer_topk",
@@ -665,6 +707,9 @@ def process_batch_result_prefill(
         if result.indexer_topk_output is not None:
             result.indexer_topk_output.finalize()
             result.indexer_topk_output = None
+        if (record := result.kv_weight_version_record) is not None:
+            record.finalize(tracker=self.kv_weight_version_tracker)
+            result.kv_weight_version_record = None
 
         (
             logits_output,
@@ -682,6 +727,7 @@ def process_batch_result_prefill(
         next_token_ids = next_token_ids.tolist()
         self.move_logprobs_to_cpu(batch=batch, logits_output=logits_output)
         self.materialize_sampling_mask_output(batch.reqs, logits_output)
+        materialize_typed_customized_info(logits_output)
 
         self._validate_pp_skip_output_comm(batch, result)
 
@@ -739,9 +785,11 @@ def process_batch_result_prefill(
 
             if req.inflight_middle_chunks <= 0:
                 req.time_stats.set_prefill_finished_time()
+                if (x := self.kv_weight_version_tracker) is not None:
+                    x.fill_req_prefill_weight_versions(req)
 
                 if discard_finish_reason is not None:
-                    req.to_finish = discard_finish_reason
+                    req.request_finish(discard_finish_reason)
                     req.update_finish_state(0)
                 elif req.beam_group is not None:
                     # The relay point already replaced the sampled-token
@@ -749,6 +797,12 @@ def process_batch_result_prefill(
                     self.beam_coordinator.commit_prefill(
                         req, up_to_tick=batch.forward_iter
                     )
+                elif (
+                    self.uocr_runtime is not None
+                    and self.uocr_runtime.consume_spliced_prefill(req)
+                ):
+                    # The overlap pages' text is already the first outputs.
+                    req.update_finish_state()
                 else:
                     # req output_ids are set here
                     req.output_ids.append(next_token_id)
@@ -764,7 +818,7 @@ def process_batch_result_prefill(
                     and req in batch.decoding_reqs
                     and not batch.spec_algorithm.is_none()
                 ):
-                    req.kv.kv_committed_len += 1
+                    req.kv.commit_decode(1)
                 if req.finished():
                     if discard_finish_reason is None:
                         self._maybe_collect_routed_experts(req)
@@ -844,7 +898,7 @@ def process_batch_result_prefill(
         if result.copy_done is not None:
             result.copy_done.synchronize()
 
-        embeddings = self._convert_embeddings(result=result)
+        embeddings = self._convert_embeddings(result=result, batch=batch)
         phs = result.pooled_hidden_states
 
         if phs is not None:
@@ -862,17 +916,21 @@ def process_batch_result_prefill(
                 req.discard_output_reason is not None
                 and req.inflight_middle_chunks <= 0
             ):
-                req.to_finish = req.discard_output_reason
+                req.request_finish(req.discard_output_reason)
                 req.update_finish_state(0)
                 release_kv_cache(req, self.tree_cache, checkpoint=False)
                 req.time_stats.set_completion_time()
                 continue
 
-            req.embedding = embeddings[i]
+            req.embedding = self._convert_embedding_for_response(
+                embeddings[i], req.encoding_format
+            )
             if req.return_pooled_hidden_states and phs is not None:
                 req.pooled_hidden_state = phs[i]
             if req.inflight_middle_chunks <= 0:
                 req.time_stats.set_prefill_finished_time()
+                if (x := self.kv_weight_version_tracker) is not None:
+                    x.fill_req_prefill_weight_versions(req)
                 # Dummy output token for embedding models
                 req.output_ids.append(0)
                 req.update_finish_state()

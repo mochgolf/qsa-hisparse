@@ -26,15 +26,19 @@ from unittest.mock import Mock
 import pytest
 import torch
 
+from lifecycle.pool_fixtures import allocate_rows, tree_slots
+
 from sglang.srt.managers.schedule_batch import ReqKvInfo
 from sglang.srt.managers.scheduler_components.batch_result_processor import (
     SchedulerBatchResultProcessor,
 )
+from sglang.srt.managers.utils import GenerationBatchResult
 from sglang.srt.mem_cache import allocation, common
 from sglang.srt.mem_cache.allocator.mamba import MambaSlotAllocator
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.base_prefix_cache import CacheRequestHandle, MatchPrefixParams
 from sglang.srt.mem_cache.cache_init_params import CacheInitParams
+from sglang.srt.mem_cache.kv.state_storage import StateStorage
 from sglang.srt.mem_cache.memory_pool import HybridReqToTokenPool, ReqToTokenPool
 from sglang.srt.mem_cache.radix_cache import RadixKey
 from sglang.srt.mem_cache.unified_cache.components import ComponentType
@@ -96,10 +100,13 @@ def hybrid_pool(rows):
     """A real HybridReqToTokenPool row/mamba-slot allocator without state tensors."""
     pool = HybridReqToTokenPool.__new__(HybridReqToTokenPool)
     ReqToTokenPool.__init__(pool, rows, 64, "cpu", False)
+    pool.state = StateStorage.empty("mamba")
     pool.enable_mamba_extra_buffer = False
     pool.req_index_to_mamba_index_mapping = torch.zeros(rows + 1, dtype=torch.int32)
     pool.mamba_allocator = MambaSlotAllocator(rows, "cpu")
-    pool.mamba_pool = SimpleNamespace(replayssm_write_pos=None)
+    pool.mamba_pool = SimpleNamespace(
+        replayssm_write_pos=None, replayssm_spec_write_pos=None
+    )
     return pool
 
 
@@ -115,6 +122,7 @@ class World:
                 size=rows, max_context_len=64, device="cpu", enable_memory_saver=False
             )
         )
+        allocator.state = pool.state if hybrid else None
         rt = QSAHiSparseRuntime.__new__(QSAHiSparseRuntime)
         rt.slots = QSAHiSparseSlots(staging_tokens=64, page_size=PAGE, max_requests=1)
         rt.req_pool, rt.device, rt.producer_stream = pool, "cpu", object()
@@ -130,7 +138,7 @@ class World:
             req_to_token_pool=pool,
             token_to_kv_pool_allocator=allocator,
             page_size=PAGE,
-            tree_components=components,
+            tree_slots=tree_slots(*components),
         )
         cache = cache_type(params)
         cache.claim_kv_row = spy(ledger, "claim_kv_row", cache.claim_kv_row)
@@ -140,7 +148,7 @@ class World:
         pool.alloc = spy(ledger, "req_to_token_pool.alloc", pool.alloc)
         pool.free = spy(ledger, "req_to_token_pool.free", pool.free)
         if hybrid:
-            pool.free_mamba_cache = spy(ledger, "free_mamba_cache", pool.free_mamba_cache)
+            pool.state.release = spy(ledger, "state.release", pool.state.release)
         allocator._release_page_ids = spy(
             ledger, "logical_pages_freed", allocator._release_page_ids
         )
@@ -180,7 +188,7 @@ class World:
     def leased_req(self, *, decoding=True):
         """A request holding a row, TOKENS logical tokens and a physical lease."""
         req = self.req()
-        self.pool.alloc([req])
+        allocate_rows(self.pool, [req])
         row = req.kv.req_pool_idx
         self.pool.req_to_token[row, :TOKENS] = self.allocator.alloc(TOKENS).int()
         req.kv.kv_committed_len = req.kv.kv_allocated_len = TOKENS
@@ -212,6 +220,7 @@ class World:
                 request_finished=lambda req: ledger.append("request_finished")
             ),
             req_to_token_pool=self.pool,
+            kv_weight_version_tracker=None,
             decode_offload_manager=None,
             metrics_collector=None,
             metrics_reporter=Mock(),
@@ -247,7 +256,9 @@ def test_finish_releases_the_lease_after_the_free_group_flush():
     batch = SimpleNamespace(mamba_track_mask_cpu=None)
 
     world.allocator.free_group_begin()  # As process_batch_result_decode does.
-    world.processor()._handle_finish_state_updated_req(req, batch, None, 0, None)
+    world.processor()._handle_finish_state_updated_req(
+        req, batch, GenerationBatchResult(), 0, None
+    )
     assert not world.slot_reusable()
     world.allocator.free_group_end()
 
@@ -321,14 +332,14 @@ def test_host_prefix_release_frees_the_mamba_slot_exactly_once(checkpoint):
         # Capture observes the live lease and mamba slot; the disabled
         # checkpoint then hands the finished request's slot back.
         assert captures == [("checkpoint", True)]
-        expected = ["claim_kv_row", "checkpoint", "free_mamba_cache", "runtime.release"]
+        expected = ["claim_kv_row", "checkpoint", "state.release", "runtime.release"]
         expected += ["free_kv_row", "on_release"]
     else:
         assert captures == []
         expected = ["claim_kv_row", "runtime.release", "free_kv_row", "on_release"]
-        expected += ["free_mamba_cache"]
+        expected += ["state.release"]
     assert world.events() == [*expected, *RELEASE_TAIL, *DEFERRED_FLUSH]
-    assert world.ledger.count("free_mamba_cache") == 1
+    assert world.ledger.count("state.release") == 1
     assert world.pool.mamba_allocator.available_size() == mamba_free + 1
     assert not req.kv.holds_mamba and world.slot_reusable()
 
@@ -368,6 +379,7 @@ def test_failed_restore_rolls_back_before_the_error_propagates():
     batch = SimpleNamespace(
         tree_cache=cache,
         req_to_token_pool=world.pool,
+        token_to_kv_pool_allocator=world.allocator,
         hisparse_coordinator=None,
         reqs=[req],
         device="cpu",
@@ -403,7 +415,7 @@ def test_failed_restore_rolls_back_before_the_error_propagates():
 def test_physical_slot_is_never_reusable_before_the_logical_flush():
     world = World(rows=2)
     req = world.leased_req()
-    world.pool.alloc([fresh := world.req("fresh")])  # Another row, no lease yet.
+    allocate_rows(world.pool, [fresh := world.req("fresh")])  # Another row, no lease yet.
     rt = world.runtime
 
     free_tokens = world.allocator.available_size()
@@ -449,7 +461,7 @@ def test_flush_keeps_row_generations_monotonic(target_model, target):
     released = world.lease
 
     world.pool.clear()  # Scheduler.flush_cache, after the release committed.
-    world.pool.alloc([fresh := world.req("fresh")])
+    allocate_rows(world.pool, [fresh := world.req("fresh")])
     row = fresh.kv.req_pool_idx
 
     assert int(world.pool.req_generation[row]) == released.generation + 1

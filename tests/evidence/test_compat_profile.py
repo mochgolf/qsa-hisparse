@@ -325,11 +325,11 @@ def test_each_arm_defaults_to_its_interpreter_and_the_harness_to_productions(
     workspace = run.PLUGIN_ROOT.parent
     assert run.INTERPRETERS == {
         "fork": "results/dsh-maintenance-20261004/upstream-runtime-env/bin/python",
-        "plugin": "results/phase6-20261018/runtime-env/bin/python",
+        "plugin": "results/qsa-maintenance-20261102/runtime-env/bin/python",
     }
     assert plan["server"][0] == str(workspace / run.INTERPRETERS[arm])
     assert plan["harness"][0] == str(workspace / run.INTERPRETERS["fork"])
-    assert run.parse(args).pin_root == workspace / ".worktrees/sglang-v0.5.22"
+    assert run.parse(args).pin_root == workspace / "sources/sglang-main-582168dd7c"
 
 
 def test_busy_gpu_used_port_and_production_port_are_refused(evidence, tmp_path, monkeypatch):

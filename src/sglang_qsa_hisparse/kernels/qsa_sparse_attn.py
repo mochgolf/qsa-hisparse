@@ -4,8 +4,9 @@ Moved verbatim from the reference (production ``897286b12a``)
 ``layers/attention/qsa/sparse_attn.py``: the dtype helpers (A01), both prefill
 kernels (A02, A04), the compaction kernel (A07) and their launchers (A03, A05,
 A09), and the packed decode launcher (A11), which reuses the A04 kernel.
-Definitions the reference left unchanged (``_get_best_config`` and the
-valid-count kernels) are used from the pinned module. From the reference's
+The reference launch selector remains local: main #42087 changes its tiles
+when global batch-invariant mode is on. The verified, unchanged table data
+and valid-count kernels are used from the pinned module. From the reference's
 ``layers/attention/qsa/kernel.py``: the torch reference attention with FP8
 descales (A12). ``patches/model_compat/qsa_attention.py`` installs the A03,
 A05 and A09 launchers and binds A11 and A12 in its backend copies, the only
@@ -18,13 +19,18 @@ import torch
 import triton
 import triton.language as tl
 
-from sglang.srt.layers.attention.qsa.sparse_attn import _get_best_config
+from sglang.srt.layers.attention.qsa.sparse_attn import _H20_CONFIGS, _L20_CONFIGS
 
 _FP8_DTYPES = (
     torch.float8_e4m3fn,
     torch.float8_e4m3fnuz,
     torch.float8_e5m2,
 )
+
+
+def _get_best_config(total_q: int):
+    table = _H20_CONFIGS if "H20" in torch.cuda.get_device_name(0) else _L20_CONFIGS
+    return next(cfg for limit, cfg in table if total_q <= limit)
 
 
 def is_fp8_kv_dtype(dtype: torch.dtype) -> bool:
@@ -345,6 +351,7 @@ def sparse_gqa_fwd_interface_triton_ck(
     cu_k,
     kv_lens,
     scale,
+    max_q: Optional[int] = None,
     k_scale: Optional[float] = None,
     v_scale: Optional[float] = None,
 ):
@@ -353,7 +360,8 @@ def sparse_gqa_fwd_interface_triton_ck(
     total_q, num_q_heads, head_dim = q.shape
     num_kv_heads = k.shape[1]
     group_size = num_q_heads // num_kv_heads
-    max_q = int((cu_q[1:] - cu_q[:-1]).max().item())
+    if max_q is None:
+        max_q = int((cu_q[1:] - cu_q[:-1]).max().item())
     block_m = max(16, triton.next_power_of_2(group_size))
     block_n, warps, stages = _get_best_config(total_q)
     out = torch.empty_like(q)

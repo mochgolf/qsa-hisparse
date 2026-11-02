@@ -4,7 +4,7 @@ A fresh process publishes a temporary Llama model directory, so the real
 ``scope.target_model_active()`` is False, activates model_compat through
 ``plugin.load()``, and checks each hook of the per-call scoped rows with
 ``scope_delegation_probe.py``. Those rows are the generic shared-path rows of
-``docs/patch-inventory.md`` section 1 (M04, J03, Z01, Z02, Z03, E-rows), the
+``docs/patch-inventory.md`` section 1 (J03, Z01, Z03, E-rows), the
 other AutoRound MoE loading row Z04, and the stable-HC rows (H-rows; W5 card
 item 2). QSA attention rows decide scope once at backend construction (W4
 card item 4) and are tested with their hooks.

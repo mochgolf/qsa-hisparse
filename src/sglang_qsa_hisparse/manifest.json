@@ -91,6 +91,26 @@
       ],
       "attach": []
     },
+    "D01": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.srt.batch_invariant_ops.batch_invariant_ops.enable_batch_invariant_mode",
+          "hook_type": "around"
+        }
+      ],
+      "attach": []
+    },
+    "D02": {
+      "feature": "model_compat",
+      "patches": [
+        {
+          "target": "sglang.kernels.ops.elementwise.elementwise._launch_fused_gate_sigmoid_mul",
+          "hook_type": "around"
+        }
+      ],
+      "attach": []
+    },
     "E03": {
       "feature": "model_compat",
       "patches": [
@@ -555,6 +575,16 @@
       ],
       "attach": []
     },
+    "S10": {
+      "feature": "hisparse",
+      "patches": [
+        {
+          "target": "sglang.srt.managers.scheduler.Scheduler._prefill_launch_starts_running",
+          "hook_type": "after"
+        }
+      ],
+      "attach": []
+    },
     "T02": {
       "feature": "model_compat",
       "patches": [
@@ -630,16 +660,6 @@
       "patches": [
         {
           "target": "sglang.srt.hardware_backend.gpu.quantization.gptq_kernels.GPTQMarlinMoEKernel.process_weights_after_loading",
-          "hook_type": "replace"
-        }
-      ],
-      "attach": []
-    },
-    "Z02": {
-      "feature": "model_compat",
-      "patches": [
-        {
-          "target": "sglang.srt.layers.quantization.gptq.schemes.gptq_moe.GPTQMarlinMoEScheme.create_weights",
           "hook_type": "replace"
         }
       ],

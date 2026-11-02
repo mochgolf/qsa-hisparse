@@ -73,7 +73,7 @@ class ForkGatedResidual:
             and hyper_input_normed.dtype in (torch.bfloat16, torch.float16)
             and hyper_input_normed.shape[0] <= 24
         ):
-            from sglang.kernels.ops.elementwise.hc_mix import (
+            from sglang.kernels.ops.gemm.hc_mix_splitk import (
                 hc_mix,
                 permute_pad_up_weight,
             )
@@ -150,8 +150,8 @@ def _fused_hc_mix(original, *args, **kwargs):
         f"{_GATED_RESIDUAL}.combine",
         f"{_GATED_RESIDUAL}.combine_and_normalize",
         "sglang.srt.layers.hyperconnection.GroupedGemmaRMSNorm.forward",
-        "sglang.kernels.ops.elementwise.hc_mix.hc_mix",
-        "sglang.kernels.ops.elementwise.hc_mix.permute_pad_up_weight",
+        "sglang.kernels.ops.gemm.hc_mix_splitk.hc_mix",
+        "sglang.kernels.ops.gemm.hc_mix_splitk.permute_pad_up_weight",
         "sglang.srt.runtime_context.get_exec",
         # Read by the plugin copy of the fork's fused_hc_mix_supported (H05).
         f"{_HC_MIX}._deterministic_inference",

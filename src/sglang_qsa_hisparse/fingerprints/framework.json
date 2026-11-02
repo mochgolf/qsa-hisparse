@@ -1,21 +1,21 @@
 {
   "sglang.srt.managers.scheduler.configure_scheduler_process": {
-    "def_line": 6023,
+    "def_line": 6620,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 6023,
+    "first_line": 6620,
     "kind": "function",
-    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
+    "module_sha256": "8e054141ee63a6572919be3a07e227d41d8693ddbbdc7c2f713652051b50ba59",
     "qualname": "configure_scheduler_process",
-    "sha256": "6ab317d62062e9c15301c3d46e83f69dbfd23cf5b77677bc1a0c2362c5070af2"
+    "sha256": "c4880c37c03537caf4351fbd520beb80d339ce8930de7ca805c12ce0f70eb336"
   },
   "sglang.srt.managers.scheduler.run_scheduler_process": {
-    "def_line": 6076,
+    "def_line": 6675,
     "file": "sglang/srt/managers/scheduler.py",
-    "first_line": 6076,
+    "first_line": 6675,
     "kind": "function",
-    "module_sha256": "ab23556739fc4a1a089da5d33f8cb925c14b7c68ae564294b5ed13d96b427c36",
+    "module_sha256": "8e054141ee63a6572919be3a07e227d41d8693ddbbdc7c2f713652051b50ba59",
     "qualname": "run_scheduler_process",
-    "sha256": "6e995b6a16fcbd8aebfaa4fa7ce6529e950f42a59ab8377e90badac9da0c24c9"
+    "sha256": "f52f0de806e29a75440839ff0cb3af43405304789adc571585ffd83a8a5c721b"
   },
   "sglang.srt.plugins.hook_registry.HookRegistry._apply_target": {
     "def_line": 182,
@@ -72,29 +72,29 @@
     "sha256": "cd2a423a31293f61ca0e01cfeb4ca9ba554b8be1b464e0130cec49aca18fa89e"
   },
   "sglang.srt.runtime_context._configure_context": {
-    "def_line": 1535,
+    "def_line": 1544,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1535,
+    "first_line": 1544,
     "kind": "function",
-    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
+    "module_sha256": "3865a07b8644240dffe0dded200b5f0c4e1a0cce4e14b90ec4aef59ca459d62e",
     "qualname": "_configure_context",
     "sha256": "2318c5dc97179f0ad26444939d64cda07ffe399d553b48865e5f397bec4f423b"
   },
   "sglang.srt.runtime_context.get_parallel": {
-    "def_line": 1277,
+    "def_line": 1286,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1277,
+    "first_line": 1286,
     "kind": "function",
-    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
+    "module_sha256": "3865a07b8644240dffe0dded200b5f0c4e1a0cce4e14b90ec4aef59ca459d62e",
     "qualname": "get_parallel",
     "sha256": "75d1c5f8a754b0424f79d5ade3c47daa167bbbc6210e7afce34a82d03d193b71"
   },
   "sglang.srt.runtime_context.publish": {
-    "def_line": 1481,
+    "def_line": 1490,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1481,
+    "first_line": 1490,
     "kind": "function",
-    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
+    "module_sha256": "3865a07b8644240dffe0dded200b5f0c4e1a0cce4e14b90ec4aef59ca459d62e",
     "qualname": "publish",
     "sha256": "cf9302a2c20c2bf99892a54f5eca9d5b0a89c164d08e3ef96e89c297c2fa0d7d"
   }

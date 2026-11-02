@@ -60,7 +60,9 @@ COPIES = [
             (
                 '@register_custom_op(out_shape="hidden_states")\ndef fused_marlin_moe(',
                 "def fused_marlin_moe(",
-            )
+            ),
+            ("    is_gated: bool = True,\n", "    is_gated: bool = True,\n    no_combine: bool = False,\n"),
+            ("    output = zero_copy_context.get_moe_output(hidden_states)", "    if no_combine:\n        return intermediate_cache3\n\n    output = zero_copy_context.get_moe_output(hidden_states)"),
         ],
     ),
     (
@@ -69,14 +71,6 @@ COPIES = [
         "sglang/srt/hardware_backend/gpu/quantization/gptq_kernels.py",
         "GPTQMarlinMoEKernel.process_weights_after_loading",
         "1e7c2ffb994980bdbc3ff8ecb3031b346bbcfc52eeae5ad60003dd28acd1b926",
-        [],
-    ),
-    (
-        quantization,
-        "ForkGPTQMarlinMoEScheme.create_weights",
-        "sglang/srt/layers/quantization/gptq/schemes/gptq_moe.py",
-        "GPTQMarlinMoEScheme.create_weights",
-        "4e08c1f7d599c4a01f645aabb4cf99afec454de18d92db4a83060cb47c92fd3b",
         [],
     ),
     (
@@ -117,7 +111,7 @@ COPIES = [
         "sglang/srt/layers/hyperconnection.py",
         "GatedResidual.mix",
         "e2d18b73558f56d3c59007ffbfcbcc9a79e0ea83e36bbf6996462ca4616769d0",
-        [],
+        [("sglang.kernels.ops.elementwise.hc_mix", "sglang.kernels.ops.gemm.hc_mix_splitk")],
     ),
     (
         qwen4_exp,
@@ -156,6 +150,7 @@ COPIES = [
 # QSA kernels and launchers moved verbatim (A01, A02, A04, A07, A11, A12, T01).
 QSA_COPIES = {
     (qsa_sparse_attn, SPARSE_ATTN): {
+        "_get_best_config": "1c7f8a68c708177be0b163a9c38987c8fea0fb3fa1ed43c1f2d346004f794f15",
         "is_fp8_kv_dtype": "0be799a74de0783008e3b7cfc053d37ff5fcde41e14bc6574bfd8f80c8123497",
         "_validate_sparse_gqa_dtypes": "fb00b1ad84e0511992907d752e5ac2e364f880119db37e6e522ec2044aed439c",
         "_unit_scale": "ebc561a626794ff5dbaf3f66f074aaa196a57feabfd96396637999c0d995b173",
@@ -402,7 +397,8 @@ def test_fused_marlin_moe_op_has_the_upstream_schema_under_its_own_name():
     """Mechanical edit of J03 (G4): same signature, distinct custom-op name."""
     plugin = torch.ops.sglang.qsa_hisparse_fused_marlin_moe
     upstream = torch.ops.sglang.fused_marlin_moe
-    assert marlin.fused_marlin_moe_op is plugin
+    assert inspect.unwrap(marlin.fused_marlin_moe_op) is marlin.fused_marlin_moe
+    assert inspect.getclosurevars(marlin.fused_marlin_moe_op).nonlocals["op"] is plugin
     assert marlin.OP_NAME == "qsa_hisparse_fused_marlin_moe"
     plugin_schema = str(plugin.default._schema).replace(marlin.OP_NAME, "fused_marlin_moe")
     assert plugin_schema == str(upstream.default._schema)
@@ -419,7 +415,7 @@ class _Resolved(Exception):
 def jit_resolver(monkeypatch, tmp_path):
     """Run the real ``load_jit`` up to its cache lookup, then stop."""
     from sglang.kernels.jit.utils import arch
-    from sglang.kernels.jit.utils.compile import cache, loader, ninja
+    from sglang.kernels.jit.utils.compile import cache, loader, ninja, toolchain
 
     def forbidden(*args, **kwargs):
         pytest.fail("compiling, loading or initializing CUDA is forbidden here")
@@ -428,8 +424,10 @@ def jit_resolver(monkeypatch, tmp_path):
     monkeypatch.setattr(ninja, "build", forbidden)
     monkeypatch.setattr(loader, "_load", forbidden)
     # A fixed target instead of probing the GPU; the same for both modules.
-    monkeypatch.setattr(arch, "_init_jit_cuda_arch_once", lambda: None)
-    monkeypatch.setattr(arch, "_CUDA_ARCH", arch.ArchInfo(8, 9, ""), raising=False)
+    compile_arch = arch.CompileArch(8, 9, "")
+    monkeypatch.setattr(arch, "get_compile_arch", lambda: compile_arch)
+    monkeypatch.setattr(cache, "get_compile_arch", lambda: compile_arch)
+    monkeypatch.setattr(toolchain, "get_compile_arch", lambda: compile_arch)
     monkeypatch.setattr(cache, "_target_tag", lambda: "sm89")
     monkeypatch.setattr(cache, "_environment_fingerprint", lambda: "environment")
     monkeypatch.setenv("SGLANG_JIT_CACHE_DIR", str(tmp_path))
@@ -482,7 +480,9 @@ def test_marlin_jit_module_name_cache_key_and_export_are_distinct(jit_resolver):
         assert plugin.module_name == (
             f"sgl_kernel_jit_qsa_hisparse_moe_wna16_marlin_bf16_t_false_false_{flag}"
         )
-        assert tree.module_name == "sgl_kernel_jit_moe_wna16_marlin_bf16_t_false_false"
+        assert tree.module_name == (
+            "sgl_kernel_jit_moe_wna16_marlin_bf16_t_false_false_false_false_false"
+        )
         # <root>/<target>/<module_name>/build-<build_key>: no shared directory.
         assert plugin_scope.parent != tree_scope.parent
         assert plugin_scope.name != tree_scope.name

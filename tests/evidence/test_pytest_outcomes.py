@@ -137,3 +137,33 @@ def test_verbose_plugin_run_against_the_run2_reference(tmp_path):
     reason = VERBOSE_PLUGIN.replace("SM121-only kernel", "no GPU")
     assert run(tmp_path, FORK, reason, INVENTORY,
                plugin_inventory=VERBOSE_INVENTORY.replace("SM121-only kernel", "no GPU")) == 1
+
+
+@pytest.mark.parametrize("dtype", [0, 1])
+def test_main_strided_case_alias_preserves_the_existing_comparison(tmp_path, dtype):
+    name = "test_strided_gather_zero_fills_tail"
+    old = f"test_qsa_strided_zero_fill.py::{name}[dtype{dtype}]"
+    renamed = f"test_qsa_strided_zero_fill.py::{name}[dtype{dtype}-packed_dtype{dtype}]"
+    fork = f"PASSED registered/{old}\n1 passed in 1.00s\n"
+    plugin = f"PASSED registered/{renamed}\n1 passed in 1.00s\n"
+    assert run(tmp_path, fork, plugin, old + "\n", []) == 0
+    # An outcome difference is still a failure after the exact ID alias.
+    failed = plugin.replace("PASSED", "FAILED").replace("1 passed", "1 failed")
+    assert run(tmp_path, fork, failed, old + "\n", []) == 1
+
+
+def test_main_new_fp8_scratch_case_is_not_aliased_or_skippable(tmp_path):
+    prefix = "test_qsa_strided_zero_fill.py::test_strided_gather_zero_fills_tail"
+    old, renamed, added = (f"{prefix}[{params}]" for params in (
+        "dtype1", "dtype1-packed_dtype1", "dtype2-packed_dtype2"
+    ))
+    assert pytest_outcomes.test_key("test_qsa_strided_zero_fill.py", added.split("::")[1]) == added
+    fork = f"PASSED registered/{old}\n1 passed in 1.00s\n"
+    plugin = f"PASSED registered/{renamed}\nPASSED registered/{added}\n2 passed in 1.00s\n"
+    assert run(tmp_path, fork, plugin, old + "\n", [], plugin_inventory=old + "\n" + added + "\n") == 0
+    skipped = (
+        f"PASSED registered/{renamed}\nregistered/{added} SKIPPED (tilelang unavailable)\n"
+        "SKIPPED [1] registered/test_qsa_strided_zero_fill.py:1: tilelang unavailable\n"
+        "1 passed, 1 skipped in 1.00s\n"
+    )
+    assert run(tmp_path, fork, skipped, old + "\n", [], plugin_inventory=old + "\n" + added + "\n") == 1

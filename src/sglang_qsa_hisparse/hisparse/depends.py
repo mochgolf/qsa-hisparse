@@ -37,7 +37,19 @@ RUNTIME_DEPENDS = (
     "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.clear",
     "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.__init__",
     "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool._init_mamba_pool",
-    "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.alloc",
+    # #46980/#46988 moved hybrid slot acquisition out of the request table.
+    # Its compatibility properties still expose the same physical state pool;
+    # the new storage owns acquisition/release and must be fingerprinted too.
+    "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.alloc",
+    "sglang.srt.mem_cache.kv.state_storage.StateStorage",
+    "sglang.srt.mem_cache.static_kv_storage.StaticKVStorage",
+    "sglang.srt.mem_cache.static_kv_storage.acquire_rows",
+    "sglang.srt.mem_cache.static_kv_storage.kv_storage_of",
+    # #46990 routes layer access through typed views. A routed full layer still
+    # references the runtime's independently owned MHA backing, not a copy.
+    "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool._build_layer_router",
+    "sglang.srt.mem_cache.kv.router.KVLayerRouter",
+    "sglang.srt.mem_cache.kv.router.KVLayer",
     "sglang.srt.mem_cache.memory_pool.MambaPool",
     "sglang.srt.mem_cache.memory_pool.MambaPool.State",
     "sglang.srt.mem_cache.memory_pool.MambaPool.__init__",
@@ -62,6 +74,12 @@ RUNTIME_DEPENDS = (
     "sglang.srt.managers.schedule_batch.ScheduleBatch.prepare_for_decode",
     "sglang.srt.managers.schedule_batch.release_req",
     "sglang.srt.managers.scheduler.Scheduler.release_host_resources",
+    # Main's scheduler/pool observers enumerate the coordinator's staging queue.
+    "sglang.srt.managers.scheduler.Scheduler.request_lists",
+    "sglang.srt.managers.scheduler.Scheduler.init_invariant_checker",
+    "sglang.srt.managers.scheduler_components.invariant_checker.SchedulerInvariantChecker._requests_owning_rows",
+    "sglang.srt.managers.scheduler_components.invariant_checker.SchedulerInvariantChecker.maybe_check_request_lists",
+    "sglang.srt.managers.scheduler_components.invariant_checker.SchedulerInvariantChecker.maybe_check_running_reqs",
     "sglang.srt.model_executor.model_runner.ModelRunner._prepare_eager_forward_batch",
     "sglang.srt.model_executor.runner.decode_cuda_graph_runner.DecodeCudaGraphRunner.capture_prepare",
     # CUDA graph configuration and native graph backend.

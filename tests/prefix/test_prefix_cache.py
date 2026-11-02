@@ -26,11 +26,15 @@ from unittest.mock import Mock, patch
 import pytest
 import torch
 
+from lifecycle.pool_fixtures import allocate_rows, tree_slots
+
 from sglang.srt.environ import envs
 from sglang.srt.managers.schedule_batch import Req, ReqKvInfo, ScheduleBatch
 from sglang.srt.managers.schedule_policy import AddReqResult
 from sglang.srt.mem_cache import common
 from sglang.srt.mem_cache.allocation import alloc_for_extend
+from sglang.srt.mem_cache.kv.state_storage import StateStorage
+from sglang.srt.mem_cache.static_kv_storage import kv_storage_of
 from sglang.srt.mem_cache.allocator.mamba import MambaSlotAllocator
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.base_prefix_cache import (
@@ -65,6 +69,7 @@ pytestmark = pytest.mark.usefixtures("w2_patches")
 class FixtureReq(SimpleNamespace):
     """A request record with the ``Req`` members admission and allocation read."""
 
+    auxiliary_swa_host_hit_length = Req.auxiliary_swa_host_hit_length
     extend_len = Req.extend_len
     needs_host_load_back = Req.needs_host_load_back
     materialized_host_hit_len = Req.materialized_host_hit_len
@@ -353,12 +358,14 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         a.pool.qsa_hisparse = a
         rp = a.req_pool = HybridReqToTokenPool.__new__(HybridReqToTokenPool)
         ReqToTokenPool.__init__(rp, 2, a.capacity, "cpu", False)
+        rp.state = StateStorage.empty("mamba")
         rp.enable_mamba_extra_buffer = False
         rp.mamba_initial_tracking_slots = 0  # v0.5.22 ensure_mamba_capacity reads it.
         rp.req_index_to_mamba_index_mapping = torch.zeros(3, dtype=torch.int32)
         rp.mamba_allocator = MambaSlotAllocator(2, "cpu")
         mamba = rp.mamba_pool = MambaPool.__new__(MambaPool)
         mamba.replayssm_write_pos = None
+        mamba.replayssm_spec_write_pos = None
         mamba.mamba_cache = MambaPool.State(
             conv=[torch.zeros((3, 3, 2, 3), dtype=torch.bfloat16)],
             temporal=torch.zeros((3, 3, 2, 2), dtype=torch.float32),
@@ -375,6 +382,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
                 512, 64, torch.uint8, "cpu", a.pool, False
             )
         )
+        a.runner.token_to_kv_pool_allocator.state = rp.state
         a.copy_stream, a.producer_stream = Mock(), Mock()
         a.host_slabs = torch.empty((2, 2, 64, 2048), dtype=torch.uint8)
         a._allocate_decode_workspace()
@@ -389,13 +397,13 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             rp,
             a.runner.token_to_kv_pool_allocator,
             64,
-            tree_components=(ComponentType.FULL, ComponentType.MAMBA),
+            tree_slots=tree_slots(ComponentType.FULL, ComponentType.MAMBA),
         )
         self.cache = QSAHostPrefixCache(params)
 
     def test_finished_request_releases_owned_pages(self):
         req = self.req("finished", range(64))
-        self.a.req_pool.alloc([req])
+        allocate_rows(self.a.req_pool, [req])
         allocator = self.a.runner.token_to_kv_pool_allocator
         indices = allocator.alloc(64)
         self.a.req_table[req.kv.req_pool_idx, :64] = indices.int()
@@ -424,6 +432,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
             session=None,
             last_node=None,
             best_match_node=None,
+            staged_prefetch_plan=None,
             host_hit_length=0,
             host_loaded_length=0,
             lock=None,
@@ -432,7 +441,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
 
     def source(self, length=128):
         req = self.req("source", range(length))
-        self.a.req_pool.alloc([req])
+        allocate_rows(self.a.req_pool, [req])
         pages = self.a.runner.token_to_kv_pool_allocator.alloc(length)
         # Reverse full page order: compressed keys follow logical physical pages,
         # while raw staging follows token positions. The oracle does neither gather.
@@ -479,7 +488,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         self.cache._capture(req)
         lease = self.a.release(req.kv.req_pool_idx, req.rid)
         self.a.runner.token_to_kv_pool_allocator.free(pages)
-        self.a.req_pool.free_mamba_cache(req)
+        self.a.req_pool.state.release(self.a.req_pool, req)
         self.a.req_pool.free(req)
         req.kv.mark_kv_released()
         self.a.after_release(lease)
@@ -530,6 +539,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         return SimpleNamespace(
             tree_cache=self.cache,
             req_to_token_pool=self.a.req_pool,
+            token_to_kv_pool_allocator=self.a.runner.token_to_kv_pool_allocator,
             hisparse_coordinator=None,
             reqs=[req],
             device="cpu",
@@ -904,6 +914,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         req.cached_tokens_device = req.cached_tokens_host = 0
         req.cached_tokens_storage = 0
         req._cache_breakdown_computed = False
+        req.staged_prefetch_plan = None
         return req
 
     def prefill(self, req):
@@ -1198,7 +1209,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
         # reports completion. Keep the request owner for normal abort/drain.
         self.source(64)
         req = self.req("producer-failure", range(128))
-        self.a.req_pool.alloc([req])
+        allocate_rows(self.a.req_pool, [req])
         self.a.req_table[req.kv.req_pool_idx, :128] = (
             self.a.runner.token_to_kv_pool_allocator.alloc(128).int()
         )
@@ -1296,7 +1307,7 @@ class TestRuntimeHostPrefixes(unittest.TestCase):
                 self.accept(req)
                 self.cache.prepare_prefix_for_extend([req])
                 prefix = self.cache.prefix_device_indices(req)
-                self.a.req_pool.alloc([req])
+                allocate_rows(self.a.req_pool, [req])
                 suffix = allocator.alloc(64)[:1]
                 row = req.kv.req_pool_idx
                 self.a.req_table[row, :64] = prefix.int()

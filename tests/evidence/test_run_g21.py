@@ -71,13 +71,13 @@ def test_every_planned_script_and_test_file_exists(roots, arm, tmp_path):
     assert pythonpath.split(os.pathsep) == expected
 
 
-def test_arms_default_to_their_own_interpreters_and_the_v0_5_22_pin(evidence):
+def test_arms_default_to_their_own_interpreters_and_the_main_pin(evidence):
     run_g2 = evidence("run_g2")
     assert run_g2.FORK_ROOT.name == "sglang-dsh-production-20261004"
-    assert run_g2.PIN_ROOT.name == "sglang-v0.5.22"
+    assert run_g2.PIN_ROOT.name == "sglang-main-582168dd7c"
     assert run_g2.PYTHON == {
         "fork": run_g2.QWEN / "results/dsh-maintenance-20261004/upstream-runtime-env/bin/python",
-        "plugin": run_g2.QWEN / "results/phase6-20261018/runtime-env/bin/python",
+        "plugin": run_g2.QWEN / "results/qsa-maintenance-20261102/runtime-env/bin/python",
     }
 
 

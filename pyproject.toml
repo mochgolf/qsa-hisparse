@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sglang-qsa-hisparse"
 version = "0.1.0.dev0"
 description = "QSA HiSparse CPU KV offload and host prefix reuse as an SGLang general plugin."
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 # SGLang itself is not declared: the supported revision is a pinned commit
 # (see sglang_qsa_hisparse.PINNED_SGLANG_COMMIT), verified at activation by

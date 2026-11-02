@@ -18,56 +18,47 @@
     "sha256": "a01423fa22c635753f0b065bb8d6d1b0b5a9f791ae13865f8a94a8bb73e9a82c"
   },
   "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoE.weight_loader": {
-    "def_line": 1012,
+    "def_line": 1236,
     "file": "sglang/srt/layers/moe/fused_moe_triton/layer.py",
-    "first_line": 1012,
+    "first_line": 1236,
     "kind": "function",
-    "module_sha256": "9f892344e2f24360a755e6027e3a0022fc954f3a6961ed9cc80f9fe32ed77931",
+    "module_sha256": "d153afb66d31c794622488b941645b4bfd57749aa2ac8d1b1d151b266a88235f",
     "qualname": "FusedMoE.weight_loader",
-    "sha256": "aa83e0e5e7af6a2f042b8e6f33b57b29e4a28e73cca967e98ab50b23ca2bdd5a"
-  },
-  "sglang.srt.layers.moe.fused_moe_triton.layer.FusedMoeWeightScaleSupported": {
-    "def_line": 230,
-    "file": "sglang/srt/layers/moe/fused_moe_triton/layer.py",
-    "first_line": 230,
-    "kind": "class",
-    "module_sha256": "9f892344e2f24360a755e6027e3a0022fc954f3a6961ed9cc80f9fe32ed77931",
-    "qualname": "FusedMoeWeightScaleSupported",
-    "sha256": "aa1eddd0c2877565b97e6c734ab234496c63b5677f22faf011cb5d643c733a2b"
+    "sha256": "aeca66b230d13968fc0334ffe593d23e49d8c2cc01603896b061795362904256"
   },
   "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.apply_gptq_quant_layer": {
-    "def_line": 437,
+    "def_line": 441,
     "file": "sglang/srt/layers/quantization/auto_round.py",
-    "first_line": 437,
+    "first_line": 441,
     "kind": "function",
-    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "module_sha256": "13ee26c0b28f4be4b5ec033498928ef3e76f565f49492aaf4e2370e0e87d2298",
     "qualname": "AutoRoundConfig.apply_gptq_quant_layer",
     "sha256": "99ac25f95387ab337f0bf5f4a6887f9a1b487aa30833a4a6a0beeb63eb512612"
   },
   "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.check_cpu_support": {
-    "def_line": 281,
+    "def_line": 285,
     "file": "sglang/srt/layers/quantization/auto_round.py",
-    "first_line": 281,
+    "first_line": 285,
     "kind": "function",
-    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "module_sha256": "13ee26c0b28f4be4b5ec033498928ef3e76f565f49492aaf4e2370e0e87d2298",
     "qualname": "AutoRoundConfig.check_cpu_support",
     "sha256": "03d721227d1de151e39b561ef9c78f1e05e65197f67517128209c13f0bf74855"
   },
   "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.check_quantized": {
-    "def_line": 278,
+    "def_line": 282,
     "file": "sglang/srt/layers/quantization/auto_round.py",
-    "first_line": 278,
+    "first_line": 282,
     "kind": "function",
-    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "module_sha256": "13ee26c0b28f4be4b5ec033498928ef3e76f565f49492aaf4e2370e0e87d2298",
     "qualname": "AutoRoundConfig.check_quantized",
     "sha256": "aa0b21d0fdc699b0185146a35a2348a235f573be9cc373d0344e942b421ba7ff"
   },
   "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.get_gptq_config_kwargs": {
-    "def_line": 313,
+    "def_line": 317,
     "file": "sglang/srt/layers/quantization/auto_round.py",
-    "first_line": 313,
+    "first_line": 317,
     "kind": "function",
-    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "module_sha256": "13ee26c0b28f4be4b5ec033498928ef3e76f565f49492aaf4e2370e0e87d2298",
     "qualname": "AutoRoundConfig.get_gptq_config_kwargs",
     "sha256": "3bb627ea2fb3943255993f250a3ae5cbba230c28395b6da762f167848769da3f"
   },
@@ -76,27 +67,18 @@
     "file": "sglang/srt/layers/quantization/auto_round.py",
     "first_line": 190,
     "kind": "function",
-    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "module_sha256": "13ee26c0b28f4be4b5ec033498928ef3e76f565f49492aaf4e2370e0e87d2298",
     "qualname": "AutoRoundConfig.get_layer_config",
-    "sha256": "47f8c03e0cecb702f13fd330f8ace817c453e1cb264f0d44945690ec48e4a46a"
+    "sha256": "e696578f06ae1276fd6bfbafa315318c6c6181db8999c63a661ae9eb935ee2b8"
   },
   "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.log_gptq_default_assumptions_once": {
-    "def_line": 291,
+    "def_line": 295,
     "file": "sglang/srt/layers/quantization/auto_round.py",
-    "first_line": 291,
+    "first_line": 295,
     "kind": "function",
-    "module_sha256": "c6a603028013906ede88be3f6bbccf920f1aeade568c0b23055c7724078851a7",
+    "module_sha256": "13ee26c0b28f4be4b5ec033498928ef3e76f565f49492aaf4e2370e0e87d2298",
     "qualname": "AutoRoundConfig.log_gptq_default_assumptions_once",
     "sha256": "5d85f3ca57f38305aec6d2bfea28bc2c573fe07b0b7733d8119994e8bf0418d5"
-  },
-  "sglang.srt.layers.quantization.gptq.schemes.gptq_moe.GPTQMarlinMoEScheme.create_weights": {
-    "def_line": 180,
-    "file": "sglang/srt/layers/quantization/gptq/schemes/gptq_moe.py",
-    "first_line": 180,
-    "kind": "function",
-    "module_sha256": "135e004f7613a59aa0765cbe3d779c9bb0c459f3a199b868358759e020aaeb5d",
-    "qualname": "GPTQMarlinMoEScheme.create_weights",
-    "sha256": "413f2247be307d50eaba6e7911159b4b93a5df95b12242214db55104a32acce7"
   },
   "sglang.srt.layers.quantization.marlin_utils.check_marlin_supported": {
     "def_line": 142,
@@ -126,13 +108,13 @@
     "sha256": "3d1a0bf9cbe9162fc815c3df8725edce431ea294f523d2b7d14ebee481a2cf99"
   },
   "sglang.srt.layers.quantization.unquant.UnquantizedLinearMethod": {
-    "def_line": 465,
+    "def_line": 579,
     "file": "sglang/srt/layers/quantization/unquant.py",
-    "first_line": 465,
+    "first_line": 579,
     "kind": "class",
-    "module_sha256": "4f1d09097eb17520cb3be6756cb452c1047914c092dbd269bc668dcd6d0f5fe4",
+    "module_sha256": "994f485a8c54e3d37f9bc3a9001b8d6c7b5c1a4e7473357669d7d10423920177",
     "qualname": "UnquantizedLinearMethod",
-    "sha256": "45538bf52e06e99f17fd8a9036ca8c4d32cacdfd8edf3a9cc3b4de7862752a99"
+    "sha256": "ba7f1e04f8892a81efbe2bd88e18dc95f075e96a3ea9f5d5ef3d139c547e7ba9"
   },
   "sglang.srt.layers.quantization.utils.replace_parameter": {
     "def_line": 199,
@@ -142,14 +124,5 @@
     "module_sha256": "a5c45d9e5a35b996d254e59ecefedaae04cf3fee48b85082d4f23539741f93e2",
     "qualname": "replace_parameter",
     "sha256": "fbe1e420983cf940adc6eb284b54b29979556a42cf9447894b5db5a71c6ba431"
-  },
-  "sglang.srt.utils.common.set_weight_attrs": {
-    "def_line": 2627,
-    "file": "sglang/srt/utils/common.py",
-    "first_line": 2627,
-    "kind": "function",
-    "module_sha256": "5423d1bb153e72852306934ab56ee0b3eccab8b3ec6395dc9da0fea79f7e74da",
-    "qualname": "set_weight_attrs",
-    "sha256": "232d4fe2dfe65812ff965576ff455b24f14d0da066b98517ca8a1cb734039e94"
   }
 }

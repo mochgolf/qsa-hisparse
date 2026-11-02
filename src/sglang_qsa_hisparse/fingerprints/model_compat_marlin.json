@@ -1,10 +1,10 @@
 {
   "sglang.kernels.jit.utils.common.cache_once": {
-    "def_line": 28,
+    "def_line": 39,
     "file": "sglang/kernels/jit/utils/common.py",
-    "first_line": 28,
+    "first_line": 39,
     "kind": "function",
-    "module_sha256": "28eb4d7c984bf1df8612e55654a32e0f349ca5b6da6a1b540f7ea17e4c7853a9",
+    "module_sha256": "04800f1c10b2fad591a79babfb811e993fcf0cb804bd7b54a59283a11231d377",
     "qualname": "cache_once",
     "sha256": "8bab34167526a57f6d1b3ba01429c8a12c947d45315d86d228171bbe3adaaa13"
   },
@@ -18,20 +18,20 @@
     "sha256": "662afa471b3f812e60f80049ceaa01f678531e180c100891a7524ce7aa4a21b0"
   },
   "sglang.kernels.jit.utils.compile.loader.load_jit": {
-    "def_line": 48,
+    "def_line": 49,
     "file": "sglang/kernels/jit/utils/compile/loader.py",
-    "first_line": 47,
+    "first_line": 48,
     "kind": "function",
-    "module_sha256": "2a48d429aa1068e0b2084e271ee2c08e7dca8388aee73edd3a5e5824cf950b02",
+    "module_sha256": "f0b8341b24a535234b5a91cb1e28c717b260cf4d703c32a114eba5e08926735e",
     "qualname": "load_jit",
-    "sha256": "ab6be4d2932420cf3dbc00dec32d5555cb232615eb4de6890513504877d5a2f5"
+    "sha256": "47e9029d104b7b2ce42b024b8eb80a6235c2ea8333ee45697d70e186c9558473"
   },
   "sglang.kernels.jit.utils.compile.spec.resolve_sources": {
-    "def_line": 125,
+    "def_line": 145,
     "file": "sglang/kernels/jit/utils/compile/spec.py",
-    "first_line": 125,
+    "first_line": 145,
     "kind": "function",
-    "module_sha256": "f762d7d90adb2770988ab0d17b444496d9d611531ab136eb37b8c8707dd42b2f",
+    "module_sha256": "0e5e61335c74627519182dc2fddd66ec26dba28e178f18739c2ec9cfa724cf2a",
     "qualname": "resolve_sources",
     "sha256": "c3d1d97d5d28c8e5d91a78f4092562b9baad144c4317fa666e7537a4d48eb9e4"
   },
@@ -58,9 +58,9 @@
     "file": "sglang/kernels/ops/moe/moe_align_single_token.py",
     "first_line": 32,
     "kind": "function",
-    "module_sha256": "5815a12c30b00719496db29860353900d27225803eba16d91a3c09eaabb30498",
+    "module_sha256": "6ff55668eb239810460b058fbf560449bb49260dba40628434aacffb5db8aa51",
     "qualname": "moe_align_single_token",
-    "sha256": "1a05429158cd6685a415b79678829ada6569e31164b1a1fef77b07d7df3e0b28"
+    "sha256": "22925138249dae33b35bedd88f29d71941213734eace86998b89084f03dc6bf5"
   },
   "sglang.kernels.ops.moe.moe_topk_sum.moe_topk_sum": {
     "def_line": 34,
@@ -72,47 +72,38 @@
     "sha256": "099fb2710d6c897cdef604946d668e3c02f9f9f56a3f5e6e4d019cd679d5f6dc"
   },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.fused_marlin_moe": {
-    "def_line": 150,
+    "def_line": 140,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 149,
+    "first_line": 139,
     "kind": "function",
-    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
+    "module_sha256": "ae798192fe431d6e4e5f0788a47e4087bb087cd7c78bc219baba8f863b469f69",
     "qualname": "fused_marlin_moe",
-    "sha256": "b5b24a0f31092c10112c11159b74f10b12e69e2daec9ed6a5522fd29912eb7fe"
+    "sha256": "b8dbd23ef9924456baa389f9df5352eb7dde3c6ddd8b64dd72cb0fe5a957345f"
   },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.get_scalar_type": {
-    "def_line": 88,
+    "def_line": 90,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 88,
+    "first_line": 90,
     "kind": "function",
-    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
+    "module_sha256": "ae798192fe431d6e4e5f0788a47e4087bb087cd7c78bc219baba8f863b469f69",
     "qualname": "get_scalar_type",
     "sha256": "6fa1a08f7a18082c3f8453606e6e7213ca9d53c18595645a534db3b6744294fa"
   },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.situ_and_mul": {
-    "def_line": 60,
+    "def_line": 62,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 60,
+    "first_line": 62,
     "kind": "function",
-    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
+    "module_sha256": "ae798192fe431d6e4e5f0788a47e4087bb087cd7c78bc219baba8f863b469f69",
     "qualname": "situ_and_mul",
     "sha256": "2211c004ea6d5e68468f1039672efed3af05294a3d47257fc611682fe419a781"
   },
-  "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.swiglu_gpt_oss_sigmoid_alpha_contiguous": {
-    "def_line": 137,
-    "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 137,
-    "kind": "function",
-    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
-    "qualname": "swiglu_gpt_oss_sigmoid_alpha_contiguous",
-    "sha256": "17d2ed75a388208e0775f861e960dd8c9d77f8752b7d04c7cf31ee8f768f206f"
-  },
   "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe.swiglu_limit_func": {
-    "def_line": 110,
+    "def_line": 112,
     "file": "sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py",
-    "first_line": 110,
+    "first_line": 112,
     "kind": "function",
-    "module_sha256": "aca31e18ad10df826be80a767f959b3ac846c33de554d352ce7fe710753e19ca",
+    "module_sha256": "ae798192fe431d6e4e5f0788a47e4087bb087cd7c78bc219baba8f863b469f69",
     "qualname": "swiglu_limit_func",
     "sha256": "7ad15f80d5b0638a653437ac11eab4d270ae923eb66d50766932d4082d124bd6"
   },
@@ -121,9 +112,9 @@
     "file": "sglang/srt/layers/moe/moe_runner/triton_utils/moe_align_block_size.py",
     "first_line": 32,
     "kind": "function",
-    "module_sha256": "b9fe04c12c7ace9a32d7489907dda5ce4de7646d45713aec589e5e5cec6d1fee",
+    "module_sha256": "f38848315e75ba47cdc1988d1ff20f6bf11bbcbd5eb9e8b372d9ef5aea1a60af",
     "qualname": "moe_align_block_size",
-    "sha256": "a3868290dc96f66d3af4c37996717327f8238fc29debb32501fcab68aca28e50"
+    "sha256": "6f09229ee755071a0da891f3e9aed53f49619661ce72bcb389de71015e9fb7e2"
   },
   "sglang.srt.layers.zero_copy_context.get_moe_output": {
     "def_line": 26,
@@ -135,39 +126,39 @@
     "sha256": "93cde228de99616503dd09b1dbf47e7b80065226f42da63bd85224a6a991d7a2"
   },
   "sglang.srt.runtime_context.get_context": {
-    "def_line": 1273,
+    "def_line": 1282,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1273,
+    "first_line": 1282,
     "kind": "function",
-    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
+    "module_sha256": "3865a07b8644240dffe0dded200b5f0c4e1a0cce4e14b90ec4aef59ca459d62e",
     "qualname": "get_context",
     "sha256": "e259db7cb2d6e0339aac82725b374a0197b63969dbf34a35bbead7939eb95353"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1310,
+    "def_line": 1319,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1310,
+    "first_line": 1319,
     "kind": "function",
-    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
+    "module_sha256": "3865a07b8644240dffe0dded200b5f0c4e1a0cce4e14b90ec4aef59ca459d62e",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   },
   "sglang.srt.utils.common.direct_register_custom_op": {
-    "def_line": 3003,
+    "def_line": 2947,
     "file": "sglang/srt/utils/common.py",
-    "first_line": 3003,
+    "first_line": 2947,
     "kind": "function",
-    "module_sha256": "5423d1bb153e72852306934ab56ee0b3eccab8b3ec6395dc9da0fea79f7e74da",
+    "module_sha256": "34dc280f0679c8355bbc6f0621c0ca0476c469c4bf98c9c8544c00bf54f10e54",
     "qualname": "direct_register_custom_op",
-    "sha256": "e1e3ba11ac053980936c2f2c528a66dcef44e2d9cb1ec0f42182aa2f1b84ffce"
+    "sha256": "acfe2553d9f2f8de89c4e8008a0f02de7d7064fca0be54ce13ff997faf58d0a0"
   },
   "sglang.srt.utils.custom_op.CustomOpWrapper": {
-    "def_line": 133,
+    "def_line": 173,
     "file": "sglang/srt/utils/custom_op.py",
-    "first_line": 133,
+    "first_line": 173,
     "kind": "class",
-    "module_sha256": "d7c760c7fb45985679517561d034a8568897dd15b7a3e371aa5b1add6925f776",
+    "module_sha256": "16ce982c284ac85d437b9a6d3ccbe12e92b3ba59c9c1e3dbe0d54be48d8e0166",
     "qualname": "CustomOpWrapper",
-    "sha256": "6d47e0160e0df5288e50ab20e77b13443313b5e4fc1cd176806ea1517e180f01"
+    "sha256": "f4f0ea5c2dc454783cab02259a9f6fa54132af4a5ca098d28a354578f34f2063"
   }
 }

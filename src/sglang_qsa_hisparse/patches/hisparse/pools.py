@@ -120,7 +120,10 @@ def _bind_max_running_requests(original, self, *, sizes, **kwargs):
         "p2-offload. Mechanical edit: the QSAHiSparseSlots import is "
         "rewritten to the plugin package. "
         "The replacement keeps the pinned signature and supplies the fork's "
-        "extra max_running_requests argument from K01. hisparse: env-gated."
+        "extra max_running_requests argument from K01. Main's explicit "
+        "state_pool (#46980) is passed to the hybrid pool unchanged; recurrent "
+        "storage is selected by the caller, independently of request rows. "
+        "hisparse: env-gated."
     ),
 )
 def _build_hybrid_linear_kv_pool_adapter(self, **kwargs):
@@ -135,6 +138,7 @@ def _build_hybrid_linear_kv_pool(
     max_total_num_tokens: int,
     max_running_requests: int,
     req_to_token_pool: ReqToTokenPool,
+    state_pool,
     mha_pool_class: type,
     mla_pool_class: type,
     dsa_pool_class: type,
@@ -246,7 +250,7 @@ def _build_hybrid_linear_kv_pool(
         # if draft worker, we only need 1 attention layer's kv pool
         full_attention_layer_ids=full_attention_layer_ids,
         device=self.device,
-        mamba_pool=req_to_token_pool.mamba_pool,
+        mamba_pool=state_pool,
         enable_memory_saver=get_exec().features.enable_memory_saver,
         enable_kv_cache_copy=(get_spec().speculative_algorithm is not None),
         start_layer=self.layer_info.start_layer,
