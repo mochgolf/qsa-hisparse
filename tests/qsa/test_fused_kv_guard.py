@@ -15,6 +15,8 @@ from types import SimpleNamespace
 
 import torch
 
+from pool_routes import TypedPoolDouble
+
 from sglang.srt.layers.attention import qwen_sparse_attn_backend as qsa_backend_module
 from sglang.srt.layers.attention.qwen_sparse_attn_backend import QwenSparseAttnBackend
 from sglang.srt.model_executor.forward_batch_info import ForwardMode
@@ -38,7 +40,7 @@ class _CudaLikeTensor:
         return getattr(self._tensor, name)
 
 
-class _FakeMhaPool:
+class _FakeMhaPool(TypedPoolDouble):
     is_quantized_kv_cache = False
     dtype = torch.float8_e4m3fn
 

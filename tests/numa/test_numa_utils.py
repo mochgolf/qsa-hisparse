@@ -1,7 +1,8 @@
 """Port of production's test/registered/utils/test_numa_utils.py (897286b12a),
-run with rows U02-U04 active (tests/numa/conftest.py). Since Phase 6 it is
-the pin's (v0.5.22) file plus production's change to it (35f3c96ff4 ->
-897286b12a: the interleave tests, which need ``envs``), merged with diff3;
+run with rows U02-U04 active (tests/numa/conftest.py). The interleave
+checks retain production behavior; main now accepts CPU-only NUMA binding
+without the removed require_mempolicy parameter and strips policy flags
+before probing. The wiring test checks both interleave modes;
 otherwise unchanged apart from this docstring, the ``pytest`` import,
 ``pytestmark`` and one strict xfail for the CPU runner's hidden CUDA (an
 upstream test unrelated to the rows); production's interleave tests fail
@@ -10,7 +11,7 @@ without the rows."""
 import ctypes
 import os
 import unittest
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -65,19 +66,12 @@ class TestIsNumaAvailable(unittest.TestCase):
     @patch("sglang.srt.utils.numa_utils.shutil.which", return_value="/usr/bin/numactl")
     @patch("sglang.srt.utils.numa_utils._is_cuda", True)
     @patch("os.path.isdir", return_value=True)
-    def test_returns_false_when_mempolicy_not_permitted(
-        self, _mock_isdir, _mock_which, _mock_mempolicy
-    ):
-        self.assertFalse(_is_numa_available())
-
-    @patch("sglang.srt.utils.numa_utils._can_set_mempolicy", return_value=False)
-    @patch("sglang.srt.utils.numa_utils.shutil.which", return_value="/usr/bin/numactl")
-    @patch("sglang.srt.utils.numa_utils._is_cuda", True)
-    @patch("os.path.isdir", return_value=True)
     def test_cpu_only_accepted_when_mempolicy_not_permitted(
         self, _mock_isdir, _mock_which, _mock_mempolicy
     ):
-        self.assertTrue(_is_numa_available(require_mempolicy=False))
+        # Main keeps CPU affinity available without memory-policy permission;
+        # configure_subprocess strips the memory flags before probing instead.
+        self.assertTrue(_is_numa_available())
 
 
 class TestNumaBindWithoutMempolicy(unittest.TestCase):
@@ -625,6 +619,30 @@ class TestStripMemoryArgs(unittest.TestCase):
 
     def test_no_membind_returns_unchanged(self):
         self.assertEqual(_strip_memory_args("--cpunodebind=0"), "--cpunodebind=0")
+
+
+@pytest.mark.parametrize("interleave", [False, True])
+@pytest.mark.parametrize("mempolicy_ok", [False, True])
+def test_subprocess_strips_interleave_without_memory_policy(interleave, mempolicy_ok):
+    """Main's CPU-only path must strip the plugin's interleave policy too."""
+    with (
+        patch.dict(os.environ, {"SGLANG_NUMA_BIND_V2": "1", "SGLANG_NUMA_INTERLEAVE": str(int(interleave))}),
+        patch("sglang.srt.utils.numa_utils.get_numa_node_if_available", return_value=0),
+        patch("sglang.srt.utils.numa_utils._node_cpus", return_value={0, 1}),
+        patch("os.sched_getaffinity", return_value={0, 1}),
+        patch("sglang.srt.utils.numa_utils._can_set_mempolicy", return_value=mempolicy_ok),
+        patch("sglang.srt.utils.numa_utils._probe_numactl_args", side_effect=lambda args: (args, "")) as probe,
+        patch("sglang.srt.utils.numa_utils._create_numactl_executable", return_value=("unused", "test")) as create,
+        patch("sglang.srt.utils.numa_utils._get_nvml_device_index", return_value=0),
+        patch("sglang.srt.utils.numa_utils._mp_set_executable", return_value=nullcontext()),
+    ):
+        with configure_subprocess(MagicMock(), 0):
+            pass
+    expected = "--cpunodebind=0"
+    if mempolicy_ok:
+        expected += " --interleave=all" if interleave else " --membind=0"
+    probe.assert_called_once_with(expected)
+    create.assert_called_once_with(numactl_args=expected)
 
 
 class TestConfigureSubprocessProbeFailure(unittest.TestCase):

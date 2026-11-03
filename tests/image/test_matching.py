@@ -1,7 +1,7 @@
 """Image prefix matching (Track I acceptance 1, 2, 4, 7), counterexamples first.
 
 Every request below has equal prefix tokens to the reference ``A`` unless
-stated: all images share one pad value, which forces the 30-bit pad
+stated: all images share one pad value, which forces a pad-sentinel
 collision, so a miss can only come from the image key. ``A`` holds image
 ``X`` at ``[10, 74)`` (straddling 64) and ``Y`` at ``[100, 120)``; its
 checkpoints are at 64, 128 and 192.
@@ -16,6 +16,7 @@ import torch
 
 from image.fixtures import PAD, image_req, item, mm_inputs, positions, tokens
 from prefix import test_prefix_cache as prefix_tests
+from lifecycle.pool_fixtures import allocate_rows
 from sglang.srt.multimodal.cache.identity import build_artifact_key
 from sglang_qsa_hisparse.hisparse.image_request import BYPASS, identity_for
 from sglang_qsa_hisparse.hisparse.prefix import (
@@ -230,7 +231,7 @@ class TestImageCheckpoints(unittest.TestCase):
         return req
 
     def rows(self, req, length):
-        self.a.req_pool.alloc([req])
+        allocate_rows(self.a.req_pool, [req])
         pages = self.a.runner.token_to_kv_pool_allocator.alloc(length)
         req.pages = pages
         self.a.req_table[req.kv.req_pool_idx, :length] = pages.int()
@@ -244,7 +245,7 @@ class TestImageCheckpoints(unittest.TestCase):
     def release(self, req):
         lease = self.a.release(req.kv.req_pool_idx, req.rid)
         self.a.runner.token_to_kv_pool_allocator.free(req.pages)
-        self.a.req_pool.free_mamba_cache(req)
+        self.a.req_pool.state.release(self.a.req_pool, req)
         self.a.req_pool.free(req)
         req.kv.mark_kv_released()
         self.a.after_release(lease)

@@ -391,7 +391,10 @@ class ForkQwen4ExpForConditionalGeneration:
                     )
                 )
 
+        ple_warned_downcast = False
+
         def load_qwen4_exp_ple_shard(name: str, loaded_weight: torch.Tensor) -> bool:
+            nonlocal ple_warned_downcast
             if ".ngram_embedding.shard_" not in name:
                 return False
             import re
@@ -466,8 +469,8 @@ class ForkQwen4ExpForConditionalGeneration:
                 emb.weight.dtype == torch.float8_e4m3fn
                 and loaded_weight.dtype != torch.float8_e4m3fn
             ):
-                if not getattr(load_qwen4_exp_ple_shard, "_warned_downcast", False):
-                    load_qwen4_exp_ple_shard._warned_downcast = True
+                if not ple_warned_downcast:
+                    ple_warned_downcast = True
                     logger.warning(
                         "PLE checkpoint shards are %s but the embedding storage "
                         "is fp8 (ple_embedding_dtype / fp8 quant config); "
@@ -811,7 +814,9 @@ patch(
         "model_compat: model loading with HiSparse unset. Scope (rule 9): the "
         "copy runs only when target_model_active(), otherwise the pinned method. "
         "Copy ForkQwen4ExpForConditionalGeneration.load_weights is the "
-        "reference's definition; mechanical edits: none (every global is imported from the module the "
+        "reference's definition plus #38900's nonlocal warning state, which breaks "
+        "the nested loader's self-cycle and releases old parameter snapshots "
+        "before cyclic GC (RESOLVED E08); every global is imported from the module the "
         "pinned qwen4_exp imports it from)."
     ),
 )(

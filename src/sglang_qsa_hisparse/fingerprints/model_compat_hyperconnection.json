@@ -1,118 +1,118 @@
 {
-  "sglang.kernels.ops.elementwise.hc_mix.hc_mix": {
-    "def_line": 72,
-    "file": "sglang/kernels/ops/elementwise/hc_mix.py",
-    "first_line": 72,
-    "kind": "function",
-    "module_sha256": "d62c3e75e3d7607a7646d4d7467dc44eb531f1491b9d458f721bcb40cf1c7212",
-    "qualname": "hc_mix",
-    "sha256": "8c8508476e192813448f484c07d177b1e7f6e9251020dabe02a9d3425a6c4f28"
-  },
-  "sglang.kernels.ops.elementwise.hc_mix.permute_pad_up_weight": {
-    "def_line": 24,
-    "file": "sglang/kernels/ops/elementwise/hc_mix.py",
-    "first_line": 24,
-    "kind": "function",
-    "module_sha256": "d62c3e75e3d7607a7646d4d7467dc44eb531f1491b9d458f721bcb40cf1c7212",
-    "qualname": "permute_pad_up_weight",
-    "sha256": "aac6d88571fff16f47ef0bcb67b83862b8763dd745829fee0130a6017f636793"
-  },
   "sglang.kernels.ops.gemm.hc_mix._deterministic_inference": {
-    "def_line": 151,
+    "def_line": 153,
     "file": "sglang/kernels/ops/gemm/hc_mix.py",
-    "first_line": 151,
+    "first_line": 153,
     "kind": "function",
-    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "module_sha256": "542ef071c1c9aa9c130f41cae70da340d5c7a6f3f0a70706eb6de0b51157904b",
     "qualname": "_deterministic_inference",
     "sha256": "ab0c932cd93ca7730eb13630f3d6674e31ee35469b1b628bcad21926087e7297"
   },
   "sglang.kernels.ops.gemm.hc_mix._get_counters": {
-    "def_line": 143,
+    "def_line": 145,
     "file": "sglang/kernels/ops/gemm/hc_mix.py",
-    "first_line": 143,
+    "first_line": 145,
     "kind": "function",
-    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "module_sha256": "542ef071c1c9aa9c130f41cae70da340d5c7a6f3f0a70706eb6de0b51157904b",
     "qualname": "_get_counters",
     "sha256": "d880127b3c3224e379529fe7a2ec5db59e260ae254912b773653cecba2e53d41"
   },
   "sglang.kernels.ops.gemm.hc_mix._grid_barrier": {
-    "def_line": 20,
+    "def_line": 22,
     "file": "sglang/kernels/ops/gemm/hc_mix.py",
-    "first_line": 19,
+    "first_line": 21,
     "kind": "function",
-    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "module_sha256": "542ef071c1c9aa9c130f41cae70da340d5c7a6f3f0a70706eb6de0b51157904b",
     "qualname": "_grid_barrier",
     "sha256": "b10fa9262dcc838056455b5990825edc9bac9f924387987b0357bbe5c63e8fb5"
   },
   "sglang.kernels.ops.gemm.hc_mix._hc_mix_persistent_kernel": {
-    "def_line": 27,
+    "def_line": 29,
     "file": "sglang/kernels/ops/gemm/hc_mix.py",
-    "first_line": 26,
+    "first_line": 28,
     "kind": "function",
-    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "module_sha256": "542ef071c1c9aa9c130f41cae70da340d5c7a6f3f0a70706eb6de0b51157904b",
     "qualname": "_hc_mix_persistent_kernel",
     "sha256": "5b5ee134ca795d0aa7f67d3ac09f94b82273f8f39c32b373ada5327583ff3333"
   },
   "sglang.kernels.ops.gemm.hc_mix.fused_hc_mix": {
-    "def_line": 182,
+    "def_line": 184,
     "file": "sglang/kernels/ops/gemm/hc_mix.py",
-    "first_line": 182,
+    "first_line": 184,
     "kind": "function",
-    "module_sha256": "86b5e919cc257744a1f635ab0959179c37df514624070265e219e9b363c8a0f7",
+    "module_sha256": "542ef071c1c9aa9c130f41cae70da340d5c7a6f3f0a70706eb6de0b51157904b",
     "qualname": "fused_hc_mix",
-    "sha256": "36ab68033f1f5d2cee5576581dc74690ffaa0f9793f830c8f67204f4aa74b482"
+    "sha256": "82e67dca6a5809296235d2a9605dbce16d29790be96359fe1bda19897f34ab3c"
+  },
+  "sglang.kernels.ops.gemm.hc_mix_splitk.hc_mix": {
+    "def_line": 62,
+    "file": "sglang/kernels/ops/gemm/hc_mix_splitk.py",
+    "first_line": 62,
+    "kind": "function",
+    "module_sha256": "e32056cbe4cb76d75784284d43113d2e1ebce87574c38f9f182980beff055fcd",
+    "qualname": "hc_mix",
+    "sha256": "8c8508476e192813448f484c07d177b1e7f6e9251020dabe02a9d3425a6c4f28"
+  },
+  "sglang.kernels.ops.gemm.hc_mix_splitk.permute_pad_up_weight": {
+    "def_line": 13,
+    "file": "sglang/kernels/ops/gemm/hc_mix_splitk.py",
+    "first_line": 13,
+    "kind": "function",
+    "module_sha256": "e32056cbe4cb76d75784284d43113d2e1ebce87574c38f9f182980beff055fcd",
+    "qualname": "permute_pad_up_weight",
+    "sha256": "aac6d88571fff16f47ef0bcb67b83862b8763dd745829fee0130a6017f636793"
   },
   "sglang.srt.layers.hyperconnection.GatedResidual.__init__": {
-    "def_line": 122,
+    "def_line": 127,
     "file": "sglang/srt/layers/hyperconnection.py",
-    "first_line": 122,
+    "first_line": 127,
     "kind": "function",
-    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
+    "module_sha256": "7c3b6a01a0fc3b4285916b69a6953c07ca2d43bd7628d7dfcda0882bb5ad22a0",
     "qualname": "GatedResidual.__init__",
-    "sha256": "50dfdf501e0273325a98819fe762ea944591d1130c5a107837f3303780579cc3"
+    "sha256": "a869c2b99110af95292b41cc49815d679124b8b892013d0d04b5abdc78cb9363"
   },
   "sglang.srt.layers.hyperconnection.GatedResidual.combine": {
-    "def_line": 353,
+    "def_line": 383,
     "file": "sglang/srt/layers/hyperconnection.py",
-    "first_line": 353,
+    "first_line": 383,
     "kind": "function",
-    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
+    "module_sha256": "7c3b6a01a0fc3b4285916b69a6953c07ca2d43bd7628d7dfcda0882bb5ad22a0",
     "qualname": "GatedResidual.combine",
     "sha256": "45dab4075e9743b1b58ccfb5b1584bd985a0870c615cba90d94cc1043926081d"
   },
   "sglang.srt.layers.hyperconnection.GatedResidual.combine_and_normalize": {
-    "def_line": 318,
+    "def_line": 348,
     "file": "sglang/srt/layers/hyperconnection.py",
-    "first_line": 318,
+    "first_line": 348,
     "kind": "function",
-    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
+    "module_sha256": "7c3b6a01a0fc3b4285916b69a6953c07ca2d43bd7628d7dfcda0882bb5ad22a0",
     "qualname": "GatedResidual.combine_and_normalize",
     "sha256": "faf48ef5b5486f9e2dbc263136da594d64cf1df072947961c63895dc5430917e"
   },
   "sglang.srt.layers.hyperconnection.GatedResidual.mix": {
-    "def_line": 236,
+    "def_line": 254,
     "file": "sglang/srt/layers/hyperconnection.py",
-    "first_line": 236,
+    "first_line": 254,
     "kind": "function",
-    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
+    "module_sha256": "7c3b6a01a0fc3b4285916b69a6953c07ca2d43bd7628d7dfcda0882bb5ad22a0",
     "qualname": "GatedResidual.mix",
-    "sha256": "ec3a9b153daaf5dd105184c095773867cd848ff2c7c301037e4c7244ca634524"
+    "sha256": "198e6387d9b98d30c3cc2ca396c5323363cbc4012c65017dd419f4005ea5b493"
   },
   "sglang.srt.layers.hyperconnection.GroupedGemmaRMSNorm.forward": {
-    "def_line": 51,
+    "def_line": 56,
     "file": "sglang/srt/layers/hyperconnection.py",
-    "first_line": 51,
+    "first_line": 56,
     "kind": "function",
-    "module_sha256": "b3b7a0567cef500ca806e790aebcc94262741eb4a5d5f0d2c3c3cb53880a4801",
+    "module_sha256": "7c3b6a01a0fc3b4285916b69a6953c07ca2d43bd7628d7dfcda0882bb5ad22a0",
     "qualname": "GroupedGemmaRMSNorm.forward",
     "sha256": "26a5de55e7d1a922c5ade4c88b9c1f99da8aa494f3829173ffdf6774acb04516"
   },
   "sglang.srt.runtime_context.get_exec": {
-    "def_line": 1310,
+    "def_line": 1319,
     "file": "sglang/srt/runtime_context.py",
-    "first_line": 1310,
+    "first_line": 1319,
     "kind": "function",
-    "module_sha256": "1b4e9cc6d9afa941d7d4619dab1f434a5b83072fe60f165008e68c3740e54aab",
+    "module_sha256": "3865a07b8644240dffe0dded200b5f0c4e1a0cce4e14b90ec4aef59ca459d62e",
     "qualname": "get_exec",
     "sha256": "3322e746f741889a4354d8d1f4aedb31f6699b6b307f79b4fb9d64f713c25e59"
   }

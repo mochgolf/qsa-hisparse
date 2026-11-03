@@ -15,6 +15,8 @@ from types import SimpleNamespace
 from unittest.mock import PropertyMock, patch
 
 import pytest
+
+from pool_routes import TypedPoolDouble
 import torch
 
 from sglang.srt.layers.attention import qwen_sparse_attn_backend as backend_module
@@ -31,7 +33,7 @@ class _Stop(Exception):
     """Ends a call at the observed point."""
 
 
-class _Pool:
+class _Pool(TypedPoolDouble):
     qsa_compress_ratio = 4
     qsa_token_topk = 8
     qsa_compressed_page_size = 64
@@ -244,7 +246,7 @@ def test_fast_topk_builds_the_overflow_fixed_kernel_only_for_the_target_model(
     )
 
 
-class _Fp8MhaPool:
+class _Fp8MhaPool(TypedPoolDouble):
     is_quantized_kv_cache = False
     dtype = FP8
 
@@ -556,3 +558,40 @@ def test_graph_capture_plans_the_fa2_wrapper_for_plain_decode_only():
             seq_lens=None, forward_mode=mode, spec_info=spec_info,
         )
     assert planned == [(3, 2, 256, torch.bfloat16)]
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_batch_invariant_decode_scores_all_rows_without_native_fast_topk(
+    target_model, monkeypatch, active
+):
+    target_model(active)
+    published = SimpleNamespace(is_config_namespace_published=lambda name: True)
+    config = SimpleNamespace(
+        deterministic=SimpleNamespace(enable_deterministic_inference=False)
+    )
+    monkeypatch.setattr(f"{COMPAT}.get_context", lambda: published)
+    monkeypatch.setattr(f"{COMPAT}.get_exec", lambda: config)
+    selected = torch.zeros((1, 512), dtype=torch.int32)
+    scored = []
+
+    def mqa_decode(*args, min_scored_len=0):
+        scored.append(min_scored_len)
+        return torch.zeros(1, 513)
+
+    for module in (COMPAT, qsa_indexer.__name__):
+        monkeypatch.setattr(f"{module}.is_batch_invariant_mode_enabled", lambda: True)
+        monkeypatch.setattr(f"{module}.qsa_mqa_decode", mqa_decode)
+        monkeypatch.setattr(f"{module}.qsa_fast_topk", lambda *a, **k: selected)
+        monkeypatch.setattr(f"{module}.expand_qsa_block_indices", lambda b, *a, **k: b)
+
+    def native_forbidden(*args, **kwargs):
+        pytest.fail("batch-invariant decode bypassed generic deterministic selection")
+
+    monkeypatch.setattr("sglang.kernels.ops.attention.fast_topk.fast_topk", native_forbidden)
+    indexer = SimpleNamespace(block_topk=512, compress_ratio=4, token_topk=2048)
+    with patch.object(torch.Tensor, "is_cuda", new_callable=PropertyMock, return_value=True):
+        actual = qsa_indexer.QSAIndexer.select_decode_tokens(
+            indexer, torch.zeros(1, 1), None, None, torch.tensor([513]), 2052, None, None
+        )
+    assert actual is selected
+    assert scored == [0]

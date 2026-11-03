@@ -11,6 +11,8 @@ checkpointed) also gives the request's mamba slot back.
 import unittest
 
 from prefix import test_prefix_cache as prefix_tests
+from lifecycle.pool_fixtures import allocate_rows
+
 from sglang.srt.mem_cache import common
 from sglang.srt.runtime_context import get_context
 
@@ -36,7 +38,7 @@ class TestReleaseDropsPendingMatch(unittest.TestCase):
         self.assertEqual(self.match(req), 64)
         self.assertEqual(self.a.prefix_cache.stats()["prefix_cache_readers"], 1)
         # The request holds a row, its recurrent slot and one page of KV.
-        self.a.req_pool.alloc([req])
+        allocate_rows(self.a.req_pool, [req])
         allocator = self.a.runner.token_to_kv_pool_allocator
         logical = allocator.available_size()
         pages = allocator.alloc(64)

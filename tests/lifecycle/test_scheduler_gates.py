@@ -13,6 +13,8 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 import torch
 
+from lifecycle.pool_fixtures import tree_slots
+
 from sglang.srt.disaggregation.utils import DisaggregationMode
 from sglang.srt.managers.schedule_batch import (
     FINISH_ABORT,
@@ -150,6 +152,7 @@ def test_a_qsa_coordinator_owns_the_prefill_to_decode_transition():
     coordinator.collect_ready_reqs.return_value = []
     running = MagicMock(is_prefill_only=False, batch_is_full=True)
     running.is_empty.return_value = True
+    running.batch_size.return_value = 0
     last_batch = MagicMock()
     last_batch.forward_mode.is_extend.return_value = True
     passthrough = MagicMock(side_effect=lambda batch, **_: batch)
@@ -158,7 +161,8 @@ def test_a_qsa_coordinator_owns_the_prefill_to_decode_transition():
         dllm_config=None,
         enable_hisparse=False,
         hisparse_coordinator=coordinator,
-        enable_fpm=False,
+        invariant_checker=Mock(),
+        running_reqs=Mock(),
         enable_hierarchical_cache=True,
         enable_hicache_storage=False,
         tree_cache=SimpleNamespace(check_hicache_events=Mock()),
@@ -202,6 +206,7 @@ def test_lease_admission_is_one_request_per_free_slot_and_none_during_prefill():
     with patch("sglang.srt.managers.scheduler.get_parallel", return_value=parallel):
         assert s.get_num_allocatable_reqs(0) == 1
         assert s.get_num_allocatable_reqs(0, 1) == 1
+        assert s.get_num_allocatable_reqs(0, num_held_rows=1) == 1
         with pytest.raises(ValueError, match="beam/prefix ownership"):
             s.get_num_allocatable_reqs(0, 2)
         for row in (1, 2):
@@ -226,7 +231,8 @@ def test_idle_pool_leak_checks_are_skipped_while_a_coordinator_exists(coordinato
         **{
             name: MagicMock()
             for name in (
-                "dp_attn_adapter",  # v0.5.22: drop_sync_wait_carry() first.
+                "dp_attn_adapter",
+                "deferred_responses",
                 "scheduler_stage_metrics",
                 "invariant_checker",
                 "pool_stats_observer",
@@ -243,6 +249,7 @@ def test_idle_pool_leak_checks_are_skipped_while_a_coordinator_exists(coordinato
         },
     )
     s.is_fully_idle = lambda: True
+    s.deferred_responses.has_pending.return_value = False
     s.invariant_checker._check_all_pools.return_value = (False, [])
     s.token_to_kv_pool_allocator.verify_byte_accounting.return_value = []
 
@@ -269,6 +276,8 @@ def test_staging_requests_keep_the_scheduler_busy_except_for_health_checks():
         _engine_paused=False,
         disaggregation_mode=DisaggregationMode.NULL,
         grammar_manager=SimpleNamespace(grammar_queue=[]),
+        request_receiver=SimpleNamespace(has_pending=lambda: False),
+        uocr_runtime=None,
         enable_hisparse=False,
         enable_hierarchical_cache=False,
         enable_lmcache=False,
@@ -287,6 +296,8 @@ def test_staging_requests_keep_the_scheduler_busy_except_for_health_checks():
 
 
 class StagedReq:
+    request_finish = Req.request_finish
+
     rid = "staged"
     to_finish = None
 
@@ -300,6 +311,8 @@ def test_abort_reaches_requests_waiting_in_qsa_staging(leases):
     s = scheduler(
         chunked_req=None,
         mm_receiver=None,
+        deferred_responses=Mock(),
+        uocr_runtime=None,
         waiting_queue=[],
         dllm_config=None,
         grammar_manager=Mock(),
@@ -363,6 +376,7 @@ def test_prefill_results_stage_qsa_leases_without_notifying_finished_ones(
         auxiliary_host_output=None,
         routed_experts_output=None,
         indexer_topk_output=None,
+        kv_weight_version_record=None,
         logits_output=SimpleNamespace(
             hidden_states=None, customized_info=None, sampling_mask_output=None
         ),
@@ -379,11 +393,14 @@ def test_prefill_results_stage_qsa_leases_without_notifying_finished_ones(
         disaggregation_mode=None,
         enable_overlap=False,
         enable_overlap_mlx=False,
-        model_config=SimpleNamespace(think_end_ids=None),
+        model_config=SimpleNamespace(
+            think_end_ids=None, self_opened_think_start_ids=None
+        ),
         token_to_kv_pool_allocator=Mock(),
         tree_cache="tree-cache",
         hisparse_coordinator=coordinator,
         req_to_token_pool=None,
+        kv_weight_version_tracker=None,
         decode_offload_manager=None,
         metrics_collector=None,
         metrics_reporter=Mock(),
@@ -427,13 +444,16 @@ def test_a_released_request_notifies_the_coordinator_once_before_the_worker(
         disaggregation_mode=None,
         enable_overlap=False,
         enable_overlap_mlx=False,
-        model_config=SimpleNamespace(think_end_ids=None),
+        model_config=SimpleNamespace(
+            think_end_ids=None, self_opened_think_start_ids=None
+        ),
         token_to_kv_pool_allocator=Mock(),
         tree_cache="tree-cache",
         hisparse_coordinator=SimpleNamespace(
             request_finished=lambda req: events.append("request_finished")
         ),
         req_to_token_pool=None,
+        kv_weight_version_tracker=None,
         decode_offload_manager=None,
         metrics_collector=None,
         metrics_reporter=Mock(),
@@ -529,7 +549,7 @@ def disabled_cache(cache_class=UnifiedRadixCache):
             req_to_token_pool=pool,
             token_to_kv_pool_allocator=allocator,
             page_size=64,
-            tree_components=(ComponentType.FULL,),
+            tree_slots=tree_slots(ComponentType.FULL),
         )
     )
 

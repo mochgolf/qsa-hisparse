@@ -82,6 +82,17 @@ PIN_EDITS: dict[str, tuple[tuple[bytes, bytes], ...]] = {
     # v0.5.22 alloc_for_extend calls allocate_spec_scratch on every prefill
     # batch's HiSparse coordinator (#37771); QSA P2 runs without speculation.
     "coordinator.py": (
+        # Main's scheduler lists live request holders through each coordinator;
+        # invariant and pool observers read that list before and after staging.
+        # This is an additive protocol method, exactly the native coordinator's
+        # ordered staging-queue projection; no lease or admission logic changes.
+        (
+            b"    def has_ongoing_staging(self):\n",
+            b"    def request_lists(self):\n"
+            b"        return {\"hisparse_staging\": [act.req for act in self.ack_staging_queue]}\n"
+            b"\n"
+            b"    def has_ongoing_staging(self):\n",
+        ),
         (
             b"    def wait_for_pending_backup(self):\n",
             b"    def allocate_spec_scratch(self, req_pool_indices):\n"

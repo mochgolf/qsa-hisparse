@@ -17,6 +17,8 @@ routing coverage, not GPU validation.
 from types import SimpleNamespace
 
 import pytest
+
+from pool_routes import TypedPoolDouble
 import torch
 
 from sglang_qsa_hisparse.patches.model_compat import (  # port edit
@@ -46,7 +48,7 @@ class _CudaLikeTensor:
         return getattr(self._tensor, name)
 
 
-class _Fp8Pool:
+class _Fp8Pool(TypedPoolDouble):
     """Minimal FP8 pool implementing the documented divide-then-cast write."""
 
     dtype = torch.float8_e4m3fn

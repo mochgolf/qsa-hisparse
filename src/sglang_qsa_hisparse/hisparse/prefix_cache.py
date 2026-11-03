@@ -19,6 +19,7 @@ import torch
 
 from sglang.srt.environ import envs
 from sglang.srt.mem_cache.unified_radix_cache import UnifiedRadixCache
+from sglang.srt.mem_cache.static_kv_storage import kv_storage_of
 from sglang_qsa_hisparse.hisparse.image_identity import ImagePrefixIdentity
 from sglang_qsa_hisparse.hisparse.image_request import identity_for
 from sglang_qsa_hisparse.hisparse.prefix import image_key, key_digest, token_bytes
@@ -278,7 +279,9 @@ class QSAHostPrefixCache(UnifiedRadixCache):
                 self.token_to_kv_pool_allocator.free(torch.cat(allocations))
                 record["prefix"] = record["suffix"] = None
             if req.kv.mamba_pool_idx is not None:
-                self.req_to_token_pool.free_mamba_cache(req)
+                kv_storage_of(
+                    self.req_to_token_pool, self.token_to_kv_pool_allocator
+                ).release_state_slot(req)
             if req.kv.req_pool_idx is not None:
                 self.req_to_token_pool.free(req)
             req.kv.mark_kv_released()

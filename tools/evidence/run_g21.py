@@ -12,7 +12,7 @@ pin: the ported Marlin test (which runs production's whole-K script), the same
 production probes through ``plugin_probe.py``, the ported step-8 files (8a,
 ``--runxfail``) and the pin's unmodified files under the probe (8b). Each arm
 uses its interpreter, run_g2.PYTHON[arm] (production's for the fork arm, the
-Phase 6 one for the plugin arm on the pin v0.5.22), with
+maintenance one for the plugin arm on the current pin), with
 ``CUDA_VISIBLE_DEVICES=0``; PATH and CUDA_HOME (JIT builds) come from the
 caller.
 
@@ -21,10 +21,10 @@ command, directory and exit status. All steps run; the exit status is 0 only
 if every step passed. Compare afterwards: the JSON reports of steps 3-7 per
 case, and ``pytest_outcomes.py --fork <F>/step8.log --plugin <P>/step8a.log
 <P>/step8b.log --inventory g21_step8_inventory_35f3c96ff4.txt
---plugin-inventory g21_step8_inventory_v0.5.22.txt`` (step 8a runs with
+--plugin-inventory g21_step8_inventory_582168dd7c.txt`` (step 8a runs with
 ``--runxfail``, so a strict xfail port reports its exception; known failures,
 if any, as observed in the fork arm). The plugin inventory adds the upstream
-tests v0.5.22's 8b files gained, which have no fork counterpart and must pass
+tests the main snapshot's 8b files gained, which have no fork counterpart and must pass
 in the plugin arm.
 """
 

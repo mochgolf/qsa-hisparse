@@ -36,10 +36,13 @@ def _runner(**extra):
         eagle_aux_hidden_state_layer_ids=None,
         dflash_use_aux_hidden_state=False,
         dflash_target_layer_ids=None,
+        is_dspark=False,
     )
     runner.spec_algorithm = SimpleNamespace(is_dspark=lambda: False)
-    runner.kv_index_translator = SimpleNamespace(
-        bind_and_verify_backends=lambda *a: None
+    bound_backends = []
+    runner.runner_ids = SimpleNamespace(
+        bind_and_verify_backends=bound_backends.extend,
+        bound_backends=bound_backends,
     )
     runner.token_to_kv_pool = SimpleNamespace(
         qsa_hisparse=SimpleNamespace(uses_qsa_hisparse_leases=True)
@@ -110,7 +113,7 @@ def test_init_attention_backends_passes_the_live_tp_cpu_group(
     assert group == LIVE_GROUP
     assert adapter is runner.token_to_kv_pool.qsa_hisparse
     assert runner.attn_backend == "prefill-backend"
-    assert runner.decode_attn_backend == "decode-backend"
+    assert runner.runner_ids.bound_backends == ["prefill-backend"]
 
 
 def test_init_attention_backends_ignores_a_stale_runner_group(

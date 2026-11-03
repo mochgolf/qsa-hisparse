@@ -7,6 +7,8 @@ import sys
 from types import MethodType, ModuleType, SimpleNamespace
 
 import pytest
+
+from pool_routes import TypedPoolDouble
 import torch
 
 from sglang.kernels.ops.attention import qwen38_qsa_sm121_varlen
@@ -124,7 +126,7 @@ def test_qsa_cached_prefix_extend_applies_non_unit_fp8_descales():
     k = torch.randn(total, 1, head_dim, device=device)
     v = torch.randn(total, 1, head_dim, device=device)
 
-    class Pool:
+    class Pool(TypedPoolDouble):
         dtype = torch.float8_e4m3fn
 
         def __init__(self):
@@ -250,8 +252,8 @@ def test_qsa_trtllm_sparse_decode_arch_gate(
     flashinfer_decode = ModuleType("flashinfer.decode")
     flashinfer_decode.trtllm_batch_decode_with_kv_cache = trtllm_decode_func
 
-    monkeypatch.setattr("sglang.srt.utils.is_sm100_supported", lambda: sm100)
-    monkeypatch.setattr("sglang.srt.utils.is_sm120", lambda: sm120)
+    monkeypatch.setattr(qsa_backend_module, "is_sm100_supported", lambda: sm100)
+    monkeypatch.setattr(qsa_backend_module, "is_sm120", lambda: sm120)
     monkeypatch.setitem(sys.modules, flashinfer_decode.__name__, flashinfer_decode)
 
     try:
@@ -463,6 +465,7 @@ def test_qsa_glue_fetches_indexer_metadata_without_model_unwrap():
 
     full = SimpleNamespace(
         get_indexer_metadata=lambda layer_id, forward_batch: f"meta-{layer_id}",
+        runner_ids=None,
         token_to_kv_pool=None,
         req_to_token_pool=None,
         kv_index_translator=None,
@@ -641,6 +644,7 @@ def test_qsa_indexer_ignores_dp_attention_token_padding():
             compress_member_rows=None,
             decode_logical_positions=None,
             pending_ring_slots=None,
+            prefill_max_row_keys=lambda seq_lens_cpu: None,
             get_token_to_batch_idx=lambda: mapping,
             get_prefill_mqa_inputs=lambda layer_id, logical_positions: (
                 torch.empty(0, 1, 128),
@@ -666,7 +670,7 @@ def test_qsa_indexer_ignores_dp_attention_token_padding():
                     rope_rows=rope.numel(),
                 )
             ),
-            select_prefill_tokens=lambda q, keys, starts, ends, logical, lengths: (
+            select_prefill_tokens=lambda q, keys, starts, ends, logical, lengths, max_row_keys=None: (
                 q.squeeze(1)
             ),
         )
@@ -747,7 +751,7 @@ def _make_paged_extend_backend():
     backend = QwenSparseAttnBackend()
     backend.forward_metadata = metadata
 
-    class Pool:
+    class Pool(TypedPoolDouble):
         def set_kv_buffer(self, layer, loc, k, v):
             pass
 
@@ -1116,7 +1120,7 @@ class _DispatchIndexer:
         rows = hidden_states.shape[0]
         return torch.zeros(rows, 4, 128), torch.zeros(rows, 1, 128), False
 
-    def select_prefill_tokens(self, *args):
+    def select_prefill_tokens(self, *args, max_row_keys=None):
         self.selected = "prefill"
         return torch.tensor([1])
 
@@ -1131,6 +1135,7 @@ class _DispatchIndexer:
 
 
 class _DispatchMetadata:
+    prefill_max_row_keys = staticmethod(lambda seq_lens_cpu: None)
     token_to_kv_pool = None
     out_cache_loc = None
     compress_member_rows = None

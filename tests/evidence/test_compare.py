@@ -416,3 +416,81 @@ def test_observer_files_are_optional_without_the_requirement(arms, capsys):
     status, out = run(compare, fork, plugin, capsys, "--require-observer", "2")
     assert status == 1
     assert out.count("lacks a capture or a restore") == 4
+
+
+def edit_first_graph(arm, change):
+    """Change one synthetic graph record; all other evidence stays identical."""
+    path = arm / "events" / "rank-0.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    change(next(row for row in rows if row["event"] == "graph_capture_complete"))
+    write_jsonl(path, rows)
+
+
+@pytest.mark.parametrize("missing_arm", ["F", "P"])
+def test_graph_key_missing_stream_idx_equals_explicit_none(arms, capsys, missing_arm):
+    compare, fork, plugin, _ = arms
+    explicit = plugin if missing_arm == "F" else fork
+    edit_first_graph(explicit, lambda row: row["graph_key"].update(stream_idx=None))
+    paths = [arm / "events" / "rank-0.jsonl" for arm in (fork, plugin)]
+    originals = [path.read_bytes() for path in paths]
+    status, out = run(compare, fork, plugin, capsys, "--require-observer", "2")
+    assert status == 0, out
+    assert "OK   events/rank-0.jsonl (6 items)" in out
+    assert [path.read_bytes() for path in paths] == originals
+
+
+@pytest.mark.parametrize("stream_idx", [0, 1])
+def test_nonnull_graph_stream_idx_cannot_equal_missing(arms, capsys, stream_idx):
+    compare, fork, plugin, _ = arms
+    edit_first_graph(fork, lambda row: row["graph_key"].update(stream_idx=stream_idx))
+    status, out = run(compare, fork, plugin, capsys)
+    assert status == 1
+    assert "DIFF events/rank-0.jsonl" in out
+    graph = next(value for key, value in compare.ledger_items(fork / "events/rank-0.jsonl")
+        if key == "graph_capture_complete")
+    assert graph["graph_key"]["stream_idx"] == stream_idx
+
+
+@pytest.mark.parametrize("stream_idx", [0, 1])
+def test_equal_nonnull_graph_stream_idx_is_preserved(arms, capsys, stream_idx):
+    compare, fork, plugin, _ = arms
+    for arm in (fork, plugin):
+        edit_first_graph(arm, lambda row: row["graph_key"].update(stream_idx=stream_idx))
+    status, out = run(compare, fork, plugin, capsys)
+    assert status == 0, out
+
+
+@pytest.mark.parametrize("difference", [
+    "batch", "dtype", "shape", "bytes", "counter", "nested_stream_idx",
+    "buffer_stream_idx", "top_level_stream_idx", "missing_graph_key",
+])
+def test_graph_stream_schema_adapter_preserves_every_other_difference(arms, capsys, difference):
+    compare, fork, plugin, _ = arms
+    edit_first_graph(fork, lambda row: row["graph_key"].update(stream_idx=None))
+    if difference == "batch":
+        edit_first_graph(plugin, lambda row: row["graph_key"].update(bs=3))
+    elif difference in ("dtype", "shape", "bytes"):
+        value = {"dtype": "torch.bfloat16", "shape": [2], "bytes": 8}[difference]
+        edit_first_graph(plugin, lambda row: row["graph_buffers"]["real"].update({difference: value}))
+    elif difference == "counter":
+        edit_first_graph(fork, lambda row: row.update(graph_capture_count=1))
+        edit_first_graph(plugin, lambda row: row.update(graph_capture_count=2))
+    elif difference == "nested_stream_idx":
+        edit_first_graph(fork, lambda row: row["graph_key"].update(nested={"stream_idx": None}))
+        edit_first_graph(plugin, lambda row: row["graph_key"].update(nested={}))
+    elif difference == "buffer_stream_idx":
+        edit_first_graph(fork, lambda row: row["graph_buffers"]["real"].update(stream_idx=None))
+    elif difference == "top_level_stream_idx":
+        edit_first_graph(fork, lambda row: row.update(stream_idx=None))
+    elif difference == "missing_graph_key":
+        edit_first_graph(plugin, lambda row: row.pop("graph_key"))
+    status, out = run(compare, fork, plugin, capsys)
+    assert status == 1
+    assert "DIFF events/rank-0.jsonl" in out
+
+
+def test_stream_schema_adapter_does_not_change_generic_stripping(evidence):
+    compare = evidence("compare")
+    explicit = {"event": "other_event", "graph_key": {"stream_idx": None}}
+    missing = {"event": "other_event", "graph_key": {}}
+    assert compare.stripped(explicit) != compare.stripped(missing)

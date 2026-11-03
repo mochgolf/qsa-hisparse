@@ -11,7 +11,7 @@ request was not checkpointed), ``req_to_token_pool.free``,
 ``free_group_end`` and ``after_logical_flush``, after which the physical slot
 can be reused. M05 builds ``QSAHostPrefixCache`` (a UnifiedRadixCache) under
 ``--disable-radix-cache``; M01 records and rolls back its allocations. The
-REPLACE hook is v0.5.22's definition plus production's change (PLAN.md rules
+REPLACE hook is main 582168dd7c's definition plus production's change (PLAN.md rules
 3 and P1) and runs with this module's globals, which are imported from the
 pinned module that defines the target (inventory 6, G3).
 """
@@ -22,6 +22,7 @@ import os
 
 from sglang.srt.mem_cache.common import _release_overallocated_kv_indices
 from sglang.srt.mem_cache.registry import create_unified_radix_cache
+from sglang.srt.mem_cache.static_kv_storage import kv_storage_of
 from sglang_qsa_hisparse.features import HISPARSE
 from sglang_qsa_hisparse.hisparse.prefix_cache import QSAHostPrefixCache
 from sglang_qsa_hisparse.patching import patch
@@ -98,6 +99,10 @@ def _notify_logical_flush(result, self):
         f"{ALLOCATION}.alloc_req_slots",
         f"{ALLOCATION}.write_cache_indices",
         f"{ALLOCATION}.alloc_paged_token_slots_extend",
+        "sglang.srt.mem_cache.static_kv_storage.kv_storage_of",
+        "sglang.srt.mem_cache.static_kv_storage.acquire_rows",
+        "sglang.srt.mem_cache.static_kv_storage.StaticKVStorage",
+        "sglang.srt.mem_cache.kv.state_storage.StateStorage",
         f"{URC}.prefix_device_indices",
         f"{URC}.maybe_hand_to_session",
     ),
@@ -131,7 +136,7 @@ def _roll_back_failed_extend(original, batch):
         raise
 
 
-# v0.5.22 mem_cache/common.py:378-422 with production's change.
+# main 582168dd7c mem_cache/common.py:449-495 with production's change.
 @patch(
     "sglang.srt.mem_cache.common.release_kv_cache",
     "replace",
@@ -139,6 +144,9 @@ def _roll_back_failed_extend(original, batch):
     row="M03",
     depends=(
         "sglang.srt.mem_cache.common._release_overallocated_kv_indices",
+        "sglang.srt.mem_cache.static_kv_storage.kv_storage_of",
+        "sglang.srt.mem_cache.static_kv_storage.StaticKVStorage.release_row",
+        "sglang.srt.mem_cache.static_kv_storage.StaticKVStorage.release_state_slot",
         "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free",
         "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.claim_kv_row",
         "sglang.srt.mem_cache.base_prefix_cache.BasePrefixCache.checkpoint",
@@ -177,18 +185,16 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, *, checkpoint: bool)
         )
         # TODO (csy, hanming): clean up this early allocation logic
         if req.kv.holds_mamba:
-            tree_cache.req_to_token_pool.mamba_allocator.free(
-                req.kv.mamba_pool_idx.unsqueeze(-1)
-            )
-            req.kv.mamba_pool_idx = None
+            kv_storage_of(
+                tree_cache.req_to_token_pool, tree_cache.token_to_kv_pool_allocator
+            ).release_state_slot(req)
         return
     if tree_cache.claim_kv_row(req):
         # A streaming session detached the kv record to keep the row.
         assert not req.kv.holds_kv
         return
 
-    # The QSA host-prefix adapter captures its CPU snapshot inside the tree's
-    # ``checkpoint`` hook, and that capture must observe the live request lease.
+    # The host-prefix checkpoint must observe the live lease before draining.
     qsa_hisparse = getattr(
         tree_cache.token_to_kv_pool_allocator.get_kvcache(), "qsa_hisparse", None
     )
@@ -214,9 +220,11 @@ def release_kv_cache(req: Req, tree_cache: BasePrefixCache, *, checkpoint: bool)
     )
     tree_cache.on_release(req, checkpointed=checkpoint)
 
-    # The DSV4-NPU ReqToTokenPool subclass's free() additionally releases the
-    # c4/c128 state pages; other ReqToTokenPool subclasses are a no-op here.
-    tree_cache.req_to_token_pool.free(req)
+    kv_storage_of(
+        tree_cache.req_to_token_pool,
+        tree_cache.token_to_kv_pool_allocator,
+        tree_cache=tree_cache,
+    ).release_row(req)
     req.kv.mark_kv_released()
     if qsa_hisparse is not None:
         qsa_hisparse.after_release(qsa_lease)
@@ -293,7 +301,10 @@ def qsa_private_host_prefix_active(params: CacheInitParams) -> bool:
         "sglang.srt.mem_cache.radix_cache.RadixKey",
         "sglang.srt.environ.Envs",
         "sglang.srt.mem_cache.memory_pool.ReqToTokenPool.free",
-        "sglang.srt.mem_cache.memory_pool.HybridReqToTokenPool.free_mamba_cache",
+        "sglang.srt.mem_cache.static_kv_storage.StaticKVStorage",
+        "sglang.srt.mem_cache.kv.state_storage.StateStorage",
+        "sglang.srt.mem_cache.cache_init_params.CacheInitParams",
+        "sglang.srt.mem_cache.registry._static_tree_shape",
         "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.alloc",
         "sglang.srt.mem_cache.allocator.paged.PagedTokenToKVPoolAllocator.free",
     ),

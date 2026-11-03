@@ -51,6 +51,9 @@ class QSAHiSparseCoordinator:
         )
         self.adapter.record("ready_parked", lease)
 
+    def request_lists(self):
+        return {"hisparse_staging": [act.req for act in self.ack_staging_queue]}
+
     def has_ongoing_staging(self):
         return bool(self.ack_staging_queue)
 

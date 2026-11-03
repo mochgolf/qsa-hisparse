@@ -4,7 +4,7 @@ FP8 K/V descales on store, extraction, prefill and reference reads, the
 SM86/SM89 flash-attention fallback, the eager decode score width,
 deterministic stable top-k, the FP8-aware sparse GQA kernels and the
 fast_topk overflow fix. Rule 2: this feature owns every QSA backend REPLACE;
-each copy is the pinned (v0.5.22) definition plus the reference's change
+each copy is the pinned main (582168dd7c) definition plus the reference's change
 (production ``897286b12a`` over ``35f3c96ff4``; PLAN.md rule P1; Q08 and T03
 are hand merges listed in ``RESOLVED``), including its ``qsa_hisparse``
 branches, which stay inert unless ``patches/hisparse/qsa_backend.py``
@@ -39,6 +39,7 @@ import msgspec
 import torch
 import torch.nn.functional as F
 
+from sglang.srt.batch_invariant_ops import is_batch_invariant_mode_enabled
 from sglang.srt.layers.attention import qwen_sparse_attn_backend as _backend
 from sglang.srt.layers.attention.qsa import metadata as _metadata
 from sglang.srt.layers.attention.qsa import qsa_indexer as _indexer
@@ -85,6 +86,23 @@ _QSA = "sglang.srt.layers.attention.qsa"
 _SPARSE_ATTN = f"{_QSA}.sparse_attn"
 _RUNTIME_CONTEXT = "sglang.srt.runtime_context"
 _FAST_TOPK = "sglang.kernels.ops.attention.fast_topk"
+
+# Q08/Q12 use typed layer reads even when HiSparse is disabled. Keep their
+# router construction, layer-wise wait and actual K/V reader identities in
+# model_compat, independently of the runtime's wider dependency inventory.
+_QSA_READ_DEPENDS = (
+    "sglang.srt.mem_cache.memory_pool.KVCache.layer_router",
+    "sglang.srt.mem_cache.memory_pool.KVCache._build_layer_router",
+    "sglang.srt.mem_cache.memory_pool.HybridLinearKVPool._build_layer_router",
+    "sglang.srt.mem_cache.kv.router.KVLayerRouter.from_layer_maps",
+    "sglang.srt.mem_cache.kv.router.KVLayerRouter.read",
+    "sglang.srt.mem_cache.kv.router.KVLayerRouter.layer",
+    "sglang.srt.mem_cache.kv.router.KVLayerRouter._wait",
+    "sglang.srt.mem_cache.kv.router.PlainPoolRouter.__init__",
+    "sglang.srt.mem_cache.kv.router.PlainPoolRouter.layer",
+    "sglang.srt.mem_cache.kv.router.KVLayer.key",
+    "sglang.srt.mem_cache.kv.router.KVLayer.value",
+)
 
 _BACKEND_METHOD_SCOPE = (
     "Scope: decided once per backend by the Q02 __init__ hook "
@@ -429,8 +447,8 @@ def forward_extend(
         metadata = self._resolve_metadata(forward_batch)
         slots = self._logical_to_physical(topk_indices, metadata)
         pool = self.token_to_kv_pool
-        k_buffer = pool.get_key_buffer(layer.layer_id)
-        v_buffer = pool.get_value_buffer(layer.layer_id)
+        k_buffer = pool.layer_router.read(layer.layer_id).key()
+        v_buffer = pool.layer_router.read(layer.layer_id).value()
         output = qsa_sparse_attention(
             q,
             k_buffer,
@@ -465,8 +483,8 @@ def forward_extend(
 
     # Current-chunk K/V has already been committed to the cache above.
     pool = self.token_to_kv_pool
-    k_buffer = pool.get_key_buffer(layer.layer_id)
-    v_buffer = pool.get_value_buffer(layer.layer_id)
+    k_buffer = pool.layer_router.read(layer.layer_id).key()
+    v_buffer = pool.layer_router.read(layer.layer_id).value()
     sequence_lens_tensor = torch.tensor(
         sequence_lens, dtype=torch.int32, device=q.device
     )
@@ -515,7 +533,7 @@ patch(
     "replace",
     feature=MODEL_COMPAT,
     row="Q08",
-    depends=(
+    depends=_QSA_READ_DEPENDS + (
         f"{_BACKEND}._forward_extend_cp",
         f"{_BACKEND}._is_speculative_paged_mode",
         f"{_BACKEND}._logical_to_physical",
@@ -910,8 +928,8 @@ def _forward_paged_attention(
     topk_indices: torch.Tensor,
 ) -> torch.Tensor:
     pool = self.token_to_kv_pool
-    k_buffer = pool.get_key_buffer(layer.layer_id)
-    v_buffer = pool.get_value_buffer(layer.layer_id)
+    k_buffer = pool.layer_router.read(layer.layer_id).key()
+    v_buffer = pool.layer_router.read(layer.layer_id).value()
     metadata = self._resolve_metadata(forward_batch)
     topk_indices = self._expand_block_indices(topk_indices, metadata)
     if not q.is_cuda:
@@ -1080,7 +1098,7 @@ patch(
     "replace",
     feature=MODEL_COMPAT,
     row="Q12",
-    depends=(
+    depends=_QSA_READ_DEPENDS + (
         f"{_BACKEND_MODULE}._resolve_trtllm_sparse_decode",
         f"{_SPARSE_ATTN}.qwen_sparse_fa2_cu_seqlens_triton",
         f"{_BACKEND}._expand_block_indices",
@@ -1212,7 +1230,12 @@ def select_decode_tokens(
     )
     # fast_topk (k = 512) writes 0..length-1 for rows that fit k without reading
     # their scores, and never reads past a row's length.
-    use_fast_topk = q.is_cuda and self.block_topk == 512 and not deterministic
+    use_fast_topk = (
+        q.is_cuda
+        and self.block_topk == 512
+        and not deterministic
+        and not is_batch_invariant_mode_enabled()
+    )
     logits = qsa_mqa_decode(
         q,
         compressed_cache,
@@ -1258,6 +1281,7 @@ patch(
     feature=MODEL_COMPAT,
     row="T03",
     depends=(
+        "sglang.srt.batch_invariant_ops.batch_invariant_ops.is_batch_invariant_mode_enabled",
         f"{_QSA}.mqa.qsa_mqa_decode",
         f"{_QSA}.kernel.expand_qsa_block_indices",
         "sglang.kernels.ops.attention.fast_topk.fast_topk",

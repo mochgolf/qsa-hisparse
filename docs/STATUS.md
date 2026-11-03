@@ -381,3 +381,56 @@ Progress log for [PLAN.md](PLAN.md). Newest entries last.
   smoke pass with prefix hits. The profile adds `~/.cargo/bin` to `PATH`
   (v0.5.22's Rust tree-core loader needs `cargo`). Rollback:
   `qwen-local-plugin-mm-20261009.json`. Phase 6 done.
+
+- Routine maintenance (2026-11-02), local branch
+  `maintenance/sglang-main-20261102`: source port to unmodified upstream main
+  `582168dd7c3821198c92766f0319b9e1c8c17bd3`. Survey and PR decisions:
+  `docs/phase7-survey.md`; results: `docs/phase7-results.md`. Preserve the
+  production reference and numerical expectations. Drop Z02 (#35955);
+  selectively adopt #38900's loader closure lifetime fix; REPLACE 26 → 25.
+  Storage/graph/QSA APIs ported. Review found and resolved main's new
+  coordinator `request_lists` protocol, premature running ownership (new
+  S10), and missing compat-only typed-router dependencies, each with concrete
+  regression evidence. S10 is in the main-only inventory (no reference fork
+  hunk). 63 manifest rows, 444 pinned fingerprints; manifest/diff checks pass.
+  Final CPU suite with historical reference enabled: 743 passed / 54 skipped /
+  29 deselected / 1 xfailed; integration 4 passed / 1 skipped, then 11 passed.
+  G7-CPU cleared by the prescribed read-only review (`reviews/G7CPU.md`);
+  the clean unit rerun followed review clearance without further source edits.
+  Separate maintenance env carries main's native requirements; production
+  and shared interpreters unchanged. Owner authorized GPU stop/regression/
+  restore windows. Initial kernels pass; full-model first-prefill divergence
+  was traced to main's new `mm.out` registration in compiled HC, using exact
+  same-input/weight operator controls on both ranks. D01 preserves the target
+  NVIDIA CUDA registration contract; QSA keeps its reference launch selector.
+  64 manifest rows and 455 fingerprints pass. Targeted remediation checks:
+  89 passed / 1 skipped; final CPU runner 772 passed / 54 skipped /
+  29 deselected / 1 xfailed, integration 4 passed / 1 skipped then 11 passed.
+  G7-CPU-remediation cleared after documentation corrections
+  (`reviews/G7CPU-remediation-2.md`).
+  Original production restored healthy after diagnostics; full GPU rerun
+  exposed a second local arithmetic delta in main's shared-expert gate warp
+  cap. D02 preserves its exact reference launcher; same-input GPU controls
+  reproduce both originals and restore F, retaining negative controls. That
+  sample's later TP sum masks the local delta, so full-model evidence is
+  still required. Final CPU runner: 787 passed / 54 skipped / 29 deselected /
+  1 xfailed; integration 4 passed / 1 skipped then 11 passed. G7-CPU-D02
+  cleared with no findings. 65 manifest rows, 457 protected definitions,
+  25 REPLACE hooks. The final GPU matrix passes: G21 exact probes and all
+  105 required outcomes (existing SM121 skip retained), G22 all 16 cases
+  through 262,016 tokens, B2/B8 concurrency, lifecycle and exact per-rank
+  state bytes, compat-only, both I5 sessions, G24 fixed allocations and G23
+  native checks. Upstream #43898 removed optional single-stream graph
+  metadata; a source-backed, narrow reader adapter equates only its missing
+  field with null. Raw failed comparison retained; complete offline rerun
+  passes all 10 files. The affected evidence CPU suite passes 141 cases,
+  separately from the earlier full 787-pass run. TileLang checks stayed
+  enabled; a bounded generated-store ownership audit closes only the
+  reported Logits-write witnesses. Exact original v0.5.22 profile restored
+  healthy at 12:59 America/Los_Angeles; text/image cold/warm smoke passes
+  with prefix hits. All 78 package files match across corrected G22 and
+  the remaining matrix; only the lock's freeform qualification note changed
+  afterwards, with unchanged versions/runtime and an explicit hash audit.
+  G7-GPU cleared with no actionable findings (`reviews/G7GPU.md`). Phase 7
+  maintenance is complete. Earlier failed reports remain unchanged. No
+  publication or production promotion performed.

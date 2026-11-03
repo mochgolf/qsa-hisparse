@@ -1,0 +1,116 @@
+# G2-1 step 8, plugin arm at pristine SGLang main 582168dd7c3821198c92766f0319b9e1c8c17bd3.
+# Frozen 2026-11-02 before GPU outcome runs, from CPU --collect-only -q:
+#   8a: plugin tests/qsa/test_qsa.py + tests/model_compat/test_hc_mix_triton.py (53 IDs).
+#   8b: pristine-main test_qsa_indexer.py + test_qsa_strided_zero_fill.py + test_hc_mix.py (53 IDs).
+# Collection used CUDA_VISIBLE_DEVICES=99; no test bodies or CUDA workloads ran.
+# 105 required outcomes + the existing exact SM121-only architecture skip below.
+# Preserves every v0.5.22 outcome and skip. #44114's two existing dtype cases
+# receive exact aliases in pytest_outcomes.RENAMED_TESTS; its new FP8/FP8 case
+# is distinct. Nine new relative-prefill/host-width cases are also required.
+# Every added case must PASS. No TileLang/memory skips or failures are accepted.
+test_hc_mix_triton.py::test_fused_hc_mix_gate_rejects_prefill_rows
+test_hc_mix_triton.py::test_fused_hc_mix_matches_reference[1-dtype0]
+test_hc_mix_triton.py::test_fused_hc_mix_matches_reference[1-dtype1]
+test_hc_mix_triton.py::test_fused_hc_mix_matches_reference[16-dtype0]
+test_hc_mix_triton.py::test_fused_hc_mix_matches_reference[16-dtype1]
+test_hc_mix_triton.py::test_fused_hc_mix_matches_reference[4-dtype0]
+test_hc_mix_triton.py::test_fused_hc_mix_matches_reference[4-dtype1]
+test_hc_mix_triton.py::test_fused_hc_mix_matches_reference[7-dtype0]
+test_hc_mix_triton.py::test_fused_hc_mix_matches_reference[7-dtype1]
+test_hc_mix_triton.py::test_fused_hc_mix_no_less_accurate_than_eager
+test_hc_mix_triton.py::test_stable_fused_hc_mix_is_exact_across_batch_sizes
+test_qsa.py::test_is_sm120_matches_exact_capability[capability0-True]
+test_qsa.py::test_is_sm120_matches_exact_capability[capability1-False]
+test_qsa.py::test_is_sm120_matches_exact_capability[capability2-False]
+test_qsa.py::test_is_sm121_matches_exact_capability[capability0-True]
+test_qsa.py::test_is_sm121_matches_exact_capability[capability1-False]
+test_qsa.py::test_is_sm121_matches_exact_capability[capability2-False]
+test_qsa.py::test_qsa_block_expansion_adds_only_incomplete_tail
+test_qsa.py::test_qsa_cached_prefix_extend_applies_non_unit_fp8_descales
+test_qsa.py::test_qsa_chunk_prefill_accepts_fp8_cached_prefix
+test_qsa.py::test_qsa_cuda_extend_ignores_dp_attention_padding
+test_qsa.py::test_qsa_cuda_graph_pads_dynamic_draft_extend_rows
+test_qsa.py::test_qsa_cuda_graph_target_verify_ignores_capture_bucket_requests
+test_qsa.py::test_qsa_decode_mqa_reads_paged_cache
+test_qsa.py::test_qsa_decode_requires_one_query_row_per_request
+test_qsa.py::test_qsa_decode_score_width_matches_graph_without_padding_page_table
+test_qsa.py::test_qsa_draft_extend_backend_decision_follows_profile
+test_qsa.py::test_qsa_draft_metadata_multi_step_graph[0-128]
+test_qsa.py::test_qsa_draft_metadata_multi_step_graph[0-1]
+test_qsa.py::test_qsa_draft_metadata_multi_step_graph[0-3]
+test_qsa.py::test_qsa_draft_metadata_multi_step_graph[1-128]
+test_qsa.py::test_qsa_draft_metadata_multi_step_graph[1-1]
+test_qsa.py::test_qsa_draft_metadata_multi_step_graph[1-3]
+test_qsa.py::test_qsa_extend_rope_matrix_uses_mrope_coordinates
+test_qsa.py::test_qsa_forward_cuda_dispatches_prefill_and_decode_mqa
+test_qsa.py::test_qsa_glue_builds_compressed_indexer
+test_qsa.py::test_qsa_glue_fetches_indexer_metadata_without_model_unwrap
+test_qsa.py::test_qsa_graph_layout_covers_speculative_rows_and_padded_tail[0]
+test_qsa.py::test_qsa_graph_layout_covers_speculative_rows_and_padded_tail[1]
+test_qsa.py::test_qsa_graph_layout_covers_speculative_rows_and_padded_tail[3]
+test_qsa.py::test_qsa_graph_metadata_kernels_match_legacy_host_path[129]
+test_qsa.py::test_qsa_graph_metadata_kernels_match_legacy_host_path[2048]
+test_qsa.py::test_qsa_graph_metadata_kernels_match_legacy_host_path[32]
+test_qsa.py::test_qsa_graph_metadata_kernels_match_legacy_host_path[8193]
+test_qsa.py::test_qsa_idle_metadata_builds_empty_rows
+test_qsa.py::test_qsa_indexer_ignores_dp_attention_token_padding
+test_qsa.py::test_qsa_indexer_rejects_shorter_source_than_request_mapping
+test_qsa.py::test_qsa_mtp_cuda_graph_padding_stays_below_compression_boundary
+test_qsa.py::test_qsa_mtp_step_out_cache_loc_matches_draft_forward_layout
+test_qsa.py::test_qsa_paged_extend_trims_padding_rows_and_restores_output
+test_qsa.py::test_qsa_prefill_selection_microchunks_rows
+test_qsa.py::test_qsa_profile_parses_compressed_qwen4_exp_schema
+test_qsa.py::test_qsa_profile_rejects_malformed_compressed_schema
+test_qsa.py::test_qsa_row_ranges_do_not_cross_sequences
+test_qsa.py::test_qsa_sm121_resolves_kda_varlen_kernel
+test_qsa.py::test_qsa_speculative_pseudo_extend_is_rejected
+test_qsa.py::test_qsa_target_verify_rejects_branching_speculation
+test_qsa.py::test_qsa_triton_block_expansion_matches_torch_reference
+test_qsa.py::test_qsa_trtllm_sparse_decode_arch_gate[other-sm12x]
+test_qsa.py::test_qsa_trtllm_sparse_decode_arch_gate[sm100]
+test_qsa.py::test_qsa_trtllm_sparse_decode_arch_gate[sm120]
+test_qsa.py::test_qsa_weight_free_mqa_logits_matches_explicit_formula
+test_qsa_indexer.py::test_decode_selection_equivalent
+test_qsa_indexer.py::test_expand_block_indices_int_inputs[dtype0]
+test_qsa_indexer.py::test_expand_block_indices_int_inputs[dtype1]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-None-False-1]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-None-False-2000]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-None-False-5]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-mrope_section0-True-1]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-mrope_section0-True-2000]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-mrope_section0-True-5]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-mrope_section1-False-1]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-mrope_section1-False-2000]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype0-mrope_section1-False-5]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-None-False-1]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-None-False-2000]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-None-False-5]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-mrope_section0-True-1]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-mrope_section0-True-2000]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-mrope_section0-True-5]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-mrope_section1-False-1]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-mrope_section1-False-2000]
+test_qsa_indexer.py::test_fused_compress_matches_eager[compressed_dtype1-mrope_section1-False-5]
+test_qsa_indexer.py::test_fused_q_prep_fp8_matches_eager_cast
+test_qsa_indexer.py::test_prefill_max_row_keys_reads_host_lengths_only
+test_qsa_indexer.py::test_relative_prefill_scores_equal_absolute[lengths0-37-dtype0]
+test_qsa_indexer.py::test_relative_prefill_scores_equal_absolute[lengths0-37-dtype1]
+test_qsa_indexer.py::test_relative_prefill_scores_equal_absolute[lengths1-64-dtype0]
+test_qsa_indexer.py::test_relative_prefill_scores_equal_absolute[lengths1-64-dtype1]
+test_qsa_indexer.py::test_relative_prefill_scores_equal_absolute[lengths2-8-dtype0]
+test_qsa_indexer.py::test_relative_prefill_scores_equal_absolute[lengths2-8-dtype1]
+test_qsa_indexer.py::test_select_prefill_tokens_relative_matches_absolute[lengths0-37]
+test_qsa_indexer.py::test_select_prefill_tokens_relative_matches_absolute[lengths1-32]
+test_qsa_indexer.py::test_tilelang_mqa_decode_grid_covers_every_group[100]
+test_qsa_indexer.py::test_tilelang_mqa_decode_grid_covers_every_group[6]
+test_qsa_indexer.py::test_tilelang_mqa_decode_grid_covers_every_group[700]
+test_qsa_indexer.py::test_tilelang_mqa_decode_skips_rows_that_fit_topk
+test_qsa_indexer.py::test_tilelang_mqa_matches_torch_reference[dtype0]
+test_qsa_indexer.py::test_tilelang_mqa_matches_torch_reference[dtype1]
+test_qsa_indexer.py::test_tilelang_mqa_rejects_mixed_operand_dtypes
+test_qsa_strided_zero_fill.py::test_compact_gather_unchanged
+test_qsa_strided_zero_fill.py::test_strided_gather_addresses_pool_beyond_int32_elements
+test_qsa_strided_zero_fill.py::test_strided_gather_zero_fills_tail[dtype0]
+test_qsa_strided_zero_fill.py::test_strided_gather_zero_fills_tail[dtype1]
+test_qsa_strided_zero_fill.py::test_strided_gather_zero_fills_tail[dtype2-packed_dtype2]
+skip test_qsa.py::test_qsa_sm121_compaction_and_attention_match_sparse_reference SM121-only kernel

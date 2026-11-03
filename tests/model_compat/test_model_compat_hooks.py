@@ -33,8 +33,6 @@ REPLACE_COPIES = {
     ".process_weights_after_loading": (
         quantization.ForkGPTQMarlinMoEKernel.process_weights_after_loading
     ),
-    "sglang.srt.layers.quantization.gptq.schemes.gptq_moe.GPTQMarlinMoEScheme"
-    ".create_weights": quantization.ForkGPTQMarlinMoEScheme.create_weights,
     "sglang.srt.layers.quantization.auto_round.AutoRoundConfig.apply_gptq_quant_layer": (
         quantization.ForkAutoRoundConfig.apply_gptq_quant_layer
     ),
@@ -55,10 +53,11 @@ REPLACE_COPIES = {
 
 def test_w5_rows_activate_on_the_pin(compat):
     assert {spec.row for spec in compat.specs} == {
-        "J03", "Z01", "Z02", "Z03", "Z04", "H06", "H08", "E03", "E06", "E07", "E08"
+        "J03", "Z01", "Z03", "Z04", "H06", "H08", "E03", "E06", "E07", "E08"
     }
     # The pinned op itself is untouched; only module bindings are patched.
-    assert torch.ops.sglang.fused_marlin_moe is compat.originals[FUSED_MARLIN_MOE]
+    original = compat.originals[FUSED_MARLIN_MOE]
+    assert inspect.getclosurevars(original).nonlocals["op"] is torch.ops.sglang.fused_marlin_moe
 
 
 def test_every_replace_is_scoped_between_the_pinned_original_and_its_copy(compat):
@@ -207,6 +206,7 @@ def _gated_residual():
     layer.input_mix_weight_down = SimpleNamespace(weight=torch.randn(3, 8, generator=gen))
     layer.input_mix_weight_up = SimpleNamespace(weight=torch.randn(8, 3, generator=gen))
     layer._jit_mix_ok = False
+    layer._mix_flydsl_ok = False
     layer._mix_compute = _mix_reference
     # v0.5.22's constructor state (#42175): no decode gate stream (SM100 only).
     layer._gate_stream = None

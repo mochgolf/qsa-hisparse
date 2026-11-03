@@ -5,8 +5,8 @@
 set -euo pipefail
 
 repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-pin_root=${QSA_PIN_ROOT:-$repo/../.worktrees/sglang-v0.5.22}
-python=${QSA_PYTHON:-$repo/../results/phase6-20261018/runtime-env/bin/python}
+pin_root=${QSA_PIN_ROOT:-$repo/../sources/sglang-main-582168dd7c}
+python=${QSA_PYTHON:-$repo/../results/qsa-maintenance-20261102/runtime-env/bin/python}
 
 cd "$repo"
 export PYTHONPATH="$repo/src:$pin_root/python${PYTHONPATH:+:$PYTHONPATH}"

@@ -5,7 +5,7 @@ J01/J02 (the plugin-owned op wrapper and JIT headers) live in
 J04 (stable token alignment) in ``sglang_qsa_hisparse.kernels.stable_align``.
 
 ``fused_marlin_moe`` below is the reference's function body (production
-897286b12a, the fork's change on the pin), verbatim. The reference
+897286b12a), with main's additive no_combine runner API. The reference
 decorates it with ``@register_custom_op(out_shape="hidden_states")``; here the
 same decorator is applied as a call with a distinct ``op_name`` (inventory 6,
 G4: reusing the upstream name would route to the upstream op), and the module
@@ -22,7 +22,6 @@ from sglang.srt.layers import zero_copy_context
 from sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe import (
     get_scalar_type,
     situ_and_mul,
-    swiglu_gpt_oss_sigmoid_alpha_contiguous,
     swiglu_limit_func,
 )
 from sglang.srt.runtime_context import get_context, get_exec
@@ -43,6 +42,19 @@ if _is_cuda:
 
 _PINNED = "sglang.srt.layers.moe.fused_moe_triton.fused_marlin_moe"
 OP_NAME = "qsa_hisparse_fused_marlin_moe"
+
+
+def swiglu_gpt_oss_sigmoid_alpha_contiguous(
+    output: torch.Tensor,
+    input: torch.Tensor,
+    gemm1_alpha: float,
+    gemm1_limit: float,
+) -> None:
+    """Reference activation retained with the reference Marlin GEMMs."""
+    d = input.shape[1] // 2
+    gate = input[:, :d].clamp(max=gemm1_limit)
+    up = input[:, d:].clamp(min=-gemm1_limit, max=gemm1_limit)
+    output.copy_(gate * torch.sigmoid(gate * gemm1_alpha) * (up + 1))
 
 
 def fused_marlin_moe(
@@ -75,6 +87,7 @@ def fused_marlin_moe(
     gemm1_alpha: Optional[float] = None,
     activation: str = "silu",
     is_gated: bool = True,
+    no_combine: bool = False,
 ) -> torch.Tensor:
     """
     This function computes a Mixture of Experts (MoE) layer using two sets of
@@ -327,6 +340,9 @@ def fused_marlin_moe(
         use_deterministic_reduce=deterministic,
     ).view(-1, topk, K)
 
+    if no_combine:
+        return intermediate_cache3
+
     output = zero_copy_context.get_moe_output(hidden_states)
     if output is None:
         output = hidden_states if inplace else torch.empty_like(hidden_states)
@@ -374,7 +390,6 @@ patch(
         f"{_PINNED}.get_scalar_type",
         f"{_PINNED}.situ_and_mul",
         f"{_PINNED}.swiglu_limit_func",
-        f"{_PINNED}.swiglu_gpt_oss_sigmoid_alpha_contiguous",
         "sglang.srt.layers.moe.moe_runner.triton_utils.moe_align_block_size.moe_align_block_size",
         "sglang.kernels.ops.activation.activation.silu_and_mul",
         "sglang.kernels.ops.moe.moe_align_single_token.moe_align_single_token",
@@ -405,6 +420,7 @@ patch(
         f"op_name={OP_NAME!r} (G4); imports rewritten to plugin modules: "
         "moe_align_block_size_stable from sglang_qsa_hisparse.kernels.stable_align "
         "and moe_wna16_marlin_gemm from sglang_qsa_hisparse.kernels.marlin_moe "
-        "(J01, its own JIT module). The body is verbatim."
+        "(J01, its own JIT module). Main's no_combine option returns the existing "
+        "per-expert tensor before the reference reduction (RESOLVED J03)."
     ),
 )(scoped(importlib.import_module(_PINNED).fused_marlin_moe, fused_marlin_moe_op))

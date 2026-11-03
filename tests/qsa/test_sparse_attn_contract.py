@@ -66,5 +66,28 @@ class TestPackedDecodeKernelContract(unittest.TestCase):
         self.assertIs(kernel.kwargs["KV_IS_FP8"], True)
 
 
+    def test_prefill_host_max_q_avoids_sync_and_preserves_fp8_descales(self):
+        kernel = _KernelCall()
+        q = torch.empty((2, 4, 16), dtype=torch.bfloat16)
+        k = torch.empty((3, 2, 16), dtype=torch.float8_e4m3fn)
+        indices = torch.zeros((2, 3), dtype=torch.int32)
+        cu_q = torch.tensor([0, 2], dtype=torch.int32)
+        cu_k = torch.tensor([0, 3], dtype=torch.int32)
+        kv_lens = torch.tensor([3], dtype=torch.int32)
+        with (
+            patch.object(sparse_attn, "_get_best_config", return_value=(16, 1, 2)),
+            patch.object(sparse_attn, "_sparse_gqa_chunk_prefill", kernel),
+            patch.object(torch.Tensor, "item", side_effect=AssertionError("host sync")),
+        ):
+            output = sparse_attn.sparse_gqa_fwd_interface_triton_ck(
+                q, k, k, indices, cu_q, cu_k, kv_lens, 0.125,
+                max_q=2, k_scale=2.0, v_scale=3.0,
+            )
+        self.assertEqual(output.shape, q.shape)
+        self.assertEqual(kernel.grid, (2, 2))
+        self.assertEqual(kernel.args[8:12], (0.125, 2.0, 3.0, 3))
+        self.assertIs(kernel.kwargs["KV_IS_FP8"], True)
+
+
 if __name__ == "__main__":
     unittest.main()

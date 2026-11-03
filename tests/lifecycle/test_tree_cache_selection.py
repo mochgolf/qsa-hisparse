@@ -25,12 +25,15 @@ from unittest.mock import patch
 import pytest
 import torch
 
+from lifecycle.pool_fixtures import allocate_rows, tree_slots
+
 from sglang.srt.managers.scheduler import Scheduler
 from sglang.srt.mem_cache import qsa_kv_pool as qsa_kv_pool_module
 from sglang.srt.mem_cache import registry
 from sglang.srt.mem_cache.allocator.mamba import MambaSlotAllocator
 from sglang.srt.mem_cache.allocator.paged import PagedTokenToKVPoolAllocator
 from sglang.srt.mem_cache.cache_init_params import CacheInitParams
+from sglang.srt.mem_cache.kv.state_storage import StateStorage
 from sglang.srt.mem_cache.memory_pool import HybridReqToTokenPool, ReqToTokenPool
 from sglang.srt.mem_cache.registry import (
     create_tree_cache,
@@ -198,8 +201,10 @@ def test_create_tree_cache_builds_the_mamba_owning_host_prefix_cache(
     allocator = PagedTokenToKVPoolAllocator(256, 64, torch.uint8, "cpu", kvcache, False)
     pool = HybridReqToTokenPool.__new__(HybridReqToTokenPool)
     ReqToTokenPool.__init__(pool, 1, 256, "cpu", False)
+    pool.state = StateStorage.empty("mamba")
     pool.enable_mamba_extra_buffer = False
     pool.mamba_allocator = MambaSlotAllocator(1, "cpu")
+    allocator.state = pool.state
     ctx = _context(kvcache)
     ctx.server_args = None
     ctx.params = CacheInitParams(

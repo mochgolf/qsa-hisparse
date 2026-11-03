@@ -1,0 +1,47 @@
+{
+  "sglang.kernels.jit.utils.arch.is_arch_support_pdl": {
+    "def_line": 171,
+    "file": "sglang/kernels/jit/utils/arch.py",
+    "first_line": 170,
+    "kind": "function",
+    "module_sha256": "1b34e7db07392a8b8deed12cefa018083f9b3cd570401454d03ccf08e169e354",
+    "qualname": "is_arch_support_pdl",
+    "sha256": "9a4c89c08a7fa8d9b067522794056cfb73b7a6acd8c4eadcc4a21a3298c53255"
+  },
+  "sglang.kernels.ops.elementwise.elementwise._fused_gate_sigmoid_mul_add_kernel": {
+    "def_line": 159,
+    "file": "sglang/kernels/ops/elementwise/elementwise.py",
+    "first_line": 158,
+    "kind": "function",
+    "module_sha256": "897bc52c42e7a6136a54eea23ea796ae9a45823c5b11fcdf722dbb9b1962995e",
+    "qualname": "_fused_gate_sigmoid_mul_add_kernel",
+    "sha256": "e9fc72d9a39a4f0586a0dce8bfa43dcab18b0b74f3ff8f458505bd4715878f2c"
+  },
+  "sglang.kernels.ops.elementwise.elementwise._launch_fused_gate_sigmoid_mul": {
+    "def_line": 210,
+    "file": "sglang/kernels/ops/elementwise/elementwise.py",
+    "first_line": 210,
+    "kind": "function",
+    "module_sha256": "897bc52c42e7a6136a54eea23ea796ae9a45823c5b11fcdf722dbb9b1962995e",
+    "qualname": "_launch_fused_gate_sigmoid_mul",
+    "sha256": "e12686b45b333b1a3ce555718e15cb8c823024df2e42133fd09ee7b3b9482db5"
+  },
+  "sglang.srt.batch_invariant_ops.batch_invariant_ops.is_batch_invariant_mode_enabled": {
+    "def_line": 1166,
+    "file": "sglang/srt/batch_invariant_ops/batch_invariant_ops.py",
+    "first_line": 1166,
+    "kind": "function",
+    "module_sha256": "7e9a9c7de51525112d0f7036a7553d3be15324ddb153d66bc6ba555c8a6da9dc",
+    "qualname": "is_batch_invariant_mode_enabled",
+    "sha256": "dc162fdb6ad5ba2d23d63d9bc8a9dd976a3b29743ebea8d382f1cde0a3393ec2"
+  },
+  "sglang.srt.utils.common.is_cuda": {
+    "def_line": 158,
+    "file": "sglang/srt/utils/common.py",
+    "first_line": 157,
+    "kind": "function",
+    "module_sha256": "34dc280f0679c8355bbc6f0621c0ca0476c469c4bf98c9c8544c00bf54f10e54",
+    "qualname": "is_cuda",
+    "sha256": "39c19bb4cf39bb1c410b0de0e6334a2fb272c4ccce798ef240cdb0b219ffae25"
+  }
+}

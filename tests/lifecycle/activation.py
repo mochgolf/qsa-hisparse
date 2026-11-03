@@ -19,7 +19,7 @@ from sglang_qsa_hisparse.features import Features
 # P6: S01, P01, P02 have no hook of their own (M05 builds the host prefix
 # cache; S06's QSAPrefillAdder carries P01 and P02); M04 and M06 are dropped.
 W2_ROWS = frozenset(
-    "S02 S03 S04 S05 S06 S07 S08 S09 B02 B03 B04 B05 B06 M01 M02 M03 M05".split()
+    "S02 S03 S04 S05 S06 S07 S08 S09 S10 B02 B03 B04 B05 B06 M01 M02 M03 M05".split()
 )
 W2_MODULES = (
     "hisparse.scheduler",

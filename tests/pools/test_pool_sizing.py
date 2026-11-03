@@ -148,7 +148,7 @@ def test_bias_and_page_shard_scratch_are_each_charged_once(case):
     env, server_args, parallel = _p2_offload(requests)
     with (
         env, server_args, parallel, activated("C01", "C02"),
-        mock.patch.object(pool_configurator, "compute_page_shard_scratch_bytes", lambda kvc: scratch),
+        mock.patch.object(pool_configurator, "compute_page_shard_scratch_bytes", lambda kvc, **kwargs: scratch),
     ):
         cfg = DefaultPoolConfigurator(kvc)
         assert (cfg._bias, cfg._fixed_overhead_bytes) == (fixed_bytes(requests), scratch)
@@ -211,7 +211,7 @@ def _build_kv_pool(requests, max_total_num_tokens):
         get_num_kv_heads=lambda tp_size, dcp_size=1: 2 // tp_size,
     )
     req_to_token_pool = SimpleNamespace(
-        req_to_token=torch.zeros(requests + 1, 1), mamba_pool="mamba-pool"
+        req_to_token=torch.zeros(requests + 1, 1), mamba_pool="stale-request-pool-state"
     )
     sizes = SimpleNamespace(
         max_total_num_tokens=max_total_num_tokens, max_running_requests=requests
@@ -230,6 +230,7 @@ def _build_kv_pool(requests, max_total_num_tokens):
             is_dsa_model=False,
             is_dsv4_model=False,
             req_to_token_pool=req_to_token_pool,
+            state=SimpleNamespace(pool="mamba-pool"),
         )
 
 
